@@ -1,0 +1,16 @@
+variables:
+  GOPATH: $CI_PROJECT_DIR/.go
+  GOPROXY: https://goproxy.io,direct
+
+default:
+  image: golang:1.20
+  tags:
+    - docker
+  cache:
+    paths:
+      - .go/pkg/mod/
+
+test:
+  stage: test
+  script:
+    - go test ./battlefield

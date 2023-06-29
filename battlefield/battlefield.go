@@ -12,28 +12,28 @@ const (
 )
 
 type Preparer interface {
-	Prepare()
+	Prepare(Randomizer)
 }
 
 type Attacker interface {
-	Attack() (damage int, critical bool)
+	Attack() (attack int, critical bool)
 	Velocity() int
 }
 
 type Sufferer interface {
-	Suffer(attack int) (damage, overflow int)
+	Suffer(attack int, critical bool) (damage, overflow int)
 	Health() int
 }
 
-type Warrior interface {
+type Fighter interface {
 	Preparer
 	Attacker
 	Sufferer
 }
 
-type Attack struct {
-	Attacker Warrior
-	Sufferer Warrior
+type Action struct {
+	Attacker Fighter
+	Sufferer Fighter
 	Attack   int
 	Critical bool
 	Damage   int
@@ -41,14 +41,14 @@ type Attack struct {
 }
 
 type fighter struct {
-	Warrior
+	Fighter
 	seat int
 	side
 }
 
 type byVelocity []fighter
 
-func newByVelocity(warriors []Warrior, side side) byVelocity {
+func newByVelocity(warriors []Fighter, side side) byVelocity {
 	fighters := make([]fighter, len(warriors))
 	for i, warrior := range warriors {
 		fighters[i] = fighter{warrior, i, side}
@@ -75,21 +75,21 @@ func (fighters byVelocity) Swap(i, j int) {
 }
 
 type Observer interface {
-	Observe(attack Attack)
+	Observe(attack Action)
 }
 
-func Fight(a, b []Warrior, observer Observer) {
+func Fight(a, b []Fighter, observer Observer, randomizer Randomizer) {
 	fighters := append(newByVelocity(a, Left), newByVelocity(b, Right)...)
 	sort.Sort(fighters)
 
 	alive := []int{
-		countIf(a, isAlive[Warrior]),
-		countIf(b, isAlive[Warrior]),
+		countIf(a, isAlive[Fighter]),
+		countIf(b, isAlive[Fighter]),
 	}
 	for alive[Left] > 0 && alive[Right] > 0 {
 		for _, fighter := range fighters {
 			if fighter.Health() > 0 {
-				fighter.Prepare()
+				fighter.Prepare(randomizer)
 			}
 		}
 
@@ -108,14 +108,14 @@ func Fight(a, b []Warrior, observer Observer) {
 				}
 
 				attack, critical := attacker.Attack()
-				damage, overflow := sufferer.Suffer(attack)
+				damage, overflow := sufferer.Suffer(attack, critical)
 				if sufferer.Health() <= 0 {
 					alive[sufferer.side]--
 				}
 
-				observer.Observe(Attack{
-					attacker.Warrior,
-					sufferer.Warrior,
+				observer.Observe(Action{
+					attacker.Fighter,
+					sufferer.Fighter,
 					attack,
 					critical,
 					damage,

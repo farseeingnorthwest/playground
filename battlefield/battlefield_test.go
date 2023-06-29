@@ -3,11 +3,12 @@ package battlefield
 import (
 	"fmt"
 	"github.com/stretchr/testify/assert"
+	"math/rand"
 	"testing"
 )
 
 func TestFight(t *testing.T) {
-	warriors := []Warrior{
+	warriors := []Fighter{
 		newWarrior("A", 15, 5, 55, 5, false),
 		newWarrior("B", 10, 8, 30, 9, false),
 		newWarrior("C", 12, 9, 45, 9, true),
@@ -15,7 +16,7 @@ func TestFight(t *testing.T) {
 		newWarrior("E", 10, 5, 20, 10, false),
 	}
 	observer := &journalObserver{}
-	Fight(warriors[:3], warriors[3:], observer)
+	Fight(warriors[:3], warriors[3:], observer, DefaultRandomizer{})
 
 	expected := []string{
 		"E => B 🗡️(20/12/0) 18",
@@ -35,7 +36,7 @@ func TestFight(t *testing.T) {
 }
 
 func TestFight_DeathSetup(t *testing.T) {
-	warriors := []Warrior{
+	warriors := []Fighter{
 		newWarrior("A", 15, 5, 55, 5, false),
 		newWarrior("B", 10, 8, 0, 9, false),
 		newWarrior("C", 12, 9, 36, 9, true),
@@ -43,14 +44,14 @@ func TestFight_DeathSetup(t *testing.T) {
 		newWarrior("E", 10, 5, 0, 10, false),
 	}
 	observer := &journalObserver{}
-	Fight(warriors[:3], warriors[3:], observer)
+	Fight(warriors[:3], warriors[3:], observer, rand.New(rand.NewSource(0)))
 
 	assert.Empty(t, observer.attacks)
 }
 
 func BenchmarkFight(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		warriors := []Warrior{
+		warriors := []Fighter{
 			newWarrior("A", 15, 5, 55, 5, false),
 			newWarrior("B", 10, 8, 30, 9, false),
 			newWarrior("C", 12, 9, 45, 9, true),
@@ -59,7 +60,7 @@ func BenchmarkFight(b *testing.B) {
 		}
 		observer := &dummyObserver{}
 
-		Fight(warriors[:3], warriors[3:], observer)
+		Fight(warriors[:3], warriors[3:], observer, DefaultRandomizer{})
 	}
 }
 
@@ -79,7 +80,7 @@ func FuzzFight(f *testing.F) {
 		dAttack, dDefense, dHealth, dVelocity int, dCritical bool,
 		eAttack, eDefense, eHealth, eVelocity int, eCritical bool,
 	) {
-		warriors := []Warrior{
+		warriors := []Fighter{
 			newFuzzWarrior("A", aAttack, aDefense, aHealth, aVelocity, aCritical),
 			newFuzzWarrior("B", bAttack, bDefense, bHealth, bVelocity, bCritical),
 			newFuzzWarrior("C", cAttack, cDefense, cHealth, cVelocity, cCritical),
@@ -88,7 +89,7 @@ func FuzzFight(f *testing.F) {
 		}
 		observer := &observer{}
 
-		Fight(warriors[:3], warriors[3:], observer)
+		Fight(warriors[:3], warriors[3:], observer, DefaultRandomizer{})
 		var deaths []string
 		for _, h := range observer.attacks {
 			assert.NotContains(t, deaths, h.Attacker.(*warrior).name)
@@ -136,7 +137,7 @@ func abs(i int) int {
 	return i
 }
 
-func (w *warrior) Prepare() {
+func (w *warrior) Prepare(Randomizer) {
 	w.critical = !w.critical
 }
 
@@ -152,7 +153,7 @@ func (w *warrior) Velocity() int {
 	return w.velocity
 }
 
-func (w *warrior) Suffer(attack int) (damage, overflow int) {
+func (w *warrior) Suffer(attack int, _ bool) (damage, overflow int) {
 	damage = attack - w.defense
 	if damage < 0 {
 		damage = 0
@@ -173,7 +174,7 @@ type journalObserver struct {
 	attacks []string
 }
 
-func (o *journalObserver) Observe(attack Attack) {
+func (o *journalObserver) Observe(attack Action) {
 	o.attacks = append(o.attacks, fmt.Sprintf(
 		"%v => %v 🗡️(%v/%v/%v) %v",
 		attack.Attacker.(*warrior).name,
@@ -181,18 +182,18 @@ func (o *journalObserver) Observe(attack Attack) {
 		attack.Attack,
 		attack.Damage,
 		attack.Overflow,
-		attack.Sufferer.(Warrior).Health(),
+		attack.Sufferer.(Fighter).Health(),
 	))
 }
 
 type dummyObserver struct {
 }
 
-func (d *dummyObserver) Observe(Attack) {
+func (d *dummyObserver) Observe(Action) {
 }
 
 type withHealth struct {
-	Attack
+	Action
 	health int
 }
 
@@ -200,6 +201,6 @@ type observer struct {
 	attacks []withHealth
 }
 
-func (o *observer) Observe(attack Attack) {
+func (o *observer) Observe(attack Action) {
 	o.attacks = append(o.attacks, withHealth{attack, attack.Sufferer.Health()})
 }
