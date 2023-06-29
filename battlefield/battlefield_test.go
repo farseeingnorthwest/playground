@@ -14,7 +14,7 @@ func TestFight(t *testing.T) {
 		newWarrior("D", 18, 12, 50, 9, true),
 		newWarrior("E", 10, 5, 20, 10, false),
 	}
-	observer := &observer{}
+	observer := &journalObserver{}
 	Fight(warriors[:3], warriors[3:], observer)
 
 	expected := []string{
@@ -34,6 +34,76 @@ func TestFight(t *testing.T) {
 	assert.Equal(t, expected, observer.attacks)
 }
 
+func TestFight_DeathSetup(t *testing.T) {
+	warriors := []Warrior{
+		newWarrior("A", 15, 5, 55, 5, false),
+		newWarrior("B", 10, 8, 0, 9, false),
+		newWarrior("C", 12, 9, 36, 9, true),
+		newWarrior("D", 18, 12, 0, 9, true),
+		newWarrior("E", 10, 5, 0, 10, false),
+	}
+	observer := &journalObserver{}
+	Fight(warriors[:3], warriors[3:], observer)
+
+	assert.Empty(t, observer.attacks)
+}
+
+func BenchmarkFight(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		warriors := []Warrior{
+			newWarrior("A", 15, 5, 55, 5, false),
+			newWarrior("B", 10, 8, 30, 9, false),
+			newWarrior("C", 12, 9, 45, 9, true),
+			newWarrior("D", 18, 12, 50, 9, true),
+			newWarrior("E", 10, 5, 20, 10, false),
+		}
+		observer := &dummyObserver{}
+
+		Fight(warriors[:3], warriors[3:], observer)
+	}
+}
+
+func FuzzFight(f *testing.F) {
+	f.Add(
+		15, 5, 55, 5, false,
+		10, 8, 30, 9, false,
+		12, 9, 45, 9, true,
+		18, 12, 50, 9, true,
+		10, 5, 20, 10, false,
+	)
+	f.Fuzz(func(
+		t *testing.T,
+		aAttack, aDefense, aHealth, aVelocity int, aCritical bool,
+		bAttack, bDefense, bHealth, bVelocity int, bCritical bool,
+		cAttack, cDefense, cHealth, cVelocity int, cCritical bool,
+		dAttack, dDefense, dHealth, dVelocity int, dCritical bool,
+		eAttack, eDefense, eHealth, eVelocity int, eCritical bool,
+	) {
+		warriors := []Warrior{
+			newFuzzWarrior("A", aAttack, aDefense, aHealth, aVelocity, aCritical),
+			newFuzzWarrior("B", bAttack, bDefense, bHealth, bVelocity, bCritical),
+			newFuzzWarrior("C", cAttack, cDefense, cHealth, cVelocity, cCritical),
+			newFuzzWarrior("D", dAttack, dDefense, dHealth, dVelocity, dCritical),
+			newFuzzWarrior("E", eAttack, eDefense, eHealth, eVelocity, eCritical),
+		}
+		observer := &observer{}
+
+		Fight(warriors[:3], warriors[3:], observer)
+		var deaths []string
+		for _, h := range observer.attacks {
+			assert.NotContains(t, deaths, h.Attacker.(*warrior).name)
+			assert.NotContains(t, deaths, h.Sufferer.(*warrior).name)
+			assert.GreaterOrEqual(t, h.health, 0)
+			if h.health > 0 {
+				assert.Equal(t, h.Overflow, 0)
+			} else {
+				deaths = append(deaths, h.Sufferer.(*warrior).name)
+				assert.GreaterOrEqual(t, h.Overflow, 0)
+			}
+		}
+	})
+}
+
 type warrior struct {
 	name     string
 	attack   int
@@ -45,6 +115,25 @@ type warrior struct {
 
 func newWarrior(name string, attack, defense, health, velocity int, critical bool) *warrior {
 	return &warrior{name, attack, defense, health, velocity, critical}
+}
+
+func newFuzzWarrior(name string, attack, defense, health, velocity int, critical bool) *warrior {
+	attack, defense, health, velocity = abs(attack), abs(defense), abs(health), abs(velocity)
+	if attack < 3 {
+		attack = 3
+	}
+	if attack <= defense {
+		defense = attack - 1
+	}
+
+	return &warrior{name, attack, defense, health, velocity, critical}
+}
+
+func abs(i int) int {
+	if i < 0 {
+		return -i
+	}
+	return i
 }
 
 func (w *warrior) Prepare() {
@@ -80,12 +169,13 @@ func (w *warrior) Health() int {
 	return w.health
 }
 
-type observer struct {
+type journalObserver struct {
 	attacks []string
 }
 
-func (o *observer) Observe(attack Attack) {
-	o.attacks = append(o.attacks, fmt.Sprintf("%v => %v 🗡️(%v/%v/%v) %v",
+func (o *journalObserver) Observe(attack Attack) {
+	o.attacks = append(o.attacks, fmt.Sprintf(
+		"%v => %v 🗡️(%v/%v/%v) %v",
 		attack.Attacker.(*warrior).name,
 		attack.Sufferer.(*warrior).name,
 		attack.Attack,
@@ -93,4 +183,23 @@ func (o *observer) Observe(attack Attack) {
 		attack.Overflow,
 		attack.Sufferer.(Warrior).Health(),
 	))
+}
+
+type dummyObserver struct {
+}
+
+func (d *dummyObserver) Observe(Attack) {
+}
+
+type withHealth struct {
+	Attack
+	health int
+}
+
+type observer struct {
+	attacks []withHealth
+}
+
+func (o *observer) Observe(attack Attack) {
+	o.attacks = append(o.attacks, withHealth{attack, attack.Sufferer.Health()})
 }

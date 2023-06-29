@@ -82,10 +82,15 @@ func Fight(a, b []Warrior, observer Observer) {
 	fighters := append(newByVelocity(a, Left), newByVelocity(b, Right)...)
 	sort.Sort(fighters)
 
-	alive := []int{len(a), len(b)}
+	alive := []int{
+		countIf(a, isAlive[Warrior]),
+		countIf(b, isAlive[Warrior]),
+	}
 	for alive[Left] > 0 && alive[Right] > 0 {
 		for _, fighter := range fighters {
-			fighter.Prepare()
+			if fighter.Health() > 0 {
+				fighter.Prepare()
+			}
 		}
 
 		for _, attacker := range fighters {
@@ -122,4 +127,18 @@ func Fight(a, b []Warrior, observer Observer) {
 	}
 
 	return
+}
+
+func countIf[T any](slice []T, predicate func(T) bool) (count int) {
+	for _, element := range slice {
+		if predicate(element) {
+			count++
+		}
+	}
+
+	return
+}
+
+func isAlive[T Sufferer](sufferer T) bool {
+	return sufferer.Health() > 0
 }
