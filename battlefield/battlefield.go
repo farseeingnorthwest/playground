@@ -1,8 +1,6 @@
 package battlefield
 
-import (
-	"sort"
-)
+import "sort"
 
 type side int
 
@@ -17,7 +15,7 @@ type Preparer interface {
 
 type Attacker interface {
 	Attack() (attack int, critical bool)
-	Velocity() int
+	Speed() int
 }
 
 type Sufferer interface {
@@ -40,105 +38,114 @@ type Action struct {
 	Overflow int
 }
 
-type fighter struct {
+type fighterInPosition struct {
 	Fighter
 	seat int
 	side
 }
 
-type byVelocity []fighter
+type fighterList []fighterInPosition
 
-func newByVelocity(warriors []Fighter, side side) byVelocity {
-	fighters := make([]fighter, len(warriors))
-	for i, warrior := range warriors {
-		fighters[i] = fighter{warrior, i, side}
+func newFighterList(fighters []Fighter, side side) fighterList {
+	fips := make([]fighterInPosition, len(fighters))
+	for i, f := range fighters {
+		fips[i] = fighterInPosition{f, i, side}
 	}
 
-	return fighters
+	return fips
 }
 
-func (fighters byVelocity) Len() int {
-	return len(fighters)
+func (f fighterList) Drain() fighterList {
+	i, n := 0, len(f)
+	for i < n {
+		if f[i].Health() > 0 {
+			i++
+			continue
+		}
+
+		n--
+		f[i] = f[n]
+	}
+
+	return f[:n]
 }
 
-func (fighters byVelocity) Less(i, j int) bool {
-	return fighters[i].Velocity() > fighters[j].Velocity() ||
-		(fighters[i].Velocity() == fighters[j].Velocity() &&
-			fighters[i].side < fighters[j].side) ||
-		(fighters[i].Velocity() == fighters[j].Velocity() &&
-			fighters[i].side == fighters[j].side &&
-			fighters[i].seat < fighters[j].seat)
+type bySpeed []fighterInPosition
+
+func (f bySpeed) Len() int {
+	return len(f)
 }
 
-func (fighters byVelocity) Swap(i, j int) {
-	fighters[i], fighters[j] = fighters[j], fighters[i]
+func (f bySpeed) Less(i, j int) bool {
+	return f[i].Speed() > f[j].Speed() ||
+		(f[i].Speed() == f[j].Speed() &&
+			f[i].side < f[j].side) ||
+		(f[i].Speed() == f[j].Speed() &&
+			f[i].side == f[j].side &&
+			f[i].seat < f[j].seat)
+}
+
+func (f bySpeed) Swap(i, j int) {
+	f[i], f[j] = f[j], f[i]
 }
 
 type Observer interface {
 	Observe(attack Action)
 }
 
-func Fight(a, b []Fighter, observer Observer, randomizer Randomizer) {
-	fighters := append(newByVelocity(a, Left), newByVelocity(b, Right)...)
-	sort.Sort(fighters)
+type Battlefield struct {
+	randomizer Randomizer
+}
 
-	alive := []int{
-		countIf(a, isAlive[Fighter]),
-		countIf(b, isAlive[Fighter]),
+func NewBattlefield(randomizer Randomizer) *Battlefield {
+	return &Battlefield{randomizer}
+}
+
+func (f *Battlefield) Fight(a, b []Fighter, observer Observer) {
+	sides := []fighterList{
+		newFighterList(a, Left).Drain(),
+		newFighterList(b, Right).Drain(),
 	}
-	for alive[Left] > 0 && alive[Right] > 0 {
+	if len(sides[Left]) == 0 || len(sides[Right]) == 0 {
+		return
+	}
+
+	var fighters fighterList
+	for _, side := range sides {
+		fighters = append(fighters, side...)
+	}
+	for {
 		for _, fighter := range fighters {
-			if fighter.Health() > 0 {
-				fighter.Prepare(randomizer)
-			}
+			fighter.Prepare(f.randomizer)
 		}
 
+		sort.Sort(bySpeed(fighters))
 		for _, attacker := range fighters {
 			if attacker.Health() == 0 {
 				continue
 			}
 
-			for _, sufferer := range fighters {
-				if sufferer.Health() == 0 {
-					continue
-				}
+			sufferers := sides[Left+Right-attacker.side]
+			sufferer := sufferers[int(f.randomizer.Float64()*float64(len(sufferers)))]
+			attack, critical := attacker.Attack()
+			damage, overflow := sufferer.Suffer(attack, critical)
+			observer.Observe(Action{
+				attacker.Fighter,
+				sufferer.Fighter,
+				attack,
+				critical,
+				damage,
+				overflow,
+			})
 
-				if attacker.side == sufferer.side {
-					continue
+			if sufferer.Health() <= 0 {
+				sides[sufferer.side] = sides[sufferer.side].Drain()
+				if len(sides[sufferer.side]) == 0 {
+					return
 				}
-
-				attack, critical := attacker.Attack()
-				damage, overflow := sufferer.Suffer(attack, critical)
-				if sufferer.Health() <= 0 {
-					alive[sufferer.side]--
-				}
-
-				observer.Observe(Action{
-					attacker.Fighter,
-					sufferer.Fighter,
-					attack,
-					critical,
-					damage,
-					overflow,
-				})
-				break
 			}
 		}
+
+		fighters = fighters.Drain()
 	}
-
-	return
-}
-
-func countIf[T any](slice []T, predicate func(T) bool) (count int) {
-	for _, element := range slice {
-		if predicate(element) {
-			count++
-		}
-	}
-
-	return
-}
-
-func isAlive[T Sufferer](sufferer T) bool {
-	return sufferer.Health() > 0
 }

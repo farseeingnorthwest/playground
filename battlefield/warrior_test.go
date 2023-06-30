@@ -8,22 +8,22 @@ import (
 
 func TestNewWarrior(t *testing.T) {
 	warrior := NewWarrior(
-		&Baseline{20, .125, 10, 100},
-		&Carrier{1.1, 1, 1.1, 1.5, 9},
-		&Magnitude{.1, 1, .1, .5},
+		&Baseline{20, 10, 10, 100, 10},
+		&Carrier{110, 100, 110, 150, 90},
+		&Magnitude{10, 10, 10, 50, -10},
 	)
 
 	assert.Equal(t, 24, warrior.attack)
-	assert.Equal(t, .25, warrior.critical)
+	assert.Equal(t, 11, warrior.critical)
 	assert.Equal(t, 12, warrior.defense)
 	assert.Equal(t, 200, warrior.health)
-	assert.Equal(t, 9, warrior.velocity)
+	assert.Equal(t, 8, warrior.speed)
 	assert.Equal(t, 0, warrior.buffers[Attack].Len())
 	assert.Equal(t, 0, warrior.buffers[Critical].Len())
 	assert.Equal(t, 0, warrior.buffers[Defense].Len())
 	assert.Equal(t, 0, warrior.buffers[Health].Len())
 	assert.Equal(t, 1, warrior.buffers[HealthCritical].Len())
-	assert.Equal(t, 0, warrior.buffers[Velocity].Len())
+	assert.Equal(t, 0, warrior.buffers[Speed].Len())
 	assert.Equal(t, false, warrior.criticalAttack)
 }
 
@@ -53,19 +53,19 @@ func TestWarrior_Attach(t *testing.T) {
 
 func TestWarrior_Prepare(t *testing.T) {
 	warrior := NewWarrior(&Baseline{}, &Carrier{}, &Magnitude{})
-	warrior.Attach(Critical, &volatileBuffer{r: 2, v: .5})
+	warrior.Attach(Critical, &volatileBuffer{r: 2, v: 50})
 	warrior.Attach(HealthCritical, &volatileBuffer{})
 
-	warrior.Prepare(&fixedRandomizer{.55})
+	warrior.Prepare(NewSequence(.55))
 	assert.Equal(t, 1, warrior.buffers[Critical].Len())
 	assert.Equal(t, 1, warrior.buffers[HealthCritical].Len())
 	assert.Equal(t, false, warrior.criticalAttack)
 
-	warrior.Prepare(&fixedRandomizer{.45})
+	warrior.Prepare(NewSequence(.45))
 	assert.Equal(t, 1, warrior.buffers[Critical].Len())
 	assert.Equal(t, true, warrior.criticalAttack)
 
-	warrior.Prepare(&fixedRandomizer{.05})
+	warrior.Prepare(NewSequence(.05))
 	assert.Equal(t, 0, warrior.buffers[Critical].Len())
 	assert.Equal(t, false, warrior.criticalAttack)
 }
@@ -92,11 +92,11 @@ func TestWarrior_Attack(t *testing.T) {
 	}
 }
 
-func TestWarrior_Velocity(t *testing.T) {
+func TestWarrior_Speed(t *testing.T) {
 	warrior := NewWarrior(&Baseline{}, &Carrier{}, &Magnitude{})
-	warrior.Attach(Velocity, &volatileBuffer{r: 2, v: 10})
+	warrior.Attach(Speed, &volatileBuffer{r: 2, v: 10})
 
-	assert.Equal(t, 10, warrior.Velocity())
+	assert.Equal(t, 10, warrior.Speed())
 }
 
 func TestWarrior_Suffer(t *testing.T) {
@@ -140,12 +140,4 @@ func (b *buffer) Drain() int {
 
 func (b *buffer) Buff(v float64) float64 {
 	return v * b.f
-}
-
-type fixedRandomizer struct {
-	value float64
-}
-
-func (c *fixedRandomizer) Float64() float64 {
-	return c.value
 }

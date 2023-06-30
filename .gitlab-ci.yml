@@ -14,3 +14,8 @@ test:
   stage: test
   script:
     - go test ./battlefield
+
+fuzz:
+  stage: test
+  script:
+    - go test ./battlefield -fuzz=Fuzz -fuzztime=30s
