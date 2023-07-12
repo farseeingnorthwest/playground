@@ -1,4 +1,4 @@
-module fancyuuid
+module github.com/farseeingnorthwest/playground/fancyuuid
 
 go 1.20
 
