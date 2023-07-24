@@ -90,7 +90,7 @@ func (f bySpeed) Swap(i, j int) {
 }
 
 type Observer interface {
-	Observe(attack Action)
+	Observe(Action)
 }
 
 type Battlefield struct {
