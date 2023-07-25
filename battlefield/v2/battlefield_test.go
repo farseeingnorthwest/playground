@@ -3,8 +3,9 @@ package battlefield
 import (
 	"bytes"
 	"fmt"
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestBattlefield_Fight(t *testing.T) {
@@ -12,16 +13,32 @@ func TestBattlefield_Fight(t *testing.T) {
 	Fight(
 		[]Warrior{
 			&mockFighter{
-				NormalAttack: NormalAttack{&RandomSelector{}, 10},
-				speed:        10,
-				health:       20,
+				FatPortfolio: FatPortfolio{
+					[]Reactor{
+						&NormalAttack{&RandomSelector{}, 10},
+						&Critical{
+							rng:    &mockRng{.001},
+							odds:   10,
+							damage: &TemporaryDamage{200, false},
+						},
+						&Theory,
+					},
+				},
+				element: Water,
+				defense: 5,
+				health:  20,
+				speed:   10,
 			},
 		},
 		[]Warrior{
 			&mockFighter{
-				NormalAttack: NormalAttack{&RandomSelector{}, 9},
-				speed:        9,
-				health:       22,
+				FatPortfolio: FatPortfolio{[]Reactor{
+					&NormalAttack{&RandomSelector{}, 15},
+				}},
+				element: Fire,
+				defense: 5,
+				health:  22,
+				speed:   9,
 			},
 		},
 		ob,
@@ -31,9 +48,9 @@ func TestBattlefield_Fight(t *testing.T) {
 		t,
 		[]string{
 			"L#0 -> {[R#0] / 10}",
-			"R#0 -> {[L#0] / 9}",
+			"R#0 -> {[L#0] / 15}",
 			"L#0 -> {[R#0] / 10}",
-			"R#0 -> {[L#0] / 9}",
+			"R#0 -> {[L#0] / 15}",
 			"L#0 -> {[R#0] / 10}",
 		},
 		ob.scripts,
@@ -41,10 +58,28 @@ func TestBattlefield_Fight(t *testing.T) {
 }
 
 type mockFighter struct {
-	NormalAttack
+	FatPortfolio
 
-	speed  int
-	health int
+	element Element
+	defense int
+	health  int
+	speed   int
+}
+
+func (f *mockFighter) Element() Element {
+	return f.element
+}
+
+func (f *mockFighter) Defense() int {
+	return f.defense
+}
+
+func (f *mockFighter) Health() int {
+	return f.health
+}
+
+func (f *mockFighter) SetHealth(health int) {
+	f.health = health
 }
 
 func (f *mockFighter) Speed() int {
@@ -55,19 +90,15 @@ func (f *mockFighter) Functional() bool {
 	return f.health > 0
 }
 
-func (f *mockFighter) Render(attack Attack) {
-	f.health -= attack.Points
-}
-
 type mockObserver struct {
 	scripts []string
 }
 
-func (o *mockObserver) Observe(script *Script) {
+func (o *mockObserver) Observe(script *Action) {
 	o.scripts = append(o.scripts, tr(script))
 }
 
-func tr(script *Script) string {
+func tr(script *Action) string {
 	var b bytes.Buffer
 
 	p := func(format string, a ...any) {
@@ -82,18 +113,27 @@ func tr(script *Script) string {
 		}
 	}
 
-	id(script.Subject)
-	p(" -> {")
-	for i, attack := range script.Attacks {
-		comma(i)
-		p("[")
-		for j, object := range attack.Objects {
-			comma(j)
-			id(object)
-		}
-		p("] / %d", attack.Points)
+	id(script.Subject.(*Fighter))
+	p(" -> {[")
+	for j, object := range script.Objects {
+		comma(j)
+		id(object.(*Fighter))
 	}
-	p("}")
+	p("] / %d}", script.Verb.(*Attack).Points)
 
 	return b.String()
+}
+
+type mockRng struct {
+	initial float64
+}
+
+func (r *mockRng) Gen() (f float64) {
+	f = 1 - 1e-6
+	if 0 <= r.initial && r.initial < 1 {
+		f = r.initial
+	}
+
+	r.initial = -1
+	return
 }
