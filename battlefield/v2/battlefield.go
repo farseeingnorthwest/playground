@@ -49,7 +49,13 @@ func (f bySpeed) Less(i, j int) bool {
 }
 func (f bySpeed) Swap(i, j int) { f[i], f[j] = f[j], f[i] }
 
-func Fight(a, b []Warrior, observer Observer) {
+type BattleField struct {
+	fighters []Warrior
+	reactors []Reactor
+	observer Observer
+}
+
+func NewBattleField(a, b []Warrior, reactors []Reactor, observer Observer) *BattleField {
 	fighters := make([]Warrior, len(a)+len(b))
 	for i, f := range a {
 		fighters[i] = &Fighter{f, Left, uint8(i)}
@@ -58,21 +64,50 @@ func Fight(a, b []Warrior, observer Observer) {
 		fighters[i+len(a)] = &Fighter{f, Right, uint8(i)}
 	}
 
+	return &BattleField{
+		fighters: fighters,
+		reactors: reactors,
+		observer: observer,
+	}
+}
+
+func (b *BattleField) React(signal Signal) {
+	for _, f := range b.fighters {
+		if !f.Valid() {
+			continue
+		}
+
+		f.React(signal)
+	}
+	for _, reactor := range b.reactors {
+		if !reactor.Valid() {
+			continue
+		}
+
+		reactor.React(signal)
+	}
+}
+
+func (b *BattleField) Valid() bool {
+	return true
+}
+
+func (b *BattleField) Fight() {
 	for {
 		n := 0
 
-		sort.Sort(bySpeed(fighters))
-		for _, f := range fighters {
+		sort.Sort(bySpeed(b.fighters))
+		for _, f := range b.fighters {
 			if f.Health() <= 0 {
 				continue
 			}
 
-			signal := Launch{f, fighters, nil}
-			f.React(&signal)
-			for _, a := range signal.actions {
+			signal := NewLaunchingSignal(f, b.fighters)
+			f.React(signal)
+			for _, a := range signal.Actions() {
 				n++
-				observer.Observe(a)
-				a.Render(fighters)
+				b.observer.Observe(a)
+				a.Render(b)
 			}
 		}
 

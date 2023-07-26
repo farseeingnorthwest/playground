@@ -15,7 +15,7 @@ type Critical struct {
 }
 
 func (c *Critical) React(signal Signal) {
-	prepare, ok := signal.(*Prepare)
+	prepare, ok := signal.(*PreActionSignal)
 	if !ok {
 		return
 	}
@@ -28,7 +28,7 @@ func (c *Critical) React(signal Signal) {
 		return
 	}
 
-	prepare.Actions = append(prepare.Actions, &Action{
+	prepare.Add(&Action{
 		Subject: prepare.Subject,
 		Objects: prepare.Objects,
 		Verb:    &Buffing{Buff: c.damage.Fork()},
@@ -45,13 +45,14 @@ type TemporaryDamage struct {
 }
 
 func (c *TemporaryDamage) React(signal Signal) {
-	damage, ok := signal.(*DamageSignal)
+	damage, ok := signal.(*DamageClearingSignal)
 	if !ok {
 		return
 	}
 
-	damage.Points *= c.factor
-	damage.Points /= 100
+	damage.Map(func(points int) int {
+		return points * c.factor / 100
+	})
 	c.valid = false
 }
 

@@ -1,14 +1,5 @@
 package battlefield
 
-type Signal interface {
-}
-
-type Launch struct {
-	subject Warrior
-	objects []Warrior
-	actions []*Action
-}
-
 type Reactor interface {
 	React(Signal)
 	Valid() bool
@@ -20,18 +11,18 @@ type NormalAttack struct {
 }
 
 func (a *NormalAttack) React(signal Signal) {
-	launch, ok := signal.(*Launch)
+	launch, ok := signal.(*LaunchingSignal)
 	if !ok {
 		return
 	}
 
-	fighter := a.Select(launch.subject, launch.objects)
+	fighter := a.Select(launch.Subject, launch.Objects)
 	if fighter == nil {
 		return
 	}
 
-	launch.actions = append(launch.actions, &Action{
-		Subject: launch.subject,
+	launch.Add(&Action{
+		Subject: launch.Subject,
 		Objects: []Warrior{fighter},
 		Verb:    &Attack{Points: a.Points},
 	})

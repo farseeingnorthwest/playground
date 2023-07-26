@@ -10,7 +10,7 @@ import (
 
 func TestBattlefield_Fight(t *testing.T) {
 	ob := &mockObserver{}
-	Fight(
+	b := NewBattleField(
 		[]Warrior{
 			&mockFighter{
 				FatPortfolio: FatPortfolio{
@@ -21,7 +21,6 @@ func TestBattlefield_Fight(t *testing.T) {
 							odds:   10,
 							damage: &TemporaryDamage{200, false},
 						},
-						&Theory,
 					},
 				},
 				element: Water,
@@ -41,8 +40,12 @@ func TestBattlefield_Fight(t *testing.T) {
 				speed:   9,
 			},
 		},
+		[]Reactor{
+			&Theory,
+		},
 		ob,
 	)
+	b.Fight()
 
 	assert.Equal(
 		t,

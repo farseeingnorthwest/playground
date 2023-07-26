@@ -53,7 +53,7 @@ type ElementTheory struct {
 }
 
 func (t *ElementTheory) React(signal Signal) {
-	prepare, ok := signal.(*Prepare)
+	prepare, ok := signal.(*PreActionSignal)
 	if !ok {
 		return
 	}
@@ -65,7 +65,7 @@ func (t *ElementTheory) React(signal Signal) {
 	theory := t.theory[prepare.Subject.Element()]
 	for _, object := range prepare.Objects {
 		if damage, ok := theory[object.Element()]; ok {
-			prepare.Actions = append(prepare.Actions, &Action{
+			prepare.Add(&Action{
 				Subject: prepare.Subject,
 				Objects: []Warrior{object},
 				Verb:    &Buffing{Buff: damage.Fork()},
