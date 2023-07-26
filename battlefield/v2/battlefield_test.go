@@ -15,29 +15,31 @@ func TestBattlefield_Fight(t *testing.T) {
 			&mockFighter{
 				FatPortfolio: FatPortfolio{
 					[]Reactor{
-						&NormalAttack{&RandomSelector{}, 10},
+						&NormalAttack{AndSelector{SideSelector{}, RandomSelector{Count: 1}}, 10},
 						&Critical{
 							rng:    &mockRng{.001},
 							odds:   10,
-							damage: &TemporaryDamage{200, false},
+							damage: &TemporaryDamage{200, nil},
 						},
 					},
 				},
 				element: Water,
+				attack:  10,
 				defense: 5,
-				health:  20,
 				speed:   10,
+				health:  20,
 			},
 		},
 		[]Warrior{
 			&mockFighter{
 				FatPortfolio: FatPortfolio{[]Reactor{
-					&NormalAttack{&RandomSelector{}, 15},
+					&NormalAttack{AndSelector{SideSelector{}, RandomSelector{Count: 1}}, 15},
 				}},
 				element: Fire,
+				attack:  15,
 				defense: 5,
-				health:  22,
 				speed:   9,
+				health:  22,
 			},
 		},
 		[]Reactor{
@@ -64,13 +66,19 @@ type mockFighter struct {
 	FatPortfolio
 
 	element Element
+	attack  int
 	defense int
-	health  int
 	speed   int
+
+	health int
 }
 
 func (f *mockFighter) Element() Element {
 	return f.element
+}
+
+func (f *mockFighter) Attack() int {
+	return f.attack
 }
 
 func (f *mockFighter) Defense() int {
@@ -116,13 +124,13 @@ func tr(script *Action) string {
 		}
 	}
 
-	id(script.Subject.(*Fighter))
+	id(script.Source)
 	p(" -> {[")
-	for j, object := range script.Objects {
+	for j, object := range script.Targets {
 		comma(j)
-		id(object.(*Fighter))
+		id(object)
 	}
-	p("] / %d}", script.Verb.(*Attack).Points)
+	p("] / %d}", script.Verb.(*Attack).points)
 
 	return b.String()
 }

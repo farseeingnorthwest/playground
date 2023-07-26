@@ -1,23 +1,27 @@
 package battlefield
 
 type Action struct {
-	Subject Warrior
-	Objects []Warrior
+	Source  *Fighter
+	Targets []*Fighter
 	Verb
 }
 
 func (a *Action) Render(f *BattleField) {
-	signal := NewPreActionSignal(a)
-	f.React(signal)
-	for _, action := range signal.Actions() {
+	pre := NewPreActionSignal(a)
+	f.React(pre)
+	for _, action := range pre.Actions() {
 		action.Render(f)
 	}
 
-	for _, object := range a.Objects {
-		a.Verb.Render(object, a.Subject)
+	for _, object := range a.Targets {
+		a.Verb.Render(object, a.Source)
 	}
 
-	// TODO:
+	post := NewPostActionSignal(a)
+	f.React(post)
+	for _, action := range post.Actions() {
+		action.Render(f)
+	}
 }
 
 type Verb interface {
@@ -25,41 +29,70 @@ type Verb interface {
 }
 
 type Attack struct {
-	Points int
+	points int
 }
 
-func (a *Attack) Render(object, subject Warrior) {
-	attack, defense := NewAttackClearingSignal(a.Points), NewDefenseClearingSignal(object.Defense())
-	subject.React(attack)
-	object.React(defense)
+func NewAttack(points int) *Attack {
+	return &Attack{
+		points: points,
+	}
+}
+
+func (a *Attack) Render(target, source Warrior) {
+	attack, defense := NewAttackClearingSignal(a.points), NewDefenseClearingSignal(target.Defense())
+	source.React(attack)
+	target.React(defense)
 
 	damage := NewDamageClearingSignal(attack.Value() - defense.Value())
-	object.React(damage)
+	target.React(damage)
 	if damage.Value() < 0 {
 		damage.SetValue(0)
 	}
 
-	current := object.Health()
+	current := target.Health()
 	current -= damage.Value()
 	if current < 0 {
 		current = 0
 	}
 
-	object.SetHealth(current)
+	target.SetHealth(current)
 }
 
 type Healing struct {
-	Points int
+	points int
 }
 
-func (h *Healing) Render(w, _ Warrior) {
+func NewHealing(points int) *Healing {
+	return &Healing{
+		points: points,
+	}
+}
+
+func (h *Healing) Render(_, _ Warrior) {
 	// TODO:
 }
 
 type Buffing struct {
-	Buff
+	buff Buff
 }
 
-func (h *Buffing) Render(w, _ Warrior) {
-	w.Add(h.Buff)
+func NewBuffing(buff Buff) *Buffing {
+	return &Buffing{
+		buff: buff,
+	}
+}
+
+func (h *Buffing) Render(target, _ Warrior) {
+	target.Add(h.buff)
+}
+
+type Purging struct {
+}
+
+func NewPurging() *Purging {
+	return &Purging{}
+}
+
+func (p *Purging) Render(target, _ Warrior) {
+	// TODO:
 }

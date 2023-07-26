@@ -15,11 +15,11 @@ type Critical struct {
 }
 
 func (c *Critical) React(signal Signal) {
-	prepare, ok := signal.(*PreActionSignal)
+	sig, ok := signal.(*PreActionSignal)
 	if !ok {
 		return
 	}
-	_, ok = prepare.Verb.(*Attack)
+	_, ok = sig.Verb.(*Attack)
 	if !ok {
 		return
 	}
@@ -28,41 +28,39 @@ func (c *Critical) React(signal Signal) {
 		return
 	}
 
-	prepare.Add(&Action{
-		Subject: prepare.Subject,
-		Objects: prepare.Objects,
-		Verb:    &Buffing{Buff: c.damage.Fork()},
+	sig.Add(&Action{
+		Source:  sig.Source,
+		Targets: sig.Targets,
+		Verb:    NewBuffing(c.damage.Fork(sig.Action)),
 	})
-}
-
-func (c *Critical) Valid() bool {
-	return true
 }
 
 type TemporaryDamage struct {
 	factor int // percentage
-	valid  bool
+	action *Action
 }
 
 func (c *TemporaryDamage) React(signal Signal) {
-	damage, ok := signal.(*DamageClearingSignal)
-	if !ok {
-		return
+	switch sig := signal.(type) {
+	case *DamageClearingSignal:
+		sig.Map(func(points int) int {
+			return points * c.factor / 100
+		})
+
+	case *PostActionSignal:
+		if sig.Action == c.action {
+			c.action = nil
+		}
 	}
-
-	damage.Map(func(points int) int {
-		return points * c.factor / 100
-	})
-	c.valid = false
 }
 
-func (c *TemporaryDamage) Valid() bool {
-	return c.valid
+func (c *TemporaryDamage) Validate() bool {
+	return c.action != nil
 }
 
-func (c *TemporaryDamage) Fork() Buff {
+func (c *TemporaryDamage) Fork(a *Action) Buff {
 	return &TemporaryDamage{
 		factor: c.factor,
-		valid:  true,
+		action: a,
 	}
 }

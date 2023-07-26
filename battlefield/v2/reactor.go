@@ -2,7 +2,10 @@ package battlefield
 
 type Reactor interface {
 	React(Signal)
-	Valid() bool
+}
+
+type Validator interface {
+	Validate() bool
 }
 
 type NormalAttack struct {
@@ -16,18 +19,14 @@ func (a *NormalAttack) React(signal Signal) {
 		return
 	}
 
-	fighter := a.Select(launch.Subject, launch.Objects)
-	if fighter == nil {
+	targets := a.Select(launch.Target, launch.Field.Warriors())
+	if len(targets) == 0 {
 		return
 	}
 
 	launch.Add(&Action{
-		Subject: launch.Subject,
-		Objects: []Warrior{fighter},
-		Verb:    &Attack{Points: a.Points},
+		Source:  launch.Target,
+		Targets: targets,
+		Verb:    NewAttack(a.Points),
 	})
-}
-
-func (a *NormalAttack) Valid() bool {
-	return true
 }

@@ -19,26 +19,44 @@ func (a *actions) Add(action *Action) {
 func (a *actions) signalTrait() {}
 
 type LaunchingSignal struct {
-	Subject Warrior
-	Objects []Warrior
+	Target *Fighter
+	Field  *BattleField
 	actions
 }
 
-func NewLaunchingSignal(subject Warrior, objects []Warrior) *LaunchingSignal {
+func NewLaunchingSignal(target *Fighter, field *BattleField) *LaunchingSignal {
 	return &LaunchingSignal{
-		Subject: subject,
-		Objects: objects,
+		Target: target,
+		Field:  field,
 	}
 }
 
-type PreActionSignal struct {
+type actionSignal struct {
 	*Action
 	actions
 }
 
+type PreActionSignal struct {
+	actionSignal
+}
+
 func NewPreActionSignal(action *Action) *PreActionSignal {
 	return &PreActionSignal{
-		Action: action,
+		actionSignal: actionSignal{
+			Action: action,
+		},
+	}
+}
+
+type PostActionSignal struct {
+	actionSignal
+}
+
+func NewPostActionSignal(action *Action) *PostActionSignal {
+	return &PostActionSignal{
+		actionSignal: actionSignal{
+			Action: action,
+		},
 	}
 }
 

@@ -12,16 +12,12 @@ type FatPortfolio struct {
 
 func (p *FatPortfolio) React(signal Signal) {
 	for _, buff := range p.reactors {
-		if !buff.Valid() {
+		if v, ok := buff.(Validator); ok && !v.Validate() {
 			continue
 		}
 
 		buff.React(signal)
 	}
-}
-
-func (p *FatPortfolio) Valid() bool {
-	return true
 }
 
 func (p *FatPortfolio) Add(reactor Reactor) {

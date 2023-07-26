@@ -15,65 +15,63 @@ var (
 	Theory = ElementTheory{
 		theory: map[Element]map[Element]TemporaryDamage{
 			Water: {
-				Fire:    TemporaryDamage{120, false},
-				Thunder: TemporaryDamage{80, false},
+				Fire:    TemporaryDamage{120, nil},
+				Thunder: TemporaryDamage{80, nil},
 			},
 			Fire: {
-				Ice:   TemporaryDamage{120, false},
-				Water: TemporaryDamage{80, false},
+				Ice:   TemporaryDamage{120, nil},
+				Water: TemporaryDamage{80, nil},
 			},
 			Ice: {
-				Wind: TemporaryDamage{120, false},
-				Fire: TemporaryDamage{80, false},
+				Wind: TemporaryDamage{120, nil},
+				Fire: TemporaryDamage{80, nil},
 			},
 			Wind: {
-				Earth: TemporaryDamage{120, false},
-				Ice:   TemporaryDamage{80, false},
+				Earth: TemporaryDamage{120, nil},
+				Ice:   TemporaryDamage{80, nil},
 			},
 			Earth: {
-				Thunder: TemporaryDamage{120, false},
-				Wind:    TemporaryDamage{80, false},
+				Thunder: TemporaryDamage{120, nil},
+				Wind:    TemporaryDamage{80, nil},
 			},
 			Thunder: {
-				Water: TemporaryDamage{120, false},
-				Earth: TemporaryDamage{80, false},
+				Water: TemporaryDamage{120, nil},
+				Earth: TemporaryDamage{80, nil},
 			},
 			Dark: {
-				Light: TemporaryDamage{120, false},
+				Light: TemporaryDamage{120, nil},
 			},
 			Light: {
-				Dark: TemporaryDamage{120, false},
+				Dark: TemporaryDamage{120, nil},
 			},
 		},
 	}
 )
+
+type Element uint8
 
 type ElementTheory struct {
 	theory map[Element]map[Element]TemporaryDamage
 }
 
 func (t *ElementTheory) React(signal Signal) {
-	prepare, ok := signal.(*PreActionSignal)
+	sig, ok := signal.(*PreActionSignal)
 	if !ok {
 		return
 	}
-	_, ok = prepare.Verb.(*Attack)
+	_, ok = sig.Verb.(*Attack)
 	if !ok {
 		return
 	}
 
-	theory := t.theory[prepare.Subject.Element()]
-	for _, object := range prepare.Objects {
+	theory := t.theory[sig.Source.Element()]
+	for _, object := range sig.Targets {
 		if damage, ok := theory[object.Element()]; ok {
-			prepare.Add(&Action{
-				Subject: prepare.Subject,
-				Objects: []Warrior{object},
-				Verb:    &Buffing{Buff: damage.Fork()},
+			sig.Add(&Action{
+				Source:  sig.Source,
+				Targets: []*Fighter{object},
+				Verb:    NewBuffing(damage.Fork(sig.Action)),
 			})
 		}
 	}
-}
-
-func (t *ElementTheory) Valid() bool {
-	return true
 }
