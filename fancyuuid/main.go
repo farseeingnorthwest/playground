@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/base64"
+
 	"github.com/alecthomas/kong"
 	"github.com/btcsuite/btcd/btcutil/base58"
 	"github.com/google/uuid"

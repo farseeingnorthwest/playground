@@ -14,7 +14,7 @@ type NormalAttack struct {
 }
 
 func (a *NormalAttack) React(signal Signal) {
-	launch, ok := signal.(*LaunchingSignal)
+	launch, ok := signal.(*LaunchSignal)
 	if !ok {
 		return
 	}

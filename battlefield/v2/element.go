@@ -59,7 +59,7 @@ func (t *ElementTheory) React(signal Signal) {
 	if !ok {
 		return
 	}
-	_, ok = sig.Verb.(*Attack)
+	_, ok = sig.Verb.(*Hit)
 	if !ok {
 		return
 	}

@@ -15,7 +15,7 @@ func TestBattlefield_Fight(t *testing.T) {
 			&mockFighter{
 				FatPortfolio: FatPortfolio{
 					[]Reactor{
-						&NormalAttack{AndSelector{SideSelector{}, RandomSelector{Count: 1}}, 10},
+						&NormalAttack{AndSelector{HealthSelector{}, SideSelector{}, RandomSelector{Count: 1}}, 10},
 						&Critical{
 							rng:    &mockRng{.001},
 							odds:   10,
@@ -33,7 +33,7 @@ func TestBattlefield_Fight(t *testing.T) {
 		[]Warrior{
 			&mockFighter{
 				FatPortfolio: FatPortfolio{[]Reactor{
-					&NormalAttack{AndSelector{SideSelector{}, RandomSelector{Count: 1}}, 15},
+					&NormalAttack{AndSelector{HealthSelector{}, SideSelector{}, RandomSelector{Count: 1}}, 15},
 				}},
 				element: Fire,
 				attack:  15,
@@ -130,7 +130,7 @@ func tr(script *Action) string {
 		comma(j)
 		id(object)
 	}
-	p("] / %d}", script.Verb.(*Attack).points)
+	p("] / %d}", script.Verb.(*Hit).points)
 
 	return b.String()
 }

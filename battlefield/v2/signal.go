@@ -18,14 +18,14 @@ func (a *actions) Add(action *Action) {
 
 func (a *actions) signalTrait() {}
 
-type LaunchingSignal struct {
+type LaunchSignal struct {
 	Target *Fighter
 	Field  *BattleField
 	actions
 }
 
-func NewLaunchingSignal(target *Fighter, field *BattleField) *LaunchingSignal {
-	return &LaunchingSignal{
+func NewLaunchingSignal(target *Fighter, field *BattleField) *LaunchSignal {
+	return &LaunchSignal{
 		Target: target,
 		Field:  field,
 	}
@@ -60,58 +60,50 @@ func NewPostActionSignal(action *Action) *PostActionSignal {
 	}
 }
 
-type clearingSignal struct {
+type Axis uint8
+
+const (
+	Attack Axis = iota
+	Defense
+	Damage
+	Health
+	Speed
+)
+
+type EvaluationSignal struct {
+	axis  Axis
+	clear bool
 	value int
 }
 
-func (s *clearingSignal) Value() int {
+func NewEvaluationSignal(axis Axis, clear bool, value int) *EvaluationSignal {
+	return &EvaluationSignal{
+		axis,
+		clear,
+		value,
+	}
+}
+
+func (s *EvaluationSignal) Axis() Axis {
+	return s.axis
+}
+
+func (s *EvaluationSignal) Clear() bool {
+	return s.clear
+}
+
+func (s *EvaluationSignal) Value() int {
 	return s.value
 }
 
-func (s *clearingSignal) SetValue(value int) {
+func (s *EvaluationSignal) SetValue(value int) {
 	s.value = value
 }
 
-func (s *clearingSignal) Map(fn ...func(int) int) {
+func (s *EvaluationSignal) Map(fn ...func(int) int) {
 	for _, f := range fn {
 		s.value = f(s.value)
 	}
 }
 
-func (s *clearingSignal) signalTrait() {}
-
-type AttackClearingSignal struct {
-	clearingSignal
-}
-
-func NewAttackClearingSignal(value int) *AttackClearingSignal {
-	return &AttackClearingSignal{
-		clearingSignal: clearingSignal{
-			value: value,
-		},
-	}
-}
-
-type DefenseClearingSignal struct {
-	clearingSignal
-}
-
-func NewDefenseClearingSignal(value int) *DefenseClearingSignal {
-	return &DefenseClearingSignal{
-		clearingSignal: clearingSignal{
-			value: value,
-		},
-	}
-}
-
-type DamageClearingSignal struct {
-	clearingSignal
-}
-
-func NewDamageClearingSignal(value int) *DamageClearingSignal {
-	return &DamageClearingSignal{
-		clearingSignal: clearingSignal{
-			value: value,
-		},
-	}
-}
+func (s *EvaluationSignal) signalTrait() {}

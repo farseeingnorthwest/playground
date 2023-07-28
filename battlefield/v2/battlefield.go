@@ -1,8 +1,6 @@
 package battlefield
 
-import (
-	"sort"
-)
+import "sort"
 
 type Side uint8
 
@@ -19,6 +17,14 @@ type Fighter struct {
 	Warrior
 	Side
 	Position uint8
+}
+
+func FighterAttack(f *Fighter) int {
+	return f.Attack()
+}
+
+func FighterDefense(f *Fighter) int {
+	return f.Defense()
 }
 
 type bySpeed []*Fighter
@@ -79,14 +85,19 @@ func (b *BattleField) Fight() {
 	for {
 		n := 0
 
-		sort.Sort(bySpeed(b.fighters))
-		for _, f := range b.fighters {
-			if f.Health() <= 0 {
+		sorted := false
+		for i := 0; i < len(b.fighters); i++ {
+			if !sorted {
+				sort.Sort(bySpeed(b.fighters[i:]))
+				sorted = true
+			}
+			if b.fighters[i].Health() <= 0 {
 				continue
 			}
 
-			signal := NewLaunchingSignal(f, b)
-			f.React(signal)
+			sorted = false
+			signal := NewLaunchingSignal(b.fighters[i], b)
+			b.fighters[i].React(signal)
 			for _, a := range signal.Actions() {
 				n++
 				b.observer.Observe(a)

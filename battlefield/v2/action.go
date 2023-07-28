@@ -28,22 +28,22 @@ type Verb interface {
 	Render(Warrior, Warrior)
 }
 
-type Attack struct {
+type Hit struct {
 	points int
 }
 
-func NewAttack(points int) *Attack {
-	return &Attack{
+func NewAttack(points int) *Hit {
+	return &Hit{
 		points: points,
 	}
 }
 
-func (a *Attack) Render(target, source Warrior) {
-	attack, defense := NewAttackClearingSignal(a.points), NewDefenseClearingSignal(target.Defense())
+func (a *Hit) Render(target, source Warrior) {
+	attack, defense := NewEvaluationSignal(Attack, true, a.points), NewEvaluationSignal(Defense, true, target.Defense())
 	source.React(attack)
 	target.React(defense)
 
-	damage := NewDamageClearingSignal(attack.Value() - defense.Value())
+	damage := NewEvaluationSignal(Damage, true, attack.Value()-defense.Value())
 	target.React(damage)
 	if damage.Value() < 0 {
 		damage.SetValue(0)
