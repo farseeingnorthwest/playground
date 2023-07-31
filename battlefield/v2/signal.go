@@ -24,7 +24,7 @@ type LaunchSignal struct {
 	actions
 }
 
-func NewLaunchingSignal(target *Fighter, field *BattleField) *LaunchSignal {
+func NewLaunchSignal(target *Fighter, field *BattleField) *LaunchSignal {
 	return &LaunchSignal{
 		Target: target,
 		Field:  field,
@@ -63,9 +63,10 @@ func NewPostActionSignal(action *Action) *PostActionSignal {
 type Axis uint8
 
 const (
-	Attack Axis = iota
+	Damage Axis = iota
 	Defense
-	Damage
+	Loss
+	Healing
 	Health
 	Speed
 )

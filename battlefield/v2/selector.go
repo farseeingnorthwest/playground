@@ -33,7 +33,7 @@ type HealthSelector struct {
 func (s HealthSelector) Select(_ *Fighter, fighters []*Fighter) []*Fighter {
 	var a []*Fighter
 	for _, f := range fighters {
-		if f.Health() > 0 {
+		if f.current.Current > 0 {
 			a = append(a, f)
 		}
 	}

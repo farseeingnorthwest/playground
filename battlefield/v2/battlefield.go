@@ -14,17 +14,9 @@ type Observer interface {
 }
 
 type Fighter struct {
-	Warrior
+	*Warrior
 	Side
 	Position uint8
-}
-
-func FighterAttack(f *Fighter) int {
-	return f.Attack()
-}
-
-func FighterDefense(f *Fighter) int {
-	return f.Defense()
 }
 
 type bySpeed []*Fighter
@@ -48,7 +40,7 @@ type BattleField struct {
 	observer Observer
 }
 
-func NewBattleField(a, b []Warrior, reactors []Reactor, observer Observer) *BattleField {
+func NewBattleField(a, b []*Warrior, reactors []Reactor, observer Observer) *BattleField {
 	fighters := make([]*Fighter, len(a)+len(b))
 	for i, f := range a {
 		fighters[i] = &Fighter{f, Left, uint8(i)}
@@ -91,12 +83,12 @@ func (b *BattleField) Fight() {
 				sort.Sort(bySpeed(b.fighters[i:]))
 				sorted = true
 			}
-			if b.fighters[i].Health() <= 0 {
+			if b.fighters[i].current.Current <= 0 {
 				continue
 			}
 
 			sorted = false
-			signal := NewLaunchingSignal(b.fighters[i], b)
+			signal := NewLaunchSignal(b.fighters[i], b)
 			b.fighters[i].React(signal)
 			for _, a := range signal.Actions() {
 				n++

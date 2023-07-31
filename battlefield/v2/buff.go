@@ -19,7 +19,7 @@ func (c *Critical) React(signal Signal) {
 	if !ok {
 		return
 	}
-	_, ok = sig.Verb.(*Hit)
+	_, ok = sig.Verb.(*Attack)
 	if !ok {
 		return
 	}
@@ -43,7 +43,7 @@ type TemporaryDamage struct {
 func (c *TemporaryDamage) React(signal Signal) {
 	switch sig := signal.(type) {
 	case *EvaluationSignal:
-		if sig.Axis() == Damage && sig.Clear() {
+		if sig.Axis() == Loss && sig.Clear() {
 			sig.Map(func(points int) int {
 				return points * c.factor / 100
 			})

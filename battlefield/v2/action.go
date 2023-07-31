@@ -14,7 +14,7 @@ func (a *Action) Render(f *BattleField) {
 	}
 
 	for _, object := range a.Targets {
-		a.Verb.Render(object, a.Source)
+		a.Verb.Render(object.Warrior, a.Source.Warrior)
 	}
 
 	post := NewPostActionSignal(a)
@@ -25,51 +25,66 @@ func (a *Action) Render(f *BattleField) {
 }
 
 type Verb interface {
-	Render(Warrior, Warrior)
+	Render(*Warrior, *Warrior)
 }
 
-type Hit struct {
+type Attack struct {
 	points int
 }
 
-func NewAttack(points int) *Hit {
-	return &Hit{
+func NewAttack(points int) *Attack {
+	return &Attack{
 		points: points,
 	}
 }
 
-func (a *Hit) Render(target, source Warrior) {
-	attack, defense := NewEvaluationSignal(Attack, true, a.points), NewEvaluationSignal(Defense, true, target.Defense())
-	source.React(attack)
+func (a *Attack) Render(target, source *Warrior) {
+	damage := NewEvaluationSignal(Damage, true, a.points)
+	source.React(damage)
+	defense := NewEvaluationSignal(Defense, true, target.Defense())
 	target.React(defense)
 
-	damage := NewEvaluationSignal(Damage, true, attack.Value()-defense.Value())
-	target.React(damage)
-	if damage.Value() < 0 {
-		damage.SetValue(0)
+	loss := NewEvaluationSignal(Loss, true, damage.Value()-defense.Value())
+	target.React(loss)
+	if loss.Value() < 0 {
+		loss.SetValue(0)
 	}
 
-	current := target.Health()
-	current -= damage.Value()
-	if current < 0 {
-		current = 0
+	r, m := target.Health()
+	c := r.Current * m / r.Maximum
+	c -= loss.Value()
+	if c < 0 {
+		c = 0
 	}
 
-	target.SetHealth(current)
+	target.current = Ratio{c, m}
 }
 
-type Healing struct {
+type Heal struct {
 	points int
 }
 
-func NewHealing(points int) *Healing {
-	return &Healing{
+func NewHeal(points int) *Heal {
+	return &Heal{
 		points: points,
 	}
 }
 
-func (h *Healing) Render(_, _ Warrior) {
-	// TODO:
+func (h *Heal) Render(target, _ *Warrior) {
+	heal := NewEvaluationSignal(Healing, true, h.points)
+	target.React(heal)
+	if heal.Value() < 0 {
+		heal.SetValue(0)
+	}
+
+	r, m := target.Health()
+	c := r.Current * m / r.Maximum
+	c += heal.Value()
+	if c > m {
+		c = m
+	}
+
+	target.current = Ratio{c, m}
 }
 
 type Buffing struct {
@@ -82,7 +97,7 @@ func NewBuffing(buff Buff) *Buffing {
 	}
 }
 
-func (h *Buffing) Render(target, _ Warrior) {
+func (h *Buffing) Render(target, _ *Warrior) {
 	target.Add(h.buff)
 }
 
@@ -93,6 +108,6 @@ func NewPurging() *Purging {
 	return &Purging{}
 }
 
-func (p *Purging) Render(target, _ Warrior) {
+func (p *Purging) Render(target, _ *Warrior) {
 	// TODO:
 }

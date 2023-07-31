@@ -10,6 +10,10 @@ type FatPortfolio struct {
 	reactors []Reactor
 }
 
+func NewFatPortfolio() *FatPortfolio {
+	return &FatPortfolio{}
+}
+
 func (p *FatPortfolio) React(signal Signal) {
 	for _, buff := range p.reactors {
 		if v, ok := buff.(Validator); ok && !v.Validate() {

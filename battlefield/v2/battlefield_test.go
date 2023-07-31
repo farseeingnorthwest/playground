@@ -11,9 +11,16 @@ import (
 func TestBattlefield_Fight(t *testing.T) {
 	ob := &mockObserver{}
 	b := NewBattleField(
-		[]Warrior{
-			&mockFighter{
-				FatPortfolio: FatPortfolio{
+		[]*Warrior{
+			NewWarrior(
+				&baseline{
+					element: Water,
+					damage:  10,
+					defense: 5,
+					speed:   10,
+					health:  20,
+				},
+				&FatPortfolio{
 					[]Reactor{
 						&NormalAttack{AndSelector{HealthSelector{}, SideSelector{}, RandomSelector{Count: 1}}, 10},
 						&Critical{
@@ -23,24 +30,21 @@ func TestBattlefield_Fight(t *testing.T) {
 						},
 					},
 				},
-				element: Water,
-				attack:  10,
-				defense: 5,
-				speed:   10,
-				health:  20,
-			},
+			),
 		},
-		[]Warrior{
-			&mockFighter{
-				FatPortfolio: FatPortfolio{[]Reactor{
+		[]*Warrior{
+			NewWarrior(
+				&baseline{
+					element: Fire,
+					damage:  15,
+					defense: 5,
+					speed:   9,
+					health:  22,
+				},
+				&FatPortfolio{[]Reactor{
 					&NormalAttack{AndSelector{HealthSelector{}, SideSelector{}, RandomSelector{Count: 1}}, 15},
 				}},
-				element: Fire,
-				attack:  15,
-				defense: 5,
-				speed:   9,
-				health:  22,
-			},
+			),
 		},
 		[]Reactor{
 			&Theory,
@@ -62,43 +66,32 @@ func TestBattlefield_Fight(t *testing.T) {
 	)
 }
 
-type mockFighter struct {
-	FatPortfolio
-
+type baseline struct {
 	element Element
-	attack  int
+	damage  int
 	defense int
 	speed   int
-
-	health int
+	health  int
 }
 
-func (f *mockFighter) Element() Element {
+func (f *baseline) Element() Element {
 	return f.element
 }
 
-func (f *mockFighter) Attack() int {
-	return f.attack
+func (f *baseline) Damage() int {
+	return f.damage
 }
 
-func (f *mockFighter) Defense() int {
+func (f *baseline) Defense() int {
 	return f.defense
 }
 
-func (f *mockFighter) Health() int {
+func (f *baseline) Health() int {
 	return f.health
 }
 
-func (f *mockFighter) SetHealth(health int) {
-	f.health = health
-}
-
-func (f *mockFighter) Speed() int {
+func (f *baseline) Speed() int {
 	return f.speed
-}
-
-func (f *mockFighter) Functional() bool {
-	return f.health > 0
 }
 
 type mockObserver struct {
@@ -130,7 +123,7 @@ func tr(script *Action) string {
 		comma(j)
 		id(object)
 	}
-	p("] / %d}", script.Verb.(*Hit).points)
+	p("] / %d}", script.Verb.(*Attack).points)
 
 	return b.String()
 }
