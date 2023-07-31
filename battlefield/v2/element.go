@@ -12,37 +12,39 @@ const (
 )
 
 var (
+	up     = NewClearingBuff(Loss, nil, ClearingSlope(120))
+	down   = NewClearingBuff(Loss, nil, ClearingSlope(80))
 	Theory = ElementTheory{
-		theory: map[Element]map[Element]TemporaryDamage{
+		theory: map[Element]map[Element]*ClearingBuff{
 			Water: {
-				Fire:    TemporaryDamage{120, nil},
-				Thunder: TemporaryDamage{80, nil},
+				Fire:    up,
+				Thunder: down,
 			},
 			Fire: {
-				Ice:   TemporaryDamage{120, nil},
-				Water: TemporaryDamage{80, nil},
+				Ice:   up,
+				Water: down,
 			},
 			Ice: {
-				Wind: TemporaryDamage{120, nil},
-				Fire: TemporaryDamage{80, nil},
+				Wind: up,
+				Fire: down,
 			},
 			Wind: {
-				Earth: TemporaryDamage{120, nil},
-				Ice:   TemporaryDamage{80, nil},
+				Earth: up,
+				Ice:   down,
 			},
 			Earth: {
-				Thunder: TemporaryDamage{120, nil},
-				Wind:    TemporaryDamage{80, nil},
+				Thunder: up,
+				Wind:    down,
 			},
 			Thunder: {
-				Water: TemporaryDamage{120, nil},
-				Earth: TemporaryDamage{80, nil},
+				Water: up,
+				Earth: down,
 			},
 			Dark: {
-				Light: TemporaryDamage{120, nil},
+				Light: up,
 			},
 			Light: {
-				Dark: TemporaryDamage{120, nil},
+				Dark: up,
 			},
 		},
 	}
@@ -51,7 +53,7 @@ var (
 type Element uint8
 
 type ElementTheory struct {
-	theory map[Element]map[Element]TemporaryDamage
+	theory map[Element]map[Element]*ClearingBuff
 }
 
 func (t *ElementTheory) React(signal Signal) {
@@ -67,7 +69,7 @@ func (t *ElementTheory) React(signal Signal) {
 	theory := t.theory[sig.Source.Element()]
 	for _, object := range sig.Targets {
 		if damage, ok := theory[object.Element()]; ok {
-			sig.Add(&Action{
+			sig.Append(&Action{
 				Source:  sig.Source,
 				Targets: []*Fighter{object},
 				Verb:    NewBuffing(damage.Fork(sig.Action)),

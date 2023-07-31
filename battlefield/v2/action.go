@@ -14,7 +14,7 @@ func (a *Action) Render(f *BattleField) {
 	}
 
 	for _, object := range a.Targets {
-		a.Verb.Render(object.Warrior, a.Source.Warrior)
+		a.Verb.Render(object.Warrior, a.Source.Warrior, a)
 	}
 
 	post := NewPostActionSignal(a)
@@ -25,7 +25,7 @@ func (a *Action) Render(f *BattleField) {
 }
 
 type Verb interface {
-	Render(*Warrior, *Warrior)
+	Render(*Warrior, *Warrior, *Action)
 }
 
 type Attack struct {
@@ -38,13 +38,13 @@ func NewAttack(points int) *Attack {
 	}
 }
 
-func (a *Attack) Render(target, source *Warrior) {
-	damage := NewEvaluationSignal(Damage, true, a.points)
+func (a *Attack) Render(target, source *Warrior, action *Action) {
+	damage := NewEvaluationSignal(Damage, a.points, action)
 	source.React(damage)
-	defense := NewEvaluationSignal(Defense, true, target.Defense())
+	defense := NewEvaluationSignal(Defense, target.Defense(), action)
 	target.React(defense)
 
-	loss := NewEvaluationSignal(Loss, true, damage.Value()-defense.Value())
+	loss := NewEvaluationSignal(Loss, damage.Value()-defense.Value(), action)
 	target.React(loss)
 	if loss.Value() < 0 {
 		loss.SetValue(0)
@@ -70,8 +70,8 @@ func NewHeal(points int) *Heal {
 	}
 }
 
-func (h *Heal) Render(target, _ *Warrior) {
-	heal := NewEvaluationSignal(Healing, true, h.points)
+func (h *Heal) Render(target, _ *Warrior, action *Action) {
+	heal := NewEvaluationSignal(Healing, h.points, action)
 	target.React(heal)
 	if heal.Value() < 0 {
 		heal.SetValue(0)
@@ -88,17 +88,17 @@ func (h *Heal) Render(target, _ *Warrior) {
 }
 
 type Buffing struct {
-	buff Buff
+	buff Reactor
 }
 
-func NewBuffing(buff Buff) *Buffing {
+func NewBuffing(buff Reactor) *Buffing {
 	return &Buffing{
 		buff: buff,
 	}
 }
 
-func (h *Buffing) Render(target, _ *Warrior) {
-	target.Add(h.buff)
+func (h *Buffing) Render(target, _ *Warrior, _ *Action) {
+	target.Append(h.buff)
 }
 
 type Purging struct {
@@ -108,6 +108,6 @@ func NewPurging() *Purging {
 	return &Purging{}
 }
 
-func (p *Purging) Render(target, _ *Warrior) {
+func (p *Purging) Render(target, _ *Warrior, _ *Action) {
 	// TODO:
 }

@@ -29,28 +29,28 @@ func NewWarrior(b Baseline, portfolio Portfolio) *Warrior {
 }
 
 func (w *Warrior) Damage() int {
-	sig := NewEvaluationSignal(Damage, false, w.Baseline.Damage())
+	sig := NewEvaluationSignal(Damage, w.Baseline.Damage(), nil)
 	w.React(sig)
 
 	return sig.Value()
 }
 
 func (w *Warrior) Defense() int {
-	sig := NewEvaluationSignal(Defense, false, w.Baseline.Defense())
+	sig := NewEvaluationSignal(Defense, w.Baseline.Defense(), nil)
 	w.React(sig)
 
 	return sig.Value()
 }
 
 func (w *Warrior) Speed() int {
-	sig := NewEvaluationSignal(Speed, false, w.Baseline.Speed())
+	sig := NewEvaluationSignal(Speed, w.Baseline.Speed(), nil)
 	w.React(sig)
 
 	return sig.Value()
 }
 
 func (w *Warrior) Health() (Ratio, int) {
-	sig := NewEvaluationSignal(Health, false, w.Baseline.Health())
+	sig := NewEvaluationSignal(Health, w.Baseline.Health(), nil)
 	w.React(sig)
 
 	return w.current, sig.Value()

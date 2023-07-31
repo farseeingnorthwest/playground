@@ -88,7 +88,6 @@ func (s RandomSelector) Select(_ *Fighter, fighters []*Fighter) []*Fighter {
 type SequenceSelector struct {
 	Evaluate func(*Fighter) int
 	Asc      bool
-	Count    int
 }
 
 type byEvaluate struct {
@@ -105,9 +104,27 @@ func (e byEvaluate) Swap(i, j int) { e.Fighter[i], e.Fighter[j] = e.Fighter[j], 
 
 func (s SequenceSelector) Select(_ *Fighter, fighters []*Fighter) []*Fighter {
 	sort.Sort(byEvaluate{s.Evaluate, s.Asc, fighters})
-	if s.Count < len(fighters) {
-		return fighters[:s.Count]
-	}
 
 	return fighters
+}
+
+type TagSelector struct {
+	Tag any
+}
+
+func (s TagSelector) Select(_ *Fighter, fighters []*Fighter) []*Fighter {
+	var a []*Fighter
+	for _, f := range fighters {
+		if f.Contains(s.Tag) {
+			a = append(a, f)
+		}
+	}
+
+	return a
+}
+
+type CurrentSelector struct{}
+
+func (s CurrentSelector) Select(current *Fighter, _ []*Fighter) []*Fighter {
+	return []*Fighter{current}
 }

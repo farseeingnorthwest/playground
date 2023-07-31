@@ -12,15 +12,17 @@ func (a *actions) Actions() []*Action {
 	return a.actions
 }
 
-func (a *actions) Add(action *Action) {
-	a.actions = append(a.actions, action)
+func (a *actions) Append(actions ...*Action) {
+	a.actions = append(a.actions, actions...)
 }
 
 func (a *actions) signalTrait() {}
 
 type LaunchSignal struct {
-	Target *Fighter
-	Field  *BattleField
+	Target   *Fighter
+	Field    *BattleField
+	Launched bool
+
 	actions
 }
 
@@ -30,6 +32,18 @@ func NewLaunchSignal(target *Fighter, field *BattleField) *LaunchSignal {
 		Field:  field,
 	}
 }
+
+type RoundStartSignal struct {
+	Current *Fighter
+	Field   *BattleField
+	actions
+}
+
+func (*RoundStartSignal) signalTrait() {}
+
+type RoundEndSignal struct{}
+
+func (*RoundEndSignal) signalTrait() {}
 
 type actionSignal struct {
 	*Action
@@ -72,25 +86,21 @@ const (
 )
 
 type EvaluationSignal struct {
-	axis  Axis
-	clear bool
-	value int
+	axis   Axis
+	value  int
+	action *Action
 }
 
-func NewEvaluationSignal(axis Axis, clear bool, value int) *EvaluationSignal {
+func NewEvaluationSignal(axis Axis, value int, action *Action) *EvaluationSignal {
 	return &EvaluationSignal{
 		axis,
-		clear,
 		value,
+		action,
 	}
 }
 
 func (s *EvaluationSignal) Axis() Axis {
 	return s.axis
-}
-
-func (s *EvaluationSignal) Clear() bool {
-	return s.clear
 }
 
 func (s *EvaluationSignal) Value() int {
@@ -105,6 +115,10 @@ func (s *EvaluationSignal) Map(fn ...func(int) int) {
 	for _, f := range fn {
 		s.value = f(s.value)
 	}
+}
+
+func (s *EvaluationSignal) Action() *Action {
+	return s.action
 }
 
 func (s *EvaluationSignal) signalTrait() {}

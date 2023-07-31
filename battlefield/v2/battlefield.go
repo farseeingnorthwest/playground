@@ -65,7 +65,10 @@ func (b *BattleField) React(signal Signal) {
 		f.React(signal)
 	}
 	for _, reactor := range b.reactors {
-		if v, ok := reactor.(Validator); ok && !v.Validate() {
+		if r, ok := reactor.(Finite); ok && !r.Valid() {
+			continue
+		}
+		if r, ok := reactor.(Periodic); ok && !r.Free() {
 			continue
 		}
 

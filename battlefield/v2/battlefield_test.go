@@ -22,11 +22,11 @@ func TestBattlefield_Fight(t *testing.T) {
 				},
 				&FatPortfolio{
 					[]Reactor{
-						&NormalAttack{AndSelector{HealthSelector{}, SideSelector{}, RandomSelector{Count: 1}}, 10},
+						NormalAttack,
 						&Critical{
-							rng:    &mockRng{.001},
-							odds:   10,
-							damage: &TemporaryDamage{200, nil},
+							rng:  &mockRng{.001},
+							odds: 10,
+							buff: NewClearingBuff(Loss, nil, ClearingSlope(200)),
 						},
 					},
 				},
@@ -42,7 +42,7 @@ func TestBattlefield_Fight(t *testing.T) {
 					health:  22,
 				},
 				&FatPortfolio{[]Reactor{
-					&NormalAttack{AndSelector{HealthSelector{}, SideSelector{}, RandomSelector{Count: 1}}, 15},
+					NormalAttack,
 				}},
 			),
 		},
