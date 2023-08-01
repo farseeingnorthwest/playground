@@ -1,5 +1,7 @@
 package battlefield
 
+import "github.com/farseeingnorthwest/playground/battlefield/v2/evaluation"
+
 var (
 	NormalAttack = &LaunchReactor{
 		actors: []Actor{
@@ -9,7 +11,16 @@ var (
 					SideSelector{},
 					RandomSelector{1},
 				},
-				&Attacker{Evaluator{Damage, 100}},
+				&BlindActor{
+					NewAttackProto(Head),
+					EvalChain{
+						&PercentageEvaluator{
+							Damage,
+							100,
+						},
+						nil,
+					},
+				},
 			},
 		},
 	}
@@ -27,7 +38,10 @@ var (
 		actors: []Actor{
 			SelectiveActor{
 				CurrentSelector{},
-				&Healer{Evaluator{Damage, 150}}, // TODO:
+				&BlindActor{
+					NewHealProto(Head),
+					EvalChain{},
+				},
 			},
 		},
 	}
@@ -39,14 +53,23 @@ var (
 						HealthSelector{},
 						SideSelector{},
 					},
-					&Attacker{Evaluator{Damage, 90}},
+					&BlindActor{
+						NewAttackProto(Head),
+						EvalChain{
+							&PercentageEvaluator{Damage, 90},
+							nil,
+						},
+					},
 				},
 				SelectiveActor{
 					AndSelector{
 						HealthSelector{},
 						SideSelector{true},
 					},
-					&Buffer{coordinationBuff},
+					&BlindActor{
+						NewBuffProto(coordinationBuff, nil),
+						EvalChain{},
+					},
 				},
 			},
 		},
@@ -58,7 +81,10 @@ var (
 						SideSelector{true},
 						RandomSelector{3},
 					},
-					&Buffer{healingBuff},
+					&BlindActor{
+						NewBuffProto(healingBuff, nil),
+						EvalChain{},
+					},
 				},
 			},
 		},
@@ -96,6 +122,13 @@ func (a *LaunchReactor) React(signal Signal) {
 	}
 }
 
+func (a *LaunchReactor) Fork(*evaluation.Block, Signal) Reactor {
+	return &LaunchReactor{
+		PeriodicReactor: a.PeriodicReactor,
+		actors:          a.actors,
+	}
+}
+
 type RoundStartReactor struct {
 	*FiniteReactor
 	PeriodicReactor
@@ -128,7 +161,7 @@ func (a *RoundStartReactor) React(signal Signal) {
 	}
 }
 
-func (a *RoundStartReactor) Fork() any {
+func (a *RoundStartReactor) Fork(*evaluation.Block, Signal) Reactor {
 	return &RoundStartReactor{
 		FiniteReactor:   a.FiniteReactor.Fork(),
 		PeriodicReactor: a.PeriodicReactor,

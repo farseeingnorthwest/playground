@@ -23,10 +23,13 @@ func TestBattlefield_Fight(t *testing.T) {
 				&FatPortfolio{
 					[]Reactor{
 						NormalAttack,
-						&Critical{
+						&ProbabilityAttackReactor{
 							rng:  &mockRng{.001},
 							odds: 10,
-							buff: NewClearingBuff(Loss, nil, ClearingSlope(200)),
+							proto: NewBuffProto(
+								NewClearingBuff(Loss, nil, ClearingSlope(200)),
+								nil,
+							),
 						},
 					},
 				},
@@ -123,7 +126,7 @@ func tr(script *Action) string {
 		comma(j)
 		id(object)
 	}
-	p("] / %d}", script.Verb.(*Attack).points)
+	p("] / %d}", script.Verb.(*Attack).chain.Value())
 
 	return b.String()
 }

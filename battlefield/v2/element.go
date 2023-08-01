@@ -1,5 +1,7 @@
 package battlefield
 
+import "github.com/farseeingnorthwest/playground/battlefield/v2/evaluation"
+
 const (
 	Water Element = iota
 	Fire
@@ -12,10 +14,10 @@ const (
 )
 
 var (
-	up     = NewClearingBuff(Loss, nil, ClearingSlope(120))
-	down   = NewClearingBuff(Loss, nil, ClearingSlope(80))
+	up     = NewBuffProto(NewClearingBuff(Loss, nil, ClearingSlope(120)), nil)
+	down   = NewBuffProto(NewClearingBuff(Loss, nil, ClearingSlope(80)), nil)
 	Theory = ElementTheory{
-		theory: map[Element]map[Element]*ClearingBuff{
+		theory: map[Element]map[Element]Verb{
 			Water: {
 				Fire:    up,
 				Thunder: down,
@@ -53,7 +55,7 @@ var (
 type Element uint8
 
 type ElementTheory struct {
-	theory map[Element]map[Element]*ClearingBuff
+	theory map[Element]map[Element]Verb
 }
 
 func (t *ElementTheory) React(signal Signal) {
@@ -72,8 +74,12 @@ func (t *ElementTheory) React(signal Signal) {
 			sig.Append(&Action{
 				Source:  sig.Source,
 				Targets: []*Fighter{object},
-				Verb:    NewBuffing(damage.Fork(sig.Action)),
+				Verb:    damage.Fork(nil, signal),
 			})
 		}
 	}
+}
+
+func (t *ElementTheory) Fork(*evaluation.Block, Signal) Reactor {
+	panic("not implemented")
 }

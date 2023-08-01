@@ -1,5 +1,7 @@
 package battlefield
 
+import "github.com/farseeingnorthwest/playground/battlefield/v2/evaluation"
+
 type Portfolio interface {
 	Reactor
 
@@ -26,6 +28,10 @@ func (p *FatPortfolio) React(signal Signal) {
 
 		reactor.React(signal)
 	}
+}
+
+func (p *FatPortfolio) Fork(block *evaluation.Block, signal Signal) Reactor {
+	panic("not implemented")
 }
 
 func (p *FatPortfolio) Append(reactor Reactor) {

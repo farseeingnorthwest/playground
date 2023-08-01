@@ -1,5 +1,7 @@
 package battlefield
 
+import "github.com/farseeingnorthwest/playground/battlefield/v2/evaluation"
+
 type Action struct {
 	Source  *Fighter
 	Targets []*Fighter
@@ -25,21 +27,21 @@ func (a *Action) Render(f *BattleField) {
 }
 
 type Verb interface {
-	Render(*Warrior, *Warrior, *Action)
+	Render(target, source *Warrior, action *Action)
+	Fork(*evaluation.Block, Signal) Verb
 }
 
 type Attack struct {
-	points int
+	Evaluator
+	chain *evaluation.Block
 }
 
-func NewAttack(points int) *Attack {
-	return &Attack{
-		points: points,
-	}
+func NewAttackProto(e Evaluator) *Attack {
+	return &Attack{e, nil}
 }
 
 func (a *Attack) Render(target, source *Warrior, action *Action) {
-	damage := NewEvaluationSignal(Damage, a.points, action)
+	damage := NewEvaluationSignal(Damage, a.Evaluate(target, a.chain), action)
 	source.React(damage)
 	defense := NewEvaluationSignal(Defense, target.Defense(), action)
 	target.React(defense)
@@ -60,18 +62,21 @@ func (a *Attack) Render(target, source *Warrior, action *Action) {
 	target.current = Ratio{c, m}
 }
 
-type Heal struct {
-	points int
+func (a *Attack) Fork(chain *evaluation.Block, _ Signal) Verb {
+	return &Attack{a.Evaluator, chain}
 }
 
-func NewHeal(points int) *Heal {
-	return &Heal{
-		points: points,
-	}
+type Heal struct {
+	Evaluator
+	chain *evaluation.Block
+}
+
+func NewHealProto(e Evaluator) *Heal {
+	return &Heal{e, nil}
 }
 
 func (h *Heal) Render(target, _ *Warrior, action *Action) {
-	heal := NewEvaluationSignal(Healing, h.points, action)
+	heal := NewEvaluationSignal(Healing, h.Evaluate(target, h.chain), action)
 	target.React(heal)
 	if heal.Value() < 0 {
 		heal.SetValue(0)
@@ -87,18 +92,31 @@ func (h *Heal) Render(target, _ *Warrior, action *Action) {
 	target.current = Ratio{c, m}
 }
 
-type Buffing struct {
-	buff Reactor
+func (h *Heal) Fork(chain *evaluation.Block, _ Signal) Verb {
+	return &Heal{h.Evaluator, chain}
 }
 
-func NewBuffing(buff Reactor) *Buffing {
-	return &Buffing{
-		buff: buff,
+type Buff struct {
+	reactor Reactor
+	*EvalChain
+}
+
+func NewBuffProto(reactor Reactor, e Evaluator) *Buff {
+	return &Buff{
+		reactor,
+		NewEvalChainProto(e),
 	}
 }
 
-func (h *Buffing) Render(target, _ *Warrior, _ *Action) {
-	target.Append(h.buff)
+func (h *Buff) Render(target, _ *Warrior, _ *Action) {
+	target.Append(h.reactor.Fork(h.ForkWith(target), nil))
+}
+
+func (h *Buff) Fork(chain *evaluation.Block, signal Signal) Verb {
+	return &Buff{
+		h.reactor.Fork(nil, signal),
+		NewEvalChain(h.Evaluator, chain),
+	}
 }
 
 type Purging struct {

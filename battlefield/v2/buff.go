@@ -1,5 +1,7 @@
 package battlefield
 
+import "github.com/farseeingnorthwest/playground/battlefield/v2/evaluation"
+
 type EvaluationBuff struct {
 	axis  Axis
 	bias  int
@@ -56,7 +58,7 @@ func (b *EvaluationBuff) React(signal Signal) {
 	}
 }
 
-func (b *EvaluationBuff) Fork() any {
+func (b *EvaluationBuff) Fork(_ *evaluation.Block) any {
 	return &EvaluationBuff{
 		axis:  b.axis,
 		bias:  b.bias,
@@ -130,12 +132,17 @@ func (b *ClearingBuff) WarmUp() {
 	b.action = nil
 }
 
-func (b *ClearingBuff) Fork(a *Action) *ClearingBuff {
+func (b *ClearingBuff) Fork(block *evaluation.Block, signal Signal) Reactor {
+	action := b.action
+	if signal != nil {
+		action = signal.(*PreActionSignal).Action
+	}
+
 	return &ClearingBuff{
 		axis:   b.axis,
 		bias:   b.bias,
 		slope:  b.slope,
-		action: a,
+		action: action,
 	}
 }
 
@@ -174,7 +181,7 @@ func (b *TaggedBuff) React(signal Signal) {
 	}
 }
 
-func (b *TaggedBuff) Fork() any {
+func (b *TaggedBuff) Fork(*evaluation.Block, Signal) Reactor {
 	return &TaggedBuff{
 		TaggedReactor: b.TaggedReactor,
 		FiniteReactor: b.FiniteReactor.Fork(),

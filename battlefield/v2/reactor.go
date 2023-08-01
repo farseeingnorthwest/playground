@@ -1,75 +1,30 @@
 package battlefield
 
+import "github.com/farseeingnorthwest/playground/battlefield/v2/evaluation"
+
+var (
+	Head = &HeadEvaluator{}
+)
+
 type Reactor interface {
 	React(Signal)
-}
-
-type Forker interface {
-	Fork() interface{}
+	Fork(*evaluation.Block, Signal) Reactor
 }
 
 type Actor interface {
-	Act(source *Fighter, targets []*Fighter) *Action
+	Act(*Fighter, []*Fighter) *Action
 }
 
-type Evaluator struct {
-	Axis
-	Percentage int
+type BlindActor struct {
+	proto Verb
+	EvalChain
 }
 
-func (e *Evaluator) Evaluate(warrior *Warrior) int {
-	var value int
-	switch e.Axis {
-	case Damage:
-		value = warrior.Damage()
-	case Defense:
-		value = warrior.Defense()
-	case Health:
-		r, m := warrior.Health()
-		value = r.Current * m / r.Maximum
-	default:
-		panic("bad axis")
-	}
-
-	return value * e.Percentage / 100
-}
-
-type Attacker struct {
-	Evaluator
-}
-
-func (a *Attacker) Act(source *Fighter, targets []*Fighter) *Action {
+func (a *BlindActor) Act(source *Fighter, targets []*Fighter) *Action {
 	return &Action{
 		Source:  source,
 		Targets: targets,
-		Verb:    NewAttack(a.Evaluate(source.Warrior)),
-	}
-}
-
-type Healer struct {
-	Evaluator
-}
-
-func (h *Healer) Act(source *Fighter, targets []*Fighter) *Action {
-	return &Action{
-		Source:  source,
-		Targets: targets,
-		Verb:    NewHeal(h.Evaluate(source.Warrior)),
-	}
-}
-
-type Buffer struct {
-	reactor interface {
-		Reactor
-		Forker
-	}
-}
-
-func (b *Buffer) Act(source *Fighter, targets []*Fighter) *Action {
-	return &Action{
-		Source:  source,
-		Targets: targets,
-		Verb:    NewBuffing(b.reactor.Fork().(Reactor)),
+		Verb:    a.proto.Fork(a.ForkWith(source.Warrior), nil),
 	}
 }
 
@@ -91,13 +46,13 @@ type Rng interface {
 	Gen() float64 // [0, 1)
 }
 
-type Critical struct {
-	rng  Rng
-	odds int // percentage
-	buff *ClearingBuff
+type ProbabilityAttackReactor struct {
+	rng   Rng
+	odds  int // percentage
+	proto Verb
 }
 
-func (c *Critical) React(signal Signal) {
+func (c *ProbabilityAttackReactor) React(signal Signal) {
 	sig, ok := signal.(*PreActionSignal)
 	if !ok {
 		return
@@ -114,6 +69,14 @@ func (c *Critical) React(signal Signal) {
 	sig.Append(&Action{
 		Source:  sig.Source,
 		Targets: sig.Targets,
-		Verb:    NewBuffing(c.buff.Fork(sig.Action)),
+		Verb:    c.proto.Fork(nil, signal),
 	})
+}
+
+func (c *ProbabilityAttackReactor) Fork(_ *evaluation.Block, _ Signal) Reactor {
+	return &ProbabilityAttackReactor{
+		rng:   c.rng,
+		odds:  c.odds,
+		proto: c.proto,
+	}
 }
