@@ -1,20 +1,23 @@
 package battlefield
 
-import "github.com/farseeingnorthwest/playground/battlefield/v2/evaluation"
+import (
+	"github.com/farseeingnorthwest/playground/battlefield/v2/evaluation"
+	"github.com/farseeingnorthwest/playground/battlefield/v2/modifier"
+)
 
 type EvaluationBuff struct {
-	axis  evaluation.Axis
-	bias  int
-	slope int
+	axis       evaluation.Axis
+	bias       int
+	multiplier int
 
-	*FiniteReactor
+	*modifier.FiniteModifier
 }
 
 func NewEvaluationBuff(axis evaluation.Axis, options ...func(buff *EvaluationBuff)) *EvaluationBuff {
 	buff := &EvaluationBuff{
-		axis:  axis,
-		bias:  0,
-		slope: 100,
+		axis:       axis,
+		bias:       0,
+		multiplier: 100,
 	}
 
 	for _, option := range options {
@@ -30,15 +33,15 @@ func EvaluationBias(bias int) func(buff *EvaluationBuff) {
 	}
 }
 
-func EvaluationSlope(slope int) func(buff *EvaluationBuff) {
+func EvaluationMultiplier(multiplier int) func(buff *EvaluationBuff) {
 	return func(buff *EvaluationBuff) {
-		buff.slope = slope
+		buff.multiplier = multiplier
 	}
 }
 
 func EvaluationCapacity(capacity int) func(buff *EvaluationBuff) {
 	return func(buff *EvaluationBuff) {
-		buff.FiniteReactor = &FiniteReactor{capacity}
+		buff.FiniteModifier = modifier.NewFiniteModifier(capacity)
 	}
 }
 
@@ -50,7 +53,7 @@ func (b *EvaluationBuff) React(signal Signal) {
 		}
 
 		sig.Map(func(points int) int {
-			return points*b.slope/100 + b.bias
+			return points*b.multiplier/100 + b.bias
 		})
 
 	case *RoundEndSignal:
@@ -58,28 +61,30 @@ func (b *EvaluationBuff) React(signal Signal) {
 	}
 }
 
-func (b *EvaluationBuff) Fork(_ *evaluation.Block) any {
+func (b *EvaluationBuff) Fork(*evaluation.Block, Signal) any {
 	return &EvaluationBuff{
-		axis:  b.axis,
-		bias:  b.bias,
-		slope: b.slope,
+		axis:       b.axis,
+		bias:       b.bias,
+		multiplier: b.multiplier,
 
-		FiniteReactor: b.FiniteReactor.Fork(),
+		FiniteModifier: b.FiniteModifier.Clone().(*modifier.FiniteModifier),
 	}
 }
 
 type ClearingBuff struct {
-	axis   evaluation.Axis
-	bias   int
-	slope  int
+	axis       evaluation.Axis
+	bias       int
+	multiplier int
+
 	action *Action
 }
 
 func NewClearingBuff(axis evaluation.Axis, action *Action, options ...func(buff *ClearingBuff)) *ClearingBuff {
 	buff := &ClearingBuff{
-		axis:   axis,
-		bias:   0,
-		slope:  100,
+		axis:       axis,
+		bias:       0,
+		multiplier: 100,
+
 		action: action,
 	}
 
@@ -96,9 +101,9 @@ func ClearingBias(bias int) func(buff *ClearingBuff) {
 	}
 }
 
-func ClearingSlope(slope int) func(buff *ClearingBuff) {
+func ClearingMultiplier(multiplier int) func(buff *ClearingBuff) {
 	return func(buff *ClearingBuff) {
-		buff.slope = slope
+		buff.multiplier = multiplier
 	}
 }
 
@@ -110,7 +115,7 @@ func (b *ClearingBuff) React(signal Signal) {
 		}
 
 		sig.Map(func(points int) int {
-			return points*b.slope/100 + b.bias
+			return points*b.multiplier/100 + b.bias
 		})
 
 	case *PostActionSignal:
@@ -132,36 +137,36 @@ func (b *ClearingBuff) WarmUp() {
 	b.action = nil
 }
 
-func (b *ClearingBuff) Fork(block *evaluation.Block, signal Signal) Reactor {
+func (b *ClearingBuff) Fork(_ *evaluation.Block, signal Signal) Reactor {
 	action := b.action
 	if signal != nil {
 		action = signal.(*PreActionSignal).Action
 	}
 
 	return &ClearingBuff{
-		axis:   b.axis,
-		bias:   b.bias,
-		slope:  b.slope,
-		action: action,
+		axis:       b.axis,
+		bias:       b.bias,
+		multiplier: b.multiplier,
+		action:     action,
 	}
 }
 
 type TaggedBuff struct {
-	TaggedReactor
-	*FiniteReactor
+	*modifier.TaggedModifier
+	*modifier.FiniteModifier
 	buffs []*EvaluationBuff
 }
 
 func NewTaggedBuff(tag any, buffs []*EvaluationBuff, options ...func(buff *TaggedBuff)) *TaggedBuff {
 	return &TaggedBuff{
-		TaggedReactor: TaggedReactor{tag},
-		buffs:         buffs,
+		TaggedModifier: modifier.NewTaggedModifier(tag),
+		buffs:          buffs,
 	}
 }
 
 func TaggedCapacity(capacity int) func(buff *TaggedBuff) {
 	return func(buff *TaggedBuff) {
-		buff.FiniteReactor = &FiniteReactor{capacity}
+		buff.FiniteModifier = modifier.NewFiniteModifier(capacity)
 	}
 }
 
@@ -181,10 +186,10 @@ func (b *TaggedBuff) React(signal Signal) {
 	}
 }
 
-func (b *TaggedBuff) Fork(*evaluation.Block, Signal) Reactor {
+func (b *TaggedBuff) Fork(block *evaluation.Block, signal Signal) Reactor {
 	return &TaggedBuff{
-		TaggedReactor: b.TaggedReactor,
-		FiniteReactor: b.FiniteReactor.Fork(),
-		buffs:         b.buffs,
+		TaggedModifier: b.TaggedModifier,
+		FiniteModifier: b.FiniteModifier.Clone().(*modifier.FiniteModifier),
+		buffs:          b.buffs,
 	}
 }

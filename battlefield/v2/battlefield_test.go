@@ -28,7 +28,7 @@ func TestBattlefield_Fight(t *testing.T) {
 							rng:  &mockRng{.001},
 							odds: 10,
 							proto: NewBuffProto(
-								NewClearingBuff(evaluation.Loss, nil, ClearingSlope(200)),
+								NewClearingBuff(evaluation.Loss, nil, ClearingMultiplier(200)),
 								nil,
 							),
 						},

@@ -1,6 +1,9 @@
 package battlefield
 
-import "sort"
+import (
+	"github.com/farseeingnorthwest/playground/battlefield/v2/modifier"
+	"sort"
+)
 
 type Side uint8
 
@@ -65,10 +68,10 @@ func (b *BattleField) React(signal Signal) {
 		f.React(signal)
 	}
 	for _, reactor := range b.reactors {
-		if r, ok := reactor.(Finite); ok && !r.Valid() {
+		if r, ok := reactor.(modifier.Finite); ok && !r.Valid() {
 			continue
 		}
-		if r, ok := reactor.(Periodic); ok && !r.Free() {
+		if r, ok := reactor.(modifier.Periodic); ok && !r.Free() {
 			continue
 		}
 

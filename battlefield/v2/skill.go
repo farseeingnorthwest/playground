@@ -1,6 +1,9 @@
 package battlefield
 
-import "github.com/farseeingnorthwest/playground/battlefield/v2/evaluation"
+import (
+	"github.com/farseeingnorthwest/playground/battlefield/v2/evaluation"
+	"github.com/farseeingnorthwest/playground/battlefield/v2/modifier"
+)
 
 var (
 	NormalAttack = &LaunchReactor{
@@ -27,13 +30,13 @@ var (
 	coordinationBuff = NewTaggedBuff(
 		coordination,
 		[]*EvaluationBuff{
-			NewEvaluationBuff(evaluation.Damage, EvaluationSlope(108)),
-			NewEvaluationBuff(evaluation.Defense, EvaluationSlope(108)),
+			NewEvaluationBuff(evaluation.Damage, EvaluationMultiplier(108)),
+			NewEvaluationBuff(evaluation.Defense, EvaluationMultiplier(108)),
 		},
 		TaggedCapacity(3),
 	)
 	healingBuff = &RoundStartReactor{
-		FiniteReactor: &FiniteReactor{3},
+		FiniteModifier: modifier.NewFiniteModifier(3),
 		actors: []Actor{
 			SelectiveActor{
 				CurrentSelector{},
@@ -90,7 +93,7 @@ var (
 )
 
 type LaunchReactor struct {
-	PeriodicReactor
+	modifier.PeriodicModifier
 	actors []Actor
 }
 
@@ -122,14 +125,14 @@ func (a *LaunchReactor) React(signal Signal) {
 
 func (a *LaunchReactor) Fork(*evaluation.Block, Signal) Reactor {
 	return &LaunchReactor{
-		PeriodicReactor: a.PeriodicReactor,
-		actors:          a.actors,
+		PeriodicModifier: a.PeriodicModifier,
+		actors:           a.actors,
 	}
 }
 
 type RoundStartReactor struct {
-	*FiniteReactor
-	PeriodicReactor
+	*modifier.FiniteModifier
+	modifier.PeriodicModifier
 	actors []Actor
 }
 
@@ -151,8 +154,8 @@ func (a *RoundStartReactor) React(signal Signal) {
 		}
 
 		sig.Append(actions...)
-		a.FiniteReactor.WarmUp()
-		a.PeriodicReactor.WarmUp()
+		a.FiniteModifier.WarmUp()
+		a.PeriodicModifier.WarmUp()
 
 	case *RoundEndSignal:
 		a.CoolDown()
@@ -161,8 +164,8 @@ func (a *RoundStartReactor) React(signal Signal) {
 
 func (a *RoundStartReactor) Fork(*evaluation.Block, Signal) Reactor {
 	return &RoundStartReactor{
-		FiniteReactor:   a.FiniteReactor.Fork(),
-		PeriodicReactor: a.PeriodicReactor,
-		actors:          a.actors,
+		FiniteModifier:   a.FiniteModifier.Clone().(*modifier.FiniteModifier),
+		PeriodicModifier: a.PeriodicModifier,
+		actors:           a.actors,
 	}
 }

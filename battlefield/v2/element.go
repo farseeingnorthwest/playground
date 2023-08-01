@@ -14,8 +14,8 @@ const (
 )
 
 var (
-	up     = NewBuffProto(NewClearingBuff(evaluation.Loss, nil, ClearingSlope(120)), nil)
-	down   = NewBuffProto(NewClearingBuff(evaluation.Loss, nil, ClearingSlope(80)), nil)
+	up     = NewBuffProto(NewClearingBuff(evaluation.Loss, nil, ClearingMultiplier(120)), nil)
+	down   = NewBuffProto(NewClearingBuff(evaluation.Loss, nil, ClearingMultiplier(80)), nil)
 	Theory = ElementTheory{
 		theory: map[Element]map[Element]Verb{
 			Water: {
