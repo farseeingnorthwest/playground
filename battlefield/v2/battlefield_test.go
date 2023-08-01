@@ -3,6 +3,7 @@ package battlefield
 import (
 	"bytes"
 	"fmt"
+	"github.com/farseeingnorthwest/playground/battlefield/v2/evaluation"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -27,7 +28,7 @@ func TestBattlefield_Fight(t *testing.T) {
 							rng:  &mockRng{.001},
 							odds: 10,
 							proto: NewBuffProto(
-								NewClearingBuff(Loss, nil, ClearingSlope(200)),
+								NewClearingBuff(evaluation.Loss, nil, ClearingSlope(200)),
 								nil,
 							),
 						},
@@ -126,7 +127,7 @@ func tr(script *Action) string {
 		comma(j)
 		id(object)
 	}
-	p("] / %d}", script.Verb.(*Attack).chain.Value())
+	p("] / %d}", script.Verb.(*Attack).Block().Value())
 
 	return b.String()
 }

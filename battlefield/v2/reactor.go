@@ -2,10 +2,6 @@ package battlefield
 
 import "github.com/farseeingnorthwest/playground/battlefield/v2/evaluation"
 
-var (
-	Head = &HeadEvaluator{}
-)
-
 type Reactor interface {
 	React(Signal)
 	Fork(*evaluation.Block, Signal) Reactor
@@ -17,7 +13,7 @@ type Actor interface {
 
 type BlindActor struct {
 	proto Verb
-	EvalChain
+	*evaluation.Bundle
 }
 
 func (a *BlindActor) Act(source *Fighter, targets []*Fighter) *Action {

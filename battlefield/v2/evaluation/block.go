@@ -1,9 +1,5 @@
 package evaluation
 
-var (
-	Zero = &Block{}
-)
-
 type Block struct {
 	value int
 	prev  *Block

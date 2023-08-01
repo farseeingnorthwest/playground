@@ -12,14 +12,13 @@ var (
 					RandomSelector{1},
 				},
 				&BlindActor{
-					NewAttackProto(Head),
-					EvalChain{
-						&PercentageEvaluator{
-							Damage,
+					NewAttackProto(evaluation.Head),
+					evaluation.NewBundleProto(
+						evaluation.NewAxisEvaluator(
+							evaluation.Damage,
 							100,
-						},
-						nil,
-					},
+						),
+					),
 				},
 			},
 		},
@@ -28,8 +27,8 @@ var (
 	coordinationBuff = NewTaggedBuff(
 		coordination,
 		[]*EvaluationBuff{
-			NewEvaluationBuff(Damage, EvaluationSlope(108)),
-			NewEvaluationBuff(Defense, EvaluationSlope(108)),
+			NewEvaluationBuff(evaluation.Damage, EvaluationSlope(108)),
+			NewEvaluationBuff(evaluation.Defense, EvaluationSlope(108)),
 		},
 		TaggedCapacity(3),
 	)
@@ -39,8 +38,8 @@ var (
 			SelectiveActor{
 				CurrentSelector{},
 				&BlindActor{
-					NewHealProto(Head),
-					EvalChain{},
+					NewHealProto(evaluation.Head),
+					&evaluation.Bundle{},
 				},
 			},
 		},
@@ -54,11 +53,10 @@ var (
 						SideSelector{},
 					},
 					&BlindActor{
-						NewAttackProto(Head),
-						EvalChain{
-							&PercentageEvaluator{Damage, 90},
-							nil,
-						},
+						NewAttackProto(evaluation.Head),
+						evaluation.NewBundleProto(
+							evaluation.NewAxisEvaluator(evaluation.Damage, 90),
+						),
 					},
 				},
 				SelectiveActor{
@@ -68,7 +66,7 @@ var (
 					},
 					&BlindActor{
 						NewBuffProto(coordinationBuff, nil),
-						EvalChain{},
+						&evaluation.Bundle{},
 					},
 				},
 			},
@@ -83,7 +81,7 @@ var (
 					},
 					&BlindActor{
 						NewBuffProto(healingBuff, nil),
-						EvalChain{},
+						&evaluation.Bundle{},
 					},
 				},
 			},

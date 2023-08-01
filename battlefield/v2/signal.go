@@ -1,5 +1,7 @@
 package battlefield
 
+import "github.com/farseeingnorthwest/playground/battlefield/v2/evaluation"
+
 type Signal interface {
 	signalTrait()
 }
@@ -74,24 +76,13 @@ func NewPostActionSignal(action *Action) *PostActionSignal {
 	}
 }
 
-type Axis uint8
-
-const (
-	Damage Axis = iota
-	Defense
-	Loss
-	Healing
-	Health
-	Speed
-)
-
 type EvaluationSignal struct {
-	axis   Axis
+	axis   evaluation.Axis
 	value  int
 	action *Action
 }
 
-func NewEvaluationSignal(axis Axis, value int, action *Action) *EvaluationSignal {
+func NewEvaluationSignal(axis evaluation.Axis, value int, action *Action) *EvaluationSignal {
 	return &EvaluationSignal{
 		axis,
 		value,
@@ -99,7 +90,7 @@ func NewEvaluationSignal(axis Axis, value int, action *Action) *EvaluationSignal
 	}
 }
 
-func (s *EvaluationSignal) Axis() Axis {
+func (s *EvaluationSignal) Axis() evaluation.Axis {
 	return s.axis
 }
 

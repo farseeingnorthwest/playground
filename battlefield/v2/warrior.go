@@ -1,5 +1,7 @@
 package battlefield
 
+import "github.com/farseeingnorthwest/playground/battlefield/v2/evaluation"
+
 type Baseline interface {
 	Element() Element
 	Damage() int
@@ -29,28 +31,28 @@ func NewWarrior(b Baseline, portfolio Portfolio) *Warrior {
 }
 
 func (w *Warrior) Damage() int {
-	sig := NewEvaluationSignal(Damage, w.Baseline.Damage(), nil)
+	sig := NewEvaluationSignal(evaluation.Damage, w.Baseline.Damage(), nil)
 	w.React(sig)
 
 	return sig.Value()
 }
 
 func (w *Warrior) Defense() int {
-	sig := NewEvaluationSignal(Defense, w.Baseline.Defense(), nil)
+	sig := NewEvaluationSignal(evaluation.Defense, w.Baseline.Defense(), nil)
 	w.React(sig)
 
 	return sig.Value()
 }
 
 func (w *Warrior) Speed() int {
-	sig := NewEvaluationSignal(Speed, w.Baseline.Speed(), nil)
+	sig := NewEvaluationSignal(evaluation.Speed, w.Baseline.Speed(), nil)
 	w.React(sig)
 
 	return sig.Value()
 }
 
 func (w *Warrior) Health() (Ratio, int) {
-	sig := NewEvaluationSignal(Health, w.Baseline.Health(), nil)
+	sig := NewEvaluationSignal(evaluation.Health, w.Baseline.Health(), nil)
 	w.React(sig)
 
 	return w.current, sig.Value()
@@ -58,4 +60,24 @@ func (w *Warrior) Health() (Ratio, int) {
 
 func (w *Warrior) SetHealth(value Ratio) {
 	w.current = value
+}
+
+func (w *Warrior) Component(axis evaluation.Axis) (value int) {
+	switch axis {
+	case evaluation.Damage:
+		value = w.Damage()
+	case evaluation.Defense:
+		value = w.Defense()
+	case evaluation.Health:
+		r, m := w.Health()
+		value = r.Current * m / r.Maximum
+	case evaluation.HealthMax:
+		_, value = w.Health()
+	case evaluation.Speed:
+		value = w.Speed()
+	default:
+		panic("bad axis")
+	}
+
+	return
 }

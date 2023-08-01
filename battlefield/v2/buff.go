@@ -3,14 +3,14 @@ package battlefield
 import "github.com/farseeingnorthwest/playground/battlefield/v2/evaluation"
 
 type EvaluationBuff struct {
-	axis  Axis
+	axis  evaluation.Axis
 	bias  int
 	slope int
 
 	*FiniteReactor
 }
 
-func NewEvaluationBuff(axis Axis, options ...func(buff *EvaluationBuff)) *EvaluationBuff {
+func NewEvaluationBuff(axis evaluation.Axis, options ...func(buff *EvaluationBuff)) *EvaluationBuff {
 	buff := &EvaluationBuff{
 		axis:  axis,
 		bias:  0,
@@ -69,13 +69,13 @@ func (b *EvaluationBuff) Fork(_ *evaluation.Block) any {
 }
 
 type ClearingBuff struct {
-	axis   Axis
+	axis   evaluation.Axis
 	bias   int
 	slope  int
 	action *Action
 }
 
-func NewClearingBuff(axis Axis, action *Action, options ...func(buff *ClearingBuff)) *ClearingBuff {
+func NewClearingBuff(axis evaluation.Axis, action *Action, options ...func(buff *ClearingBuff)) *ClearingBuff {
 	buff := &ClearingBuff{
 		axis:   axis,
 		bias:   0,

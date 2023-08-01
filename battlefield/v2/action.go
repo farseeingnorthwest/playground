@@ -10,7 +10,7 @@ type Action struct {
 
 func (a *Action) Render(f *BattleField) {
 	pre := NewPreActionSignal(a)
-	f.React(pre)
+	f.React(pre) // TODO: render actions per warrior
 	for _, action := range pre.Actions() {
 		action.Render(f)
 	}
@@ -32,21 +32,20 @@ type Verb interface {
 }
 
 type Attack struct {
-	Evaluator
-	chain *evaluation.Block
+	*evaluation.Bundle
 }
 
-func NewAttackProto(e Evaluator) *Attack {
-	return &Attack{e, nil}
+func NewAttackProto(e evaluation.Evaluator) *Attack {
+	return &Attack{evaluation.NewBundleProto(e)}
 }
 
 func (a *Attack) Render(target, source *Warrior, action *Action) {
-	damage := NewEvaluationSignal(Damage, a.Evaluate(target, a.chain), action)
+	damage := NewEvaluationSignal(evaluation.Damage, a.Evaluate(target), action)
 	source.React(damage)
-	defense := NewEvaluationSignal(Defense, target.Defense(), action)
+	defense := NewEvaluationSignal(evaluation.Defense, target.Defense(), action)
 	target.React(defense)
 
-	loss := NewEvaluationSignal(Loss, damage.Value()-defense.Value(), action)
+	loss := NewEvaluationSignal(evaluation.Loss, damage.Value()-defense.Value(), action)
 	target.React(loss)
 	if loss.Value() < 0 {
 		loss.SetValue(0)
@@ -63,20 +62,19 @@ func (a *Attack) Render(target, source *Warrior, action *Action) {
 }
 
 func (a *Attack) Fork(chain *evaluation.Block, _ Signal) Verb {
-	return &Attack{a.Evaluator, chain}
+	return &Attack{a.Bundle.Fork(chain)}
 }
 
 type Heal struct {
-	Evaluator
-	chain *evaluation.Block
+	*evaluation.Bundle
 }
 
-func NewHealProto(e Evaluator) *Heal {
-	return &Heal{e, nil}
+func NewHealProto(e evaluation.Evaluator) *Heal {
+	return &Heal{evaluation.NewBundleProto(e)}
 }
 
 func (h *Heal) Render(target, _ *Warrior, action *Action) {
-	heal := NewEvaluationSignal(Healing, h.Evaluate(target, h.chain), action)
+	heal := NewEvaluationSignal(evaluation.Healing, h.Evaluate(target), action)
 	target.React(heal)
 	if heal.Value() < 0 {
 		heal.SetValue(0)
@@ -93,39 +91,42 @@ func (h *Heal) Render(target, _ *Warrior, action *Action) {
 }
 
 func (h *Heal) Fork(chain *evaluation.Block, _ Signal) Verb {
-	return &Heal{h.Evaluator, chain}
+	return &Heal{h.Bundle.Fork(chain)}
 }
 
 type Buff struct {
 	reactor Reactor
-	*EvalChain
+	*evaluation.Bundle
 }
 
-func NewBuffProto(reactor Reactor, e Evaluator) *Buff {
+func NewBuffProto(reactor Reactor, e evaluation.Evaluator) *Buff {
 	return &Buff{
 		reactor,
-		NewEvalChainProto(e),
+		evaluation.NewBundleProto(e),
 	}
 }
 
-func (h *Buff) Render(target, _ *Warrior, _ *Action) {
-	target.Append(h.reactor.Fork(h.ForkWith(target), nil))
+func (b *Buff) Render(target, _ *Warrior, _ *Action) {
+	target.Append(b.reactor.Fork(b.ForkWith(target), nil))
 }
 
-func (h *Buff) Fork(chain *evaluation.Block, signal Signal) Verb {
+func (b *Buff) Fork(chain *evaluation.Block, signal Signal) Verb {
 	return &Buff{
-		h.reactor.Fork(nil, signal),
-		NewEvalChain(h.Evaluator, chain),
+		b.reactor.Fork(nil, signal),
+		b.Bundle.Fork(chain),
 	}
 }
 
-type Purging struct {
+type Purge struct {
 }
 
-func NewPurging() *Purging {
-	return &Purging{}
+func NewPurgingProto() *Purge {
+	return &Purge{}
 }
 
-func (p *Purging) Render(target, _ *Warrior, _ *Action) {
-	// TODO:
+func (*Purge) Render(target, _ *Warrior, _ *Action) {
+}
+
+func (*Purge) Fork(_ *evaluation.Block, _ Signal) Verb {
+	return &Purge{}
 }
