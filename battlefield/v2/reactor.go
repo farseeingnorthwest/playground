@@ -164,6 +164,6 @@ func (c *PreAttackReactor) React(signal Signal) {
 	}
 }
 
-func (c *PreAttackReactor) Fork(block *evaluation.Block, signal Signal) Reactor {
+func (c *PreAttackReactor) Fork(block *evaluation.Block, signal Signal) any {
 	return &PreAttackReactor{c.ModifiedReactor.Fork(block, signal)}
 }

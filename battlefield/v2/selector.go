@@ -3,6 +3,8 @@ package battlefield
 import (
 	"math/rand"
 	"sort"
+
+	"github.com/farseeingnorthwest/playground/battlefield/v2/evaluation"
 )
 
 type Selector interface {
@@ -85,25 +87,25 @@ func (s RandomSelector) Select(_ *Fighter, fighters []*Fighter) []*Fighter {
 	return fighters
 }
 
-type SequenceSelector struct {
-	Evaluate func(*Fighter) int
-	Asc      bool
+type AxisSelector struct {
+	evaluation.Axis
+	Asc bool
 }
 
-type byEvaluate struct {
-	Evaluate func(*Fighter) int
-	Asc      bool
-	Fighter  []*Fighter
+type byAxis struct {
+	evaluation.Axis
+	Asc     bool
+	Fighter []*Fighter
 }
 
-func (e byEvaluate) Len() int { return len(e.Fighter) }
-func (e byEvaluate) Less(i, j int) bool {
-	return e.Evaluate(e.Fighter[i]) < e.Evaluate(e.Fighter[j]) == e.Asc
+func (a byAxis) Len() int { return len(a.Fighter) }
+func (a byAxis) Less(i, j int) bool {
+	return a.Fighter[i].Component(a.Axis) < a.Fighter[j].Component(a.Axis) == a.Asc
 }
-func (e byEvaluate) Swap(i, j int) { e.Fighter[i], e.Fighter[j] = e.Fighter[j], e.Fighter[i] }
+func (a byAxis) Swap(i, j int) { a.Fighter[i], a.Fighter[j] = a.Fighter[j], a.Fighter[i] }
 
-func (s SequenceSelector) Select(_ *Fighter, fighters []*Fighter) []*Fighter {
-	sort.Sort(byEvaluate{s.Evaluate, s.Asc, fighters})
+func (s AxisSelector) Select(_ *Fighter, fighters []*Fighter) []*Fighter {
+	sort.Sort(byAxis{s.Axis, s.Asc, fighters})
 
 	return fighters
 }

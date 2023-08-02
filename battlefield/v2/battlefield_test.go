@@ -6,8 +6,6 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/farseeingnorthwest/playground/battlefield/v2/evaluation"
-
 	"github.com/stretchr/testify/assert"
 )
 
@@ -26,20 +24,7 @@ func TestBattlefield_Fight(t *testing.T) {
 				&FatPortfolio{
 					[]Reactor{
 						NormalAttack,
-						&PreAttackReactor{
-							NewModifiedReactor([]Actor{
-								&ProbabilityActor{
-									rng:  &mockRng{0.001},
-									odds: 10,
-									Actor: &BlindActor{
-										proto: NewBuffProto(
-											NewClearingBuff(evaluation.Loss, nil, ClearingMultiplier(200)),
-											nil,
-										),
-									},
-								},
-							}),
-						},
+						NewCriticalAttack(&mockRng{0.001}, 10, 200),
 					},
 				},
 			),
