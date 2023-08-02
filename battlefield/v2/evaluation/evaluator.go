@@ -58,6 +58,9 @@ func (b *Bundle) Fork(block *Block) *Bundle {
 }
 
 func (b *Bundle) ForkWith(v vector) *Block {
+	if b == nil {
+		return nil
+	}
 	if b.e == nil {
 		return b.b
 	}

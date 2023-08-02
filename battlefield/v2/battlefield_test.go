@@ -24,13 +24,19 @@ func TestBattlefield_Fight(t *testing.T) {
 				&FatPortfolio{
 					[]Reactor{
 						NormalAttack,
-						&ProbabilityAttackReactor{
-							rng:  &mockRng{.001},
-							odds: 10,
-							proto: NewBuffProto(
-								NewClearingBuff(evaluation.Loss, nil, ClearingMultiplier(200)),
-								nil,
-							),
+						&PreAttackReactor{
+							NewModifiedReactor([]Actor{
+								&ProbabilityActor{
+									rng:  &mockRng{0.001},
+									odds: 10,
+									Actor: &BlindActor{
+										proto: NewBuffProto(
+											NewClearingBuff(evaluation.Loss, nil, ClearingMultiplier(200)),
+											nil,
+										),
+									},
+								},
+							}),
 						},
 					},
 				},

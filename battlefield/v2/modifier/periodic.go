@@ -17,8 +17,16 @@ func (m *PeriodicModifier) Period() int {
 	return m.period
 }
 
+func (m *PeriodicModifier) SetPeriod(period int) {
+	m.period = period
+}
+
 func (m *PeriodicModifier) Phase() int {
 	return m.phase
+}
+
+func (m *PeriodicModifier) SetPhase(phase int) {
+	m.phase = phase
 }
 
 func (m *PeriodicModifier) Free() bool {

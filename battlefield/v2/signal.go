@@ -3,7 +3,7 @@ package battlefield
 import "github.com/farseeingnorthwest/playground/battlefield/v2/evaluation"
 
 type Signal interface {
-	signalTrait()
+	Current() any
 }
 
 type actions struct {
@@ -17,8 +17,6 @@ func (a *actions) Actions() []*Action {
 func (a *actions) Append(actions ...*Action) {
 	a.actions = append(a.actions, actions...)
 }
-
-func (a *actions) signalTrait() {}
 
 type LaunchSignal struct {
 	Target   *Fighter
@@ -35,21 +33,36 @@ func NewLaunchSignal(target *Fighter, field *BattleField) *LaunchSignal {
 	}
 }
 
+func (s *LaunchSignal) Current() any {
+	return s.Target
+}
+
 type RoundStartSignal struct {
-	Current *Fighter
+	current *Fighter
 	Field   *BattleField
 	actions
 }
 
-func (*RoundStartSignal) signalTrait() {}
+func (s *RoundStartSignal) Current() any {
+	return s.current
+}
 
-type RoundEndSignal struct{}
+type RoundEndSignal struct {
+	current any
+}
 
-func (*RoundEndSignal) signalTrait() {}
+func (s *RoundEndSignal) Current() any {
+	return s.current
+}
 
 type actionSignal struct {
+	current any
 	*Action
 	actions
+}
+
+func (s *actionSignal) Current() any {
+	return s.current
 }
 
 type PreActionSignal struct {
@@ -90,6 +103,10 @@ func NewEvaluationSignal(axis evaluation.Axis, value int, action *Action) *Evalu
 	}
 }
 
+func (s *EvaluationSignal) Current() any {
+	return nil
+}
+
 func (s *EvaluationSignal) Axis() evaluation.Axis {
 	return s.axis
 }
@@ -111,5 +128,3 @@ func (s *EvaluationSignal) Map(fn ...func(int) int) {
 func (s *EvaluationSignal) Action() *Action {
 	return s.action
 }
-
-func (s *EvaluationSignal) signalTrait() {}

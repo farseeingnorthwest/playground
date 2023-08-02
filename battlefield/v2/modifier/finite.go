@@ -17,7 +17,7 @@ func NewFiniteModifier(capacity int) *FiniteModifier {
 }
 
 func (m *FiniteModifier) Capacity() int {
-	if m != nil {
+	if m == nil {
 		return 1
 	}
 

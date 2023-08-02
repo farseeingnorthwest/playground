@@ -1,78 +1,153 @@
 package battlefield
 
-import "github.com/farseeingnorthwest/playground/battlefield/v2/evaluation"
+import (
+	"github.com/farseeingnorthwest/playground/battlefield/v2/evaluation"
+	"github.com/farseeingnorthwest/playground/battlefield/v2/modifier"
+)
 
 type Reactor interface {
 	React(Signal)
 	Fork(*evaluation.Block, Signal) Reactor
 }
 
-type Actor interface {
-	Act(*Fighter, []*Fighter) *Action
+type ModifiedReactor struct {
+	*modifier.FiniteModifier
+	*modifier.PeriodicModifier
+	actors []Actor
 }
 
-type BlindActor struct {
-	proto Verb
-	*evaluation.Bundle
+func NewModifiedReactor(actors []Actor, options ...func(*ModifiedReactor)) *ModifiedReactor {
+	a := &ModifiedReactor{
+		PeriodicModifier: &modifier.PeriodicModifier{},
+		actors:           actors,
+	}
+	for _, option := range options {
+		option(a)
+	}
+
+	return a
 }
 
-func (a *BlindActor) Act(source *Fighter, targets []*Fighter) *Action {
-	return &Action{
-		Source:  source,
-		Targets: targets,
-		Verb:    a.proto.Fork(a.ForkWith(source.Warrior), nil),
+func Capacity(capacity int) func(*ModifiedReactor) {
+	return func(a *ModifiedReactor) {
+		a.FiniteModifier = modifier.NewFiniteModifier(capacity)
 	}
 }
 
-type SelectiveActor struct {
-	Selector
-	Actor
-}
-
-func (s SelectiveActor) Act(source *Fighter, targets []*Fighter) *Action {
-	selected := s.Selector.Select(source, targets)
-	if len(selected) == 0 {
-		return nil
+func Period(period int) func(*ModifiedReactor) {
+	return func(a *ModifiedReactor) {
+		a.PeriodicModifier.SetPeriod(period)
 	}
-
-	return s.Actor.Act(source, selected)
 }
 
-type Rng interface {
-	Gen() float64 // [0, 1)
+func Phase(phase int) func(*ModifiedReactor) {
+	return func(a *ModifiedReactor) {
+		a.PeriodicModifier.SetPhase(phase)
+	}
 }
 
-type ProbabilityAttackReactor struct {
-	rng   Rng
-	odds  int // percentage
-	proto Verb
+func (a *ModifiedReactor) Fork(block *evaluation.Block, signal Signal) *ModifiedReactor {
+	return &ModifiedReactor{
+		FiniteModifier:   a.FiniteModifier.Clone().(*modifier.FiniteModifier),
+		PeriodicModifier: a.PeriodicModifier.Clone().(*modifier.PeriodicModifier),
+		actors:           a.actors,
+	}
 }
 
-func (c *ProbabilityAttackReactor) React(signal Signal) {
-	sig, ok := signal.(*PreActionSignal)
-	if !ok {
+func (a *ModifiedReactor) WarmUp() {
+	a.FiniteModifier.WarmUp()
+	a.PeriodicModifier.WarmUp()
+}
+
+func (a *ModifiedReactor) act(source *Fighter, targets []*Fighter, signal Signal) (actions []*Action) {
+	if !a.Free() {
 		return
 	}
-	_, ok = sig.Verb.(*Attack)
-	if !ok {
-		return
+
+	for _, actor := range a.actors {
+		a := actor.Act(source, targets, signal)
+		if a == nil {
+			return nil
+		}
+
+		actions = append(actions, a)
 	}
 
-	if float64(c.odds)/100 <= c.rng.Gen() {
-		return
-	}
-
-	sig.Append(&Action{
-		Source:  sig.Source,
-		Targets: sig.Targets,
-		Verb:    c.proto.Fork(nil, signal),
-	})
+	return
 }
 
-func (c *ProbabilityAttackReactor) Fork(_ *evaluation.Block, _ Signal) Reactor {
-	return &ProbabilityAttackReactor{
-		rng:   c.rng,
-		odds:  c.odds,
-		proto: c.proto,
+type LaunchReactor struct {
+	*ModifiedReactor
+}
+
+func (a *LaunchReactor) React(signal Signal) {
+	switch sig := signal.(type) {
+	case *LaunchSignal:
+		actions := a.act(sig.Target, sig.Field.fighters, sig)
+		if actions == nil {
+			return
+		}
+
+		sig.Append(actions...)
+		sig.Launched = true
+		a.WarmUp()
+
+	case *RoundEndSignal:
+		a.CoolDown()
 	}
+}
+
+func (a *LaunchReactor) Fork(block *evaluation.Block, signal Signal) Reactor {
+	return &LaunchReactor{a.ModifiedReactor.Fork(block, signal)}
+}
+
+type RoundStartReactor struct {
+	*ModifiedReactor
+}
+
+func (a *RoundStartReactor) React(signal Signal) {
+	switch sig := signal.(type) {
+	case *RoundStartSignal:
+		actions := a.act(sig.current, sig.Field.fighters, sig)
+		if actions == nil {
+			return
+		}
+
+		sig.Append(actions...)
+		a.WarmUp()
+		a.CoolDown()
+	}
+}
+
+func (a *RoundStartReactor) Fork(block *evaluation.Block, signal Signal) Reactor {
+	return &RoundStartReactor{a.ModifiedReactor.Fork(block, signal)}
+}
+
+type PreAttackReactor struct {
+	*ModifiedReactor
+}
+
+func (c *PreAttackReactor) React(signal Signal) {
+	switch sig := signal.(type) {
+	case *PreActionSignal:
+		_, ok := sig.Verb.(*Attack)
+		if !ok {
+			return
+		}
+
+		actions := c.act(sig.Source, sig.Targets, sig)
+		if actions == nil {
+			return
+		}
+
+		sig.Append(actions...)
+
+	case *RoundEndSignal:
+		c.WarmUp()
+		c.CoolDown()
+	}
+}
+
+func (c *PreAttackReactor) Fork(block *evaluation.Block, signal Signal) Reactor {
+	return &PreAttackReactor{c.ModifiedReactor.Fork(block, signal)}
 }
