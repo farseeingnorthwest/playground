@@ -47,10 +47,15 @@ func Phase(phase int) func(*ModifiedReactor) {
 }
 
 func (a *ModifiedReactor) Fork(block *evaluation.Block, signal Signal) *ModifiedReactor {
+	actors := make([]Actor, len(a.actors))
+	for i, actor := range a.actors {
+		actors[i] = actor.Fork(block, signal)
+	}
+
 	return &ModifiedReactor{
 		FiniteModifier:   a.FiniteModifier.Clone().(*modifier.FiniteModifier),
 		PeriodicModifier: a.PeriodicModifier.Clone().(*modifier.PeriodicModifier),
-		actors:           a.actors,
+		actors:           actors,
 	}
 }
 
@@ -132,6 +137,9 @@ func (c *PreAttackReactor) React(signal Signal) {
 	case *PreActionSignal:
 		_, ok := sig.Verb.(*Attack)
 		if !ok {
+			return
+		}
+		if sig.Current() != sig.Source {
 			return
 		}
 

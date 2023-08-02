@@ -4,6 +4,7 @@ import "github.com/farseeingnorthwest/playground/battlefield/v2/evaluation"
 
 type Actor interface {
 	Act(*Fighter, []*Fighter, Signal) *Action
+	Fork(*evaluation.Block, Signal) Actor
 }
 
 type BlindActor struct {
@@ -19,18 +20,32 @@ func (a *BlindActor) Act(source *Fighter, targets []*Fighter, signal Signal) *Ac
 	}
 }
 
+func (a *BlindActor) Fork(block *evaluation.Block, _ Signal) Actor {
+	return &BlindActor{
+		proto:  a.proto,
+		Bundle: a.Bundle.Fork(block),
+	}
+}
+
 type SelectiveActor struct {
 	Selector
 	Actor
 }
 
-func (s SelectiveActor) Act(source *Fighter, targets []*Fighter, signal Signal) *Action {
-	selected := s.Selector.Select(source, targets)
+func (a *SelectiveActor) Act(source *Fighter, targets []*Fighter, signal Signal) *Action {
+	selected := a.Select(source, targets)
 	if len(selected) == 0 {
 		return nil
 	}
 
-	return s.Actor.Act(source, selected, signal)
+	return a.Actor.Act(source, selected, signal)
+}
+
+func (a *SelectiveActor) Fork(block *evaluation.Block, signal Signal) Actor {
+	return &SelectiveActor{
+		Selector: a.Selector,
+		Actor:    a.Actor.Fork(block, signal),
+	}
 }
 
 type Rng interface {
@@ -43,10 +58,18 @@ type ProbabilityActor struct {
 	Actor
 }
 
-func (p ProbabilityActor) Act(source *Fighter, targets []*Fighter, signal Signal) *Action {
-	if p.rng.Gen() > float64(p.odds)/100 {
+func (a *ProbabilityActor) Act(source *Fighter, targets []*Fighter, signal Signal) *Action {
+	if a.rng.Gen() > float64(a.odds)/100 {
 		return nil
 	}
 
-	return p.Actor.Act(source, targets, signal)
+	return a.Actor.Act(source, targets, signal)
+}
+
+func (a *ProbabilityActor) Fork(block *evaluation.Block, signal Signal) Actor {
+	return &ProbabilityActor{
+		rng:   a.rng,
+		odds:  a.odds,
+		Actor: a.Actor.Fork(block, signal),
+	}
 }

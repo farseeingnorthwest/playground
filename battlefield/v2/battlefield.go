@@ -65,8 +65,10 @@ func (b *BattleField) Warriors() []*Fighter {
 
 func (b *BattleField) React(signal Signal) {
 	for _, f := range b.fighters {
+		setCurrent(signal, f)
 		f.React(signal)
 	}
+	setCurrent(signal, nil)
 	for _, reactor := range b.reactors {
 		if r, ok := reactor.(modifier.Finite); ok && !r.Valid() {
 			continue
@@ -76,6 +78,15 @@ func (b *BattleField) React(signal Signal) {
 		}
 
 		reactor.React(signal)
+	}
+}
+
+func setCurrent(signal Signal, fighter *Fighter) {
+	switch sig := signal.(type) {
+	case *PreActionSignal:
+		sig.current = fighter
+	case *PostActionSignal:
+		sig.current = fighter
 	}
 }
 

@@ -7,7 +7,7 @@ import (
 var (
 	NormalAttack = &LaunchReactor{
 		NewModifiedReactor([]Actor{
-			SelectiveActor{
+			&SelectiveActor{
 				AndSelector{
 					HealthSelector{},
 					SideSelector{},
@@ -37,7 +37,7 @@ var (
 	healingBuff = &RoundStartReactor{
 		NewModifiedReactor(
 			[]Actor{
-				SelectiveActor{
+				&SelectiveActor{
 					CurrentSelector{},
 					&BlindActor{
 						NewHealProto(evaluation.Head),
@@ -50,7 +50,7 @@ var (
 	Active = []*LaunchReactor{
 		{
 			NewModifiedReactor([]Actor{
-				SelectiveActor{
+				&SelectiveActor{
 					AndSelector{
 						HealthSelector{},
 						SideSelector{},
@@ -62,7 +62,7 @@ var (
 						),
 					},
 				},
-				SelectiveActor{
+				&SelectiveActor{
 					AndSelector{
 						HealthSelector{},
 						SideSelector{true},
@@ -76,7 +76,7 @@ var (
 		},
 		{
 			NewModifiedReactor([]Actor{
-				SelectiveActor{
+				&SelectiveActor{
 					AndSelector{
 						HealthSelector{},
 						SideSelector{true},
