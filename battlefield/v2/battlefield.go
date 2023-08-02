@@ -1,8 +1,9 @@
 package battlefield
 
 import (
-	"github.com/farseeingnorthwest/playground/battlefield/v2/modifier"
 	"sort"
+
+	"github.com/farseeingnorthwest/playground/battlefield/v2/modifier"
 )
 
 type Side uint8
@@ -11,10 +12,6 @@ const (
 	Left Side = iota
 	Right
 )
-
-type Observer interface {
-	Observe(*Action)
-}
 
 type Fighter struct {
 	*Warrior
@@ -40,10 +37,9 @@ func (f bySpeed) Swap(i, j int) { f[i], f[j] = f[j], f[i] }
 type BattleField struct {
 	fighters []*Fighter
 	reactors []Reactor
-	observer Observer
 }
 
-func NewBattleField(a, b []*Warrior, reactors []Reactor, observer Observer) *BattleField {
+func NewBattleField(a, b []*Warrior, reactors ...Reactor) *BattleField {
 	fighters := make([]*Fighter, len(a)+len(b))
 	for i, f := range a {
 		fighters[i] = &Fighter{f, Left, uint8(i)}
@@ -55,7 +51,6 @@ func NewBattleField(a, b []*Warrior, reactors []Reactor, observer Observer) *Bat
 	return &BattleField{
 		fighters: fighters,
 		reactors: reactors,
-		observer: observer,
 	}
 }
 
@@ -109,7 +104,6 @@ func (b *BattleField) Fight() {
 			b.fighters[i].React(signal)
 			for _, a := range signal.Actions() {
 				n++
-				b.observer.Observe(a)
 				a.Render(b)
 			}
 		}

@@ -4,7 +4,7 @@ import "github.com/farseeingnorthwest/playground/battlefield/v2/evaluation"
 
 type Actor interface {
 	Act(*Fighter, []*Fighter, Signal) *Action
-	Fork(*evaluation.Block, Signal) Actor
+	Forker
 }
 
 type BlindActor struct {
@@ -20,7 +20,7 @@ func (a *BlindActor) Act(source *Fighter, targets []*Fighter, signal Signal) *Ac
 	}
 }
 
-func (a *BlindActor) Fork(block *evaluation.Block, _ Signal) Actor {
+func (a *BlindActor) Fork(block *evaluation.Block, _ Signal) any {
 	return &BlindActor{
 		proto:  a.proto,
 		Bundle: a.Bundle.Fork(block),
@@ -41,10 +41,10 @@ func (a *SelectiveActor) Act(source *Fighter, targets []*Fighter, signal Signal)
 	return a.Actor.Act(source, selected, signal)
 }
 
-func (a *SelectiveActor) Fork(block *evaluation.Block, signal Signal) Actor {
+func (a *SelectiveActor) Fork(block *evaluation.Block, signal Signal) any {
 	return &SelectiveActor{
 		Selector: a.Selector,
-		Actor:    a.Actor.Fork(block, signal),
+		Actor:    a.Actor.Fork(block, signal).(Actor),
 	}
 }
 
@@ -66,10 +66,10 @@ func (a *ProbabilityActor) Act(source *Fighter, targets []*Fighter, signal Signa
 	return a.Actor.Act(source, targets, signal)
 }
 
-func (a *ProbabilityActor) Fork(block *evaluation.Block, signal Signal) Actor {
+func (a *ProbabilityActor) Fork(block *evaluation.Block, signal Signal) any {
 	return &ProbabilityActor{
 		rng:   a.rng,
 		odds:  a.odds,
-		Actor: a.Actor.Fork(block, signal),
+		Actor: a.Actor.Fork(block, signal).(Actor),
 	}
 }

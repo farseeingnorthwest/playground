@@ -137,7 +137,7 @@ func (b *ClearingBuff) WarmUp() {
 	b.action = nil
 }
 
-func (b *ClearingBuff) Fork(_ *evaluation.Block, signal Signal) Reactor {
+func (b *ClearingBuff) Fork(_ *evaluation.Block, signal Signal) any {
 	action := b.action
 	if signal != nil {
 		action = signal.(*PreActionSignal).Action
@@ -186,7 +186,7 @@ func (b *TaggedBuff) React(signal Signal) {
 	}
 }
 
-func (b *TaggedBuff) Fork(block *evaluation.Block, signal Signal) Reactor {
+func (b *TaggedBuff) Fork(block *evaluation.Block, signal Signal) any {
 	return &TaggedBuff{
 		TaggedModifier: b.TaggedModifier,
 		FiniteModifier: b.FiniteModifier.Clone().(*modifier.FiniteModifier),

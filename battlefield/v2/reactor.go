@@ -7,7 +7,15 @@ import (
 
 type Reactor interface {
 	React(Signal)
-	Fork(*evaluation.Block, Signal) Reactor
+}
+
+type Forker interface {
+	Fork(*evaluation.Block, Signal) any
+}
+
+type ForkableReactor interface {
+	Reactor
+	Forker
 }
 
 type ModifiedReactor struct {
@@ -49,7 +57,7 @@ func Phase(phase int) func(*ModifiedReactor) {
 func (a *ModifiedReactor) Fork(block *evaluation.Block, signal Signal) *ModifiedReactor {
 	actors := make([]Actor, len(a.actors))
 	for i, actor := range a.actors {
-		actors[i] = actor.Fork(block, signal)
+		actors[i] = actor.Fork(block, signal).(Actor)
 	}
 
 	return &ModifiedReactor{
@@ -124,7 +132,7 @@ func (a *RoundStartReactor) React(signal Signal) {
 	}
 }
 
-func (a *RoundStartReactor) Fork(block *evaluation.Block, signal Signal) Reactor {
+func (a *RoundStartReactor) Fork(block *evaluation.Block, signal Signal) any {
 	return &RoundStartReactor{a.ModifiedReactor.Fork(block, signal)}
 }
 

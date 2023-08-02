@@ -3,14 +3,16 @@ package battlefield
 import (
 	"bytes"
 	"fmt"
-	"github.com/farseeingnorthwest/playground/battlefield/v2/evaluation"
+	"reflect"
 	"testing"
+
+	"github.com/farseeingnorthwest/playground/battlefield/v2/evaluation"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func TestBattlefield_Fight(t *testing.T) {
-	ob := &mockObserver{}
+	ob := &observer{}
 	b := NewBattleField(
 		[]*Warrior{
 			NewWarrior(
@@ -56,21 +58,25 @@ func TestBattlefield_Fight(t *testing.T) {
 				}},
 			),
 		},
-		[]Reactor{
-			&Theory,
-		},
 		ob,
+		&Theory,
 	)
 	b.Fight()
 
 	assert.Equal(
 		t,
 		[]string{
-			"L#0 -> {[R#0] / 10}",
-			"R#0 -> {[L#0] / 15}",
-			"L#0 -> {[R#0] / 10}",
-			"R#0 -> {[L#0] / 15}",
-			"L#0 -> {[R#0] / 10}",
+			"<Buff> L#0 -> [R#0]",
+			"<Buff> L#0 -> [R#0]",
+			"<Attack> L#0 -> [R#0]",
+			"<Buff> R#0 -> [L#0]",
+			"<Attack> R#0 -> [L#0]",
+			"<Buff> L#0 -> [R#0]",
+			"<Attack> L#0 -> [R#0]",
+			"<Buff> R#0 -> [L#0]",
+			"<Attack> R#0 -> [L#0]",
+			"<Buff> L#0 -> [R#0]",
+			"<Attack> L#0 -> [R#0]",
 		},
 		ob.scripts,
 	)
@@ -104,36 +110,33 @@ func (f *baseline) Speed() int {
 	return f.speed
 }
 
-type mockObserver struct {
+type observer struct {
 	scripts []string
 }
 
-func (o *mockObserver) Observe(script *Action) {
-	o.scripts = append(o.scripts, tr(script))
+func (ob *observer) React(s Signal) {
+	switch sig := s.(type) {
+	case *PostActionSignal:
+		ob.scripts = append(ob.scripts, fmt.Sprintf(
+			"<%s> %s -> [%s]",
+			reflect.TypeOf(sig.Verb).Elem().Name(),
+			positions([]*Fighter{sig.Source}).String(),
+			positions(sig.Targets).String(),
+		))
+	}
 }
 
-func tr(script *Action) string {
+type positions []*Fighter
+
+func (p positions) String() string {
 	var b bytes.Buffer
 
-	p := func(format string, a ...any) {
-		_, _ = fmt.Fprintf(&b, format, a...)
-	}
-	id := func(f *Fighter) {
-		p("%s#%d", []string{"L", "R"}[f.Side], f.Position)
-	}
-	comma := func(i int) {
+	for i, f := range p {
 		if i > 0 {
-			p(", ")
+			b.WriteString(", ")
 		}
+		b.WriteString(fmt.Sprintf("%s#%d", []string{"L", "R"}[f.Side], f.Position))
 	}
-
-	id(script.Source)
-	p(" -> {[")
-	for j, object := range script.Targets {
-		comma(j)
-		id(object)
-	}
-	p("] / %d}", script.Verb.(*Attack).Block().Value())
 
 	return b.String()
 }

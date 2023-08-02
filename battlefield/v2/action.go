@@ -58,7 +58,7 @@ func (a *Attack) Render(target, source *Warrior, action *Action) {
 		c = 0
 	}
 
-	target.current = Ratio{c, m}
+	target.SetHealth(Ratio{c, m})
 }
 
 func (a *Attack) Fork(chain *evaluation.Block, _ Signal) Verb {
@@ -95,11 +95,11 @@ func (h *Heal) Fork(chain *evaluation.Block, _ Signal) Verb {
 }
 
 type Buff struct {
-	reactor Reactor
+	reactor ForkableReactor
 	*evaluation.Bundle
 }
 
-func NewBuffProto(reactor Reactor, e evaluation.Evaluator) *Buff {
+func NewBuffProto(reactor ForkableReactor, e evaluation.Evaluator) *Buff {
 	return &Buff{
 		reactor,
 		evaluation.NewBundleProto(e),
@@ -107,12 +107,12 @@ func NewBuffProto(reactor Reactor, e evaluation.Evaluator) *Buff {
 }
 
 func (b *Buff) Render(target, _ *Warrior, _ *Action) {
-	target.Append(b.reactor.Fork(b.ForkWith(target), nil))
+	target.Append(b.reactor.Fork(b.ForkWith(target), nil).(Reactor))
 }
 
 func (b *Buff) Fork(chain *evaluation.Block, signal Signal) Verb {
 	return &Buff{
-		b.reactor.Fork(nil, signal),
+		b.reactor.Fork(nil, signal).(ForkableReactor),
 		b.Bundle.Fork(chain),
 	}
 }
