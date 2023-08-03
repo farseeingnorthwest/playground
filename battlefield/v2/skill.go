@@ -7,16 +7,17 @@ import (
 var (
 	Layer0 = []ForkableReactor{
 		// 0
-		NewTaggedBuff(
+		NewCompoundBuff(
 			coordination,
 			[]*EvaluationBuff{
-				NewEvaluationBuff(evaluation.Damage, EvaluationMultiplier(108)),
-				NewEvaluationBuff(evaluation.Defense, EvaluationMultiplier(108)),
+				NewEvaluationBuff("提升攻击力 8%", evaluation.Damage, EvaluationMultiplier(108)),
+				NewEvaluationBuff("提升防御力 8%", evaluation.Defense, EvaluationMultiplier(108)),
 			},
 			TaggedCapacity(3),
 		),
 		// 1
 		&RoundStartReactor{NewModifiedReactor(
+			"回合開始時治療",
 			[]Actor{
 				&SelectiveActor{
 					CurrentSelector{},
@@ -29,26 +30,26 @@ var (
 			Capacity(3),
 		)},
 		// 2
-		NewEvaluationBuff(evaluation.Defense, EvaluationMultiplier(120), EvaluationCapacity(2)),
+		NewEvaluationBuff("提升防御力 20%", evaluation.Defense, EvaluationMultiplier(120), EvaluationCapacity(2)),
 		// 3
-		NewEvaluationBuff(evaluation.Defense, EvaluationMultiplier(80), EvaluationCapacity(2)),
+		NewEvaluationBuff("降低防御力 20%", evaluation.Defense, EvaluationMultiplier(80), EvaluationCapacity(2)),
 		// 4
-		NewEvaluationBuff(evaluation.Defense, EvaluationMultiplier(95)),
+		NewEvaluationBuff("降低防御力 5%", evaluation.Defense, EvaluationMultiplier(95)),
 		// 5
-		NewEvaluationBuff(evaluation.Defense, EvaluationMultiplier(0)),
+		NewEvaluationBuff("降低防御力 100%", evaluation.Defense, EvaluationMultiplier(0)),
 		// 6
-		NewEvaluationBuff(evaluation.HealthMax, EvaluationMultiplier(50)),
+		NewEvaluationBuff("降低生命值上限 50%", evaluation.HealthMax, EvaluationMultiplier(50)),
 		// 7
-		NewEvaluationBuff(evaluation.Damage, EvaluationMultiplier(105)),
+		NewEvaluationBuff("提升攻击力 5%", evaluation.Damage, EvaluationMultiplier(105)),
 		// 8
-		NewEvaluationBuff(evaluation.Damage, EvaluationMultiplier(130)),
+		NewEvaluationBuff("提升攻击力 30%", evaluation.Damage, EvaluationMultiplier(130)),
 		// 9
-		NewEvaluationBuff(evaluation.Defense, EvaluationMultiplier(110)),
+		NewEvaluationBuff("提升防御力 10%", evaluation.Defense, EvaluationMultiplier(110)),
 		// 10
-		NewEvaluationBuff(evaluation.HealthMax, EvaluationMultiplier(110)),
+		NewEvaluationBuff("提升生命值上限 10%", evaluation.HealthMax, EvaluationMultiplier(110)),
 	}
 	Active = []*LaunchReactor{
-		{NewModifiedReactor([]Actor{
+		{NewModifiedReactor("普通攻击", []Actor{
 			&SelectiveActor{
 				AndSelector{
 					HealthSelector{},
@@ -66,7 +67,7 @@ var (
 				},
 			},
 		})},
-		{NewModifiedReactor([]Actor{
+		{NewModifiedReactor("攻擊敵方全體 90% 自身傷害，並給予全隊共鬥效果，持續三回合", []Actor{
 			&SelectiveActor{
 				AndSelector{
 					HealthSelector{},
@@ -93,7 +94,7 @@ var (
 				},
 			},
 		}, Period(4))},
-		{NewModifiedReactor([]Actor{
+		{NewModifiedReactor("賦予隨機三位友方回合開始時治療攻擊力 150% 治療效果，持續三回合", []Actor{
 			&SelectiveActor{
 				AndSelector{
 					HealthSelector{},
@@ -111,7 +112,7 @@ var (
 				},
 			},
 		}, Period(4))},
-		{NewModifiedReactor([]Actor{
+		{NewModifiedReactor("提升全隊防禦力 20%，持續 2 回合", []Actor{
 			&SelectiveActor{
 				AndSelector{
 					HealthSelector{},
@@ -123,19 +124,7 @@ var (
 				},
 			},
 		}, Period(4))},
-		{NewModifiedReactor([]Actor{
-			&SelectiveActor{
-				AndSelector{
-					HealthSelector{},
-					SideSelector{true},
-				},
-				&BlindActor{
-					NewBuffProto(Layer0[2], nil),
-					nil,
-				},
-			},
-		}, Period(4))},
-		{NewModifiedReactor([]Actor{
+		{NewModifiedReactor("降低敵方全體防禦 20%，持續 2 回合", []Actor{
 			&SelectiveActor{
 				AndSelector{
 					HealthSelector{},
@@ -147,7 +136,7 @@ var (
 				},
 			},
 		}, Period(4))},
-		{NewModifiedReactor([]Actor{
+		{NewModifiedReactor("對自己造成 25% 自身傷害，對敵方全體造成 500% 自身傷害", []Actor{
 			&SelectiveActor{
 				CurrentSelector{},
 				&BlindActor{
@@ -176,7 +165,7 @@ var (
 				},
 			},
 		}, Period(4))},
-		{NewModifiedReactor([]Actor{
+		{NewModifiedReactor("對自己造成 50% 自身傷害，對敵方隨機一位造成 1000% 自身傷害", []Actor{
 			&SelectiveActor{
 				CurrentSelector{},
 				&BlindActor{
@@ -206,7 +195,7 @@ var (
 				},
 			},
 		}, Period(4))},
-		{NewModifiedReactor([]Actor{
+		{NewModifiedReactor("對敵方一位造成 175% 自身傷害", []Actor{
 			&SelectiveActor{
 				AndSelector{
 					HealthSelector{},
@@ -224,7 +213,7 @@ var (
 				},
 			},
 		})},
-		{NewModifiedReactor([]Actor{
+		{NewModifiedReactor("攻擊敵方全體 70% 傷害", []Actor{
 			&SelectiveActor{
 				AndSelector{
 					HealthSelector{},
@@ -243,7 +232,7 @@ var (
 		})},
 	}
 	Passive = []Reactor{
-		&RoundStartReactor{NewModifiedReactor([]Actor{
+		&RoundStartReactor{NewModifiedReactor("每 1 回合降低敵方防禦最高的單位防禦 5%，可疊加，不可被清除", []Actor{
 			&SelectiveActor{
 				AndSelector{
 					HealthSelector{},
@@ -256,7 +245,7 @@ var (
 				},
 			},
 		})},
-		&RoundStartReactor{NewModifiedReactor([]Actor{
+		&RoundStartReactor{NewModifiedReactor("每回合提升傷害 5%，可疊加，不可被清除", []Actor{
 			&SelectiveActor{
 				CurrentSelector{},
 				&BlindActor{
@@ -272,13 +261,14 @@ var (
 )
 
 func NewCriticalAttack(rng Rng, odds int, multiplier int) Reactor {
-	return &PreAttackReactor{NewModifiedReactor([]Actor{
+	return &PreAttackReactor{NewModifiedReactor("暴击", []Actor{
 		&ProbabilityActor{
 			rng,
 			odds,
 			&BlindActor{
 				NewBuffProto(
 					NewClearingBuff(
+						"暴击伤害",
 						evaluation.Loss,
 						nil,
 						ClearingMultiplier(multiplier),

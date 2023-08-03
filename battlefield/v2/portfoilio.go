@@ -1,12 +1,11 @@
 package battlefield
 
 import (
-	"github.com/farseeingnorthwest/playground/battlefield/v2/evaluation"
-	"github.com/farseeingnorthwest/playground/battlefield/v2/modifier"
+	"github.com/farseeingnorthwest/playground/battlefield/v2/mod"
 )
 
 type Portfolio interface {
-	Reactor
+	RawReactor
 
 	Append(Reactor)
 	Contains(any) bool
@@ -22,19 +21,15 @@ func NewFatPortfolio() *FatPortfolio {
 
 func (p *FatPortfolio) React(signal Signal) {
 	for _, reactor := range p.reactors {
-		if r, ok := reactor.(modifier.Finite); ok && !r.Valid() {
+		if r, ok := reactor.(mod.Finite); ok && !r.Valid() {
 			continue
 		}
-		if r, ok := reactor.(modifier.Periodic); ok && !r.Free() {
+		if r, ok := reactor.(mod.Periodic); ok && !r.Free() {
 			continue
 		}
 
 		reactor.React(signal)
 	}
-}
-
-func (p *FatPortfolio) Fork(block *evaluation.Block, signal Signal) Reactor {
-	panic("not implemented")
 }
 
 func (p *FatPortfolio) Append(reactor Reactor) {
@@ -43,7 +38,7 @@ func (p *FatPortfolio) Append(reactor Reactor) {
 
 func (p *FatPortfolio) Contains(tag any) bool {
 	for _, reactor := range p.reactors {
-		if r, ok := reactor.(modifier.Tagged); ok && r.Tag() == tag {
+		if reactor.Tag() == tag {
 			return true
 		}
 	}

@@ -1,6 +1,9 @@
 package battlefield
 
-import "github.com/farseeingnorthwest/playground/battlefield/v2/evaluation"
+import (
+	"github.com/farseeingnorthwest/playground/battlefield/v2/evaluation"
+	"github.com/farseeingnorthwest/playground/battlefield/v2/mod"
+)
 
 const (
 	Water Element = iota
@@ -14,9 +17,10 @@ const (
 )
 
 var (
-	up     = NewBuffProto(NewClearingBuff(evaluation.Loss, nil, ClearingMultiplier(120)), nil)
-	down   = NewBuffProto(NewClearingBuff(evaluation.Loss, nil, ClearingMultiplier(80)), nil)
+	up     = NewBuffProto(NewClearingBuff("Element +", evaluation.Loss, nil, ClearingMultiplier(120)), nil)
+	down   = NewBuffProto(NewClearingBuff("Element -", evaluation.Loss, nil, ClearingMultiplier(80)), nil)
 	Theory = ElementTheory{
+		TaggerMod: mod.NewTaggerMod("ElementTheory"),
 		theory: map[Element]map[Element]Verb{
 			Water: {
 				Fire:    up,
@@ -55,6 +59,7 @@ var (
 type Element uint8
 
 type ElementTheory struct {
+	mod.TaggerMod
 	theory map[Element]map[Element]Verb
 }
 
@@ -78,8 +83,4 @@ func (t *ElementTheory) React(signal Signal) {
 			})
 		}
 	}
-}
-
-func (t *ElementTheory) Fork(*evaluation.Block, Signal) Reactor {
-	panic("not implemented")
 }

@@ -2,11 +2,16 @@ package battlefield
 
 import (
 	"github.com/farseeingnorthwest/playground/battlefield/v2/evaluation"
-	"github.com/farseeingnorthwest/playground/battlefield/v2/modifier"
+	"github.com/farseeingnorthwest/playground/battlefield/v2/mod"
 )
 
-type Reactor interface {
+type RawReactor interface {
 	React(Signal)
+}
+
+type Reactor interface {
+	RawReactor
+	mod.Tagger
 }
 
 type Forker interface {
@@ -19,65 +24,68 @@ type ForkableReactor interface {
 }
 
 type ModifiedReactor struct {
-	*modifier.FiniteModifier
-	*modifier.PeriodicModifier
+	mod.TaggerMod
+	*mod.FiniteMod
+	mod.PeriodicMod
 	actors []Actor
 }
 
-func NewModifiedReactor(actors []Actor, options ...func(*ModifiedReactor)) *ModifiedReactor {
-	a := &ModifiedReactor{
-		PeriodicModifier: &modifier.PeriodicModifier{},
-		actors:           actors,
-	}
-	for _, option := range options {
-		option(a)
+func NewModifiedReactor(tag any, actors []Actor, options ...func(*ModifiedReactor)) *ModifiedReactor {
+	m := &ModifiedReactor{
+		actors: actors,
 	}
 
-	return a
+	m.SetTag(tag)
+	for _, option := range options {
+		option(m)
+	}
+
+	return m
 }
 
 func Capacity(capacity int) func(*ModifiedReactor) {
-	return func(a *ModifiedReactor) {
-		a.FiniteModifier = modifier.NewFiniteModifier(capacity)
+	return func(m *ModifiedReactor) {
+		m.FiniteMod = mod.NewFiniteModifier(capacity)
 	}
 }
 
 func Period(period int) func(*ModifiedReactor) {
-	return func(a *ModifiedReactor) {
-		a.PeriodicModifier.SetPeriod(period)
+	return func(m *ModifiedReactor) {
+		m.PeriodicMod.SetPeriod(period)
 	}
 }
 
 func Phase(phase int) func(*ModifiedReactor) {
-	return func(a *ModifiedReactor) {
-		a.PeriodicModifier.SetPhase(phase)
+	return func(m *ModifiedReactor) {
+		m.PeriodicMod.SetPhase(phase)
 	}
 }
 
-func (a *ModifiedReactor) Fork(block *evaluation.Block, signal Signal) *ModifiedReactor {
-	actors := make([]Actor, len(a.actors))
-	for i, actor := range a.actors {
+func (m *ModifiedReactor) Fork(block *evaluation.Block, signal Signal) *ModifiedReactor {
+	actors := make([]Actor, len(m.actors))
+	for i, actor := range m.actors {
 		actors[i] = actor.Fork(block, signal).(Actor)
 	}
 
 	return &ModifiedReactor{
-		FiniteModifier:   a.FiniteModifier.Clone().(*modifier.FiniteModifier),
-		PeriodicModifier: a.PeriodicModifier.Clone().(*modifier.PeriodicModifier),
-		actors:           actors,
+		TaggerMod:   m.TaggerMod,
+		FiniteMod:   m.FiniteMod.Clone().(*mod.FiniteMod),
+		PeriodicMod: m.PeriodicMod,
+		actors:      actors,
 	}
 }
 
-func (a *ModifiedReactor) WarmUp() {
-	a.FiniteModifier.WarmUp()
-	a.PeriodicModifier.WarmUp()
+func (m *ModifiedReactor) WarmUp() {
+	m.FiniteMod.WarmUp()
+	m.PeriodicMod.WarmUp()
 }
 
-func (a *ModifiedReactor) act(source *Fighter, targets []*Fighter, signal Signal) (actions []*Action) {
-	if !a.Free() {
+func (m *ModifiedReactor) act(source *Fighter, targets []*Fighter, signal Signal) (actions []*Action) {
+	if !m.Free() {
 		return
 	}
 
-	for _, actor := range a.actors {
+	for _, actor := range m.actors {
 		a := actor.Act(source, targets, signal)
 		if a == nil {
 			return nil

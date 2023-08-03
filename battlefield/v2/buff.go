@@ -2,24 +2,26 @@ package battlefield
 
 import (
 	"github.com/farseeingnorthwest/playground/battlefield/v2/evaluation"
-	"github.com/farseeingnorthwest/playground/battlefield/v2/modifier"
+	"github.com/farseeingnorthwest/playground/battlefield/v2/mod"
 )
 
 type EvaluationBuff struct {
+	mod.TaggerMod
+	*mod.FiniteMod
+
 	axis       evaluation.Axis
 	bias       int
 	multiplier int
-
-	*modifier.FiniteModifier
 }
 
-func NewEvaluationBuff(axis evaluation.Axis, options ...func(buff *EvaluationBuff)) *EvaluationBuff {
+func NewEvaluationBuff(tag any, axis evaluation.Axis, options ...func(buff *EvaluationBuff)) *EvaluationBuff {
 	buff := &EvaluationBuff{
 		axis:       axis,
 		bias:       0,
 		multiplier: 100,
 	}
 
+	buff.SetTag(tag)
 	for _, option := range options {
 		option(buff)
 	}
@@ -41,7 +43,7 @@ func EvaluationMultiplier(multiplier int) func(buff *EvaluationBuff) {
 
 func EvaluationCapacity(capacity int) func(buff *EvaluationBuff) {
 	return func(buff *EvaluationBuff) {
-		buff.FiniteModifier = modifier.NewFiniteModifier(capacity)
+		buff.FiniteMod = mod.NewFiniteModifier(capacity)
 	}
 }
 
@@ -63,23 +65,24 @@ func (b *EvaluationBuff) React(signal Signal) {
 
 func (b *EvaluationBuff) Fork(*evaluation.Block, Signal) any {
 	return &EvaluationBuff{
+		TaggerMod:  b.TaggerMod,
+		FiniteMod:  b.FiniteMod.Clone().(*mod.FiniteMod),
 		axis:       b.axis,
 		bias:       b.bias,
 		multiplier: b.multiplier,
-
-		FiniteModifier: b.FiniteModifier.Clone().(*modifier.FiniteModifier),
 	}
 }
 
 type ClearingBuff struct {
+	mod.TaggerMod
+
 	axis       evaluation.Axis
 	bias       int
 	multiplier int
-
-	action *Action
+	action     *Action
 }
 
-func NewClearingBuff(axis evaluation.Axis, action *Action, options ...func(buff *ClearingBuff)) *ClearingBuff {
+func NewClearingBuff(tag any, axis evaluation.Axis, action *Action, options ...func(buff *ClearingBuff)) *ClearingBuff {
 	buff := &ClearingBuff{
 		axis:       axis,
 		bias:       0,
@@ -88,6 +91,7 @@ func NewClearingBuff(axis evaluation.Axis, action *Action, options ...func(buff 
 		action: action,
 	}
 
+	buff.SetTag(tag)
 	for _, option := range options {
 		option(buff)
 	}
@@ -144,6 +148,7 @@ func (b *ClearingBuff) Fork(_ *evaluation.Block, signal Signal) any {
 	}
 
 	return &ClearingBuff{
+		TaggerMod:  b.TaggerMod,
 		axis:       b.axis,
 		bias:       b.bias,
 		multiplier: b.multiplier,
@@ -151,26 +156,32 @@ func (b *ClearingBuff) Fork(_ *evaluation.Block, signal Signal) any {
 	}
 }
 
-type TaggedBuff struct {
-	*modifier.TaggedModifier
-	*modifier.FiniteModifier
+type CompoundBuff struct {
+	mod.TaggerMod
+	*mod.FiniteMod
 	buffs []*EvaluationBuff
 }
 
-func NewTaggedBuff(tag any, buffs []*EvaluationBuff, options ...func(buff *TaggedBuff)) *TaggedBuff {
-	return &TaggedBuff{
-		TaggedModifier: modifier.NewTaggedModifier(tag),
-		buffs:          buffs,
+func NewCompoundBuff(tag any, buffs []*EvaluationBuff, options ...func(buff *CompoundBuff)) *CompoundBuff {
+	buff := &CompoundBuff{
+		buffs: buffs,
+	}
+
+	buff.SetTag(tag)
+	for _, option := range options {
+		option(buff)
+	}
+
+	return buff
+}
+
+func TaggedCapacity(capacity int) func(buff *CompoundBuff) {
+	return func(buff *CompoundBuff) {
+		buff.FiniteMod = mod.NewFiniteModifier(capacity)
 	}
 }
 
-func TaggedCapacity(capacity int) func(buff *TaggedBuff) {
-	return func(buff *TaggedBuff) {
-		buff.FiniteModifier = modifier.NewFiniteModifier(capacity)
-	}
-}
-
-func (b *TaggedBuff) React(signal Signal) {
+func (b *CompoundBuff) React(signal Signal) {
 	switch sig := signal.(type) {
 	case *EvaluationSignal:
 		if sig.Action() != nil {
@@ -186,10 +197,10 @@ func (b *TaggedBuff) React(signal Signal) {
 	}
 }
 
-func (b *TaggedBuff) Fork(block *evaluation.Block, signal Signal) any {
-	return &TaggedBuff{
-		TaggedModifier: b.TaggedModifier,
-		FiniteModifier: b.FiniteModifier.Clone().(*modifier.FiniteModifier),
-		buffs:          b.buffs,
+func (b *CompoundBuff) Fork(block *evaluation.Block, signal Signal) any {
+	return &CompoundBuff{
+		TaggerMod: b.TaggerMod,
+		FiniteMod: b.FiniteMod.Clone().(*mod.FiniteMod),
+		buffs:     b.buffs,
 	}
 }

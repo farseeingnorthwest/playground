@@ -3,7 +3,7 @@ package battlefield
 import (
 	"sort"
 
-	"github.com/farseeingnorthwest/playground/battlefield/v2/modifier"
+	"github.com/farseeingnorthwest/playground/battlefield/v2/mod"
 )
 
 type Side uint8
@@ -65,10 +65,10 @@ func (b *BattleField) React(signal Signal) {
 	}
 	setCurrent(signal, nil)
 	for _, reactor := range b.reactors {
-		if r, ok := reactor.(modifier.Finite); ok && !r.Valid() {
+		if r, ok := reactor.(mod.Finite); ok && !r.Valid() {
 			continue
 		}
-		if r, ok := reactor.(modifier.Periodic); ok && !r.Free() {
+		if r, ok := reactor.(mod.Periodic); ok && !r.Free() {
 			continue
 		}
 

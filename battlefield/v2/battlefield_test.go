@@ -1,8 +1,8 @@
 package battlefield
 
 import (
-	"bytes"
 	"fmt"
+	"github.com/farseeingnorthwest/playground/battlefield/v2/mod"
 	"reflect"
 	"testing"
 
@@ -11,15 +11,17 @@ import (
 
 func TestBattlefield_Fight(t *testing.T) {
 	ob := &observer{}
+	ob.SetTag("Ob")
 	b := NewBattleField(
 		[]*Warrior{
 			NewWarrior(
 				&baseline{
-					element: Water,
-					damage:  10,
-					defense: 5,
-					speed:   10,
-					health:  20,
+					TaggerMod: mod.NewTaggerMod("Alice"),
+					element:   Water,
+					damage:    10,
+					defense:   5,
+					speed:     10,
+					health:    20,
 				},
 				&FatPortfolio{
 					[]Reactor{
@@ -32,11 +34,12 @@ func TestBattlefield_Fight(t *testing.T) {
 		[]*Warrior{
 			NewWarrior(
 				&baseline{
-					element: Fire,
-					damage:  15,
-					defense: 5,
-					speed:   9,
-					health:  22,
+					TaggerMod: mod.NewTaggerMod("Bob"),
+					element:   Fire,
+					damage:    15,
+					defense:   5,
+					speed:     9,
+					health:    22,
 				},
 				&FatPortfolio{[]Reactor{
 					NormalAttack,
@@ -51,23 +54,24 @@ func TestBattlefield_Fight(t *testing.T) {
 	assert.Equal(
 		t,
 		[]string{
-			"<Buff> L#0 -> [R#0]",
-			"<Buff> L#0 -> [R#0]",
-			"<Attack> L#0 -> [R#0]",
-			"<Buff> R#0 -> [L#0]",
-			"<Attack> R#0 -> [L#0]",
-			"<Buff> L#0 -> [R#0]",
-			"<Attack> L#0 -> [R#0]",
-			"<Buff> R#0 -> [L#0]",
-			"<Attack> R#0 -> [L#0]",
-			"<Buff> L#0 -> [R#0]",
-			"<Attack> L#0 -> [R#0]",
+			"<Buff> Alice -> [Bob]",
+			"<Buff> Alice -> [Bob]",
+			"<Attack> Alice -> [Bob]",
+			"<Buff> Bob -> [Alice]",
+			"<Attack> Bob -> [Alice]",
+			"<Buff> Alice -> [Bob]",
+			"<Attack> Alice -> [Bob]",
+			"<Buff> Bob -> [Alice]",
+			"<Attack> Bob -> [Alice]",
+			"<Buff> Alice -> [Bob]",
+			"<Attack> Alice -> [Bob]",
 		},
 		ob.scripts,
 	)
 }
 
 type baseline struct {
+	mod.TaggerMod
 	element Element
 	damage  int
 	defense int
@@ -96,6 +100,7 @@ func (f *baseline) Speed() int {
 }
 
 type observer struct {
+	mod.TaggerMod
 	scripts []string
 }
 
@@ -103,27 +108,12 @@ func (ob *observer) React(s Signal) {
 	switch sig := s.(type) {
 	case *PostActionSignal:
 		ob.scripts = append(ob.scripts, fmt.Sprintf(
-			"<%s> %s -> [%s]",
+			"<%s> %v -> [%v]",
 			reflect.TypeOf(sig.Verb).Elem().Name(),
-			positions([]*Fighter{sig.Source}).String(),
-			positions(sig.Targets).String(),
+			sig.Source.Baseline.(mod.Tagger).Tag(),
+			sig.Targets[0].Baseline.(mod.Tagger).Tag(),
 		))
 	}
-}
-
-type positions []*Fighter
-
-func (p positions) String() string {
-	var b bytes.Buffer
-
-	for i, f := range p {
-		if i > 0 {
-			b.WriteString(", ")
-		}
-		b.WriteString(fmt.Sprintf("%s#%d", []string{"L", "R"}[f.Side], f.Position))
-	}
-
-	return b.String()
 }
 
 type mockRng struct {

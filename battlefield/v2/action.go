@@ -6,6 +6,7 @@ type Action struct {
 	Source  *Fighter
 	Targets []*Fighter
 	Verb
+	Interests []Interest
 }
 
 func (a *Action) Render(f *BattleField) {
@@ -16,7 +17,7 @@ func (a *Action) Render(f *BattleField) {
 	}
 
 	for _, object := range a.Targets {
-		a.Verb.Render(object.Warrior, a.Source.Warrior, a)
+		a.Interests = append(a.Interests, a.Verb.Render(object.Warrior, a.Source.Warrior, a))
 	}
 
 	post := NewPostActionSignal(a)
@@ -27,7 +28,7 @@ func (a *Action) Render(f *BattleField) {
 }
 
 type Verb interface {
-	Render(target, source *Warrior, action *Action)
+	Render(target, source *Warrior, action *Action) Interest
 	Fork(*evaluation.Block, Signal) Verb
 }
 
@@ -39,7 +40,7 @@ func NewAttackProto(e evaluation.Evaluator) *Attack {
 	return &Attack{evaluation.NewBundleProto(e)}
 }
 
-func (a *Attack) Render(target, source *Warrior, action *Action) {
+func (a *Attack) Render(target, source *Warrior, action *Action) Interest {
 	damage := NewEvaluationSignal(evaluation.Damage, a.Evaluate(target), action)
 	source.React(damage)
 	defense := NewEvaluationSignal(evaluation.Defense, target.Defense(), action)
@@ -54,11 +55,24 @@ func (a *Attack) Render(target, source *Warrior, action *Action) {
 	r, m := target.Health()
 	c := r.Current * m / r.Maximum
 	c -= loss.Value()
+	overflow := 0
 	if c < 0 {
+		overflow = -c
 		c = 0
 	}
-
 	target.SetHealth(Ratio{c, m})
+
+	return &AttackInterest{
+		interest: interest{target},
+		Damage:   damage.Value(),
+		Defense:  defense.Value(),
+		Loss:     loss.Value(),
+		Overflow: overflow,
+		Health: Health{
+			Current: c,
+			Maximum: m,
+		},
+	}
 }
 
 func (a *Attack) Fork(chain *evaluation.Block, _ Signal) Verb {
@@ -73,21 +87,32 @@ func NewHealProto(e evaluation.Evaluator) *Heal {
 	return &Heal{evaluation.NewBundleProto(e)}
 }
 
-func (h *Heal) Render(target, _ *Warrior, action *Action) {
-	heal := NewEvaluationSignal(evaluation.Healing, h.Evaluate(target), action)
-	target.React(heal)
-	if heal.Value() < 0 {
-		heal.SetValue(0)
+func (h *Heal) Render(target, _ *Warrior, action *Action) Interest {
+	healing := NewEvaluationSignal(evaluation.Healing, h.Evaluate(target), action)
+	target.React(healing)
+	if healing.Value() < 0 {
+		healing.SetValue(0)
 	}
 
 	r, m := target.Health()
 	c := r.Current * m / r.Maximum
-	c += heal.Value()
+	c += healing.Value()
+	overflow := 0
 	if c > m {
+		overflow = c - m
 		c = m
 	}
+	target.SetHealth(Ratio{c, m})
 
-	target.current = Ratio{c, m}
+	return &HealingInterest{
+		interest: interest{target},
+		Healing:  healing.Value(),
+		Overflow: overflow,
+		Health: Health{
+			Current: c,
+			Maximum: m,
+		},
+	}
 }
 
 func (h *Heal) Fork(chain *evaluation.Block, _ Signal) Verb {
@@ -106,8 +131,14 @@ func NewBuffProto(reactor ForkableReactor, e evaluation.Evaluator) *Buff {
 	}
 }
 
-func (b *Buff) Render(target, _ *Warrior, _ *Action) {
-	target.Append(b.reactor.Fork(b.ForkWith(target), nil).(Reactor))
+func (b *Buff) Render(target, _ *Warrior, _ *Action) Interest {
+	reactor := b.reactor.Fork(b.ForkWith(target), nil).(Reactor)
+	target.Append(reactor)
+
+	return &BuffingInterest{
+		interest: interest{target},
+		Buff:     reactor,
+	}
 }
 
 func (b *Buff) Fork(chain *evaluation.Block, signal Signal) Verb {
@@ -124,7 +155,10 @@ func NewPurgingProto() *Purge {
 	return &Purge{}
 }
 
-func (*Purge) Render(target, _ *Warrior, _ *Action) {
+func (*Purge) Render(target, _ *Warrior, _ *Action) Interest {
+	return &PurgingInterest{
+		interest: interest{target},
+	}
 }
 
 func (*Purge) Fork(_ *evaluation.Block, _ Signal) Verb {
