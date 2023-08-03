@@ -14,7 +14,6 @@ type BlindActor struct {
 
 func (a *BlindActor) Act(source *Fighter, targets []*Fighter, signal Signal) *Action {
 	return &Action{
-		Source:  source,
 		Targets: targets,
 		Verb:    a.proto.Fork(a.ForkWith(source.Warrior), signal),
 	}

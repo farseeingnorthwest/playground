@@ -58,12 +58,7 @@ func (b *BattleField) Warriors() []*Fighter {
 	return b.fighters
 }
 
-func (b *BattleField) React(signal Signal) {
-	for _, f := range b.fighters {
-		setCurrent(signal, f)
-		f.React(signal)
-	}
-	setCurrent(signal, nil)
+func (b *BattleField) React(signal ActionSignal) {
 	for _, reactor := range b.reactors {
 		if r, ok := reactor.(mod.Finite); ok && !r.Valid() {
 			continue
@@ -72,16 +67,18 @@ func (b *BattleField) React(signal Signal) {
 			continue
 		}
 
-		reactor.React(signal)
+		sig := signal.Fork(nil).(ActionSignal)
+		reactor.React(sig)
+		for _, s := range sig.Scripts() {
+			s.Render(b)
+		}
 	}
-}
-
-func setCurrent(signal Signal, fighter *Fighter) {
-	switch sig := signal.(type) {
-	case *PreActionSignal:
-		sig.current = fighter
-	case *PostActionSignal:
-		sig.current = fighter
+	for _, f := range b.fighters {
+		sig := signal.Fork(f).(ActionSignal)
+		f.React(sig)
+		for _, s := range sig.Scripts() {
+			s.Render(b)
+		}
 	}
 }
 
@@ -102,9 +99,9 @@ func (b *BattleField) Fight() {
 			sorted = false
 			signal := NewLaunchSignal(b.fighters[i], b)
 			b.fighters[i].React(signal)
-			for _, a := range signal.Actions() {
+			for _, s := range signal.Scripts() {
 				n++
-				a.Render(b)
+				s.Render(b)
 			}
 		}
 

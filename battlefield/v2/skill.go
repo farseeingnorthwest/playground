@@ -268,7 +268,7 @@ func NewCriticalAttack(rng Rng, odds int, multiplier int) Reactor {
 			&BlindActor{
 				NewBuffProto(
 					NewClearingBuff(
-						"暴击伤害",
+						"暴击提升伤害",
 						evaluation.Loss,
 						nil,
 						ClearingMultiplier(multiplier),

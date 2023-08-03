@@ -80,21 +80,22 @@ func (m *ModifiedReactor) WarmUp() {
 	m.PeriodicMod.WarmUp()
 }
 
-func (m *ModifiedReactor) act(source *Fighter, targets []*Fighter, signal Signal) (actions []*Action) {
+func (m *ModifiedReactor) act(script *Script, targets []*Fighter, signal Signal) *Script {
 	if !m.Free() {
-		return
+		return nil
 	}
 
 	for _, actor := range m.actors {
-		a := actor.Act(source, targets, signal)
+		a := actor.Act(script.Current, targets, signal)
 		if a == nil {
 			return nil
 		}
 
-		actions = append(actions, a)
+		a.Script = script
+		script.Actions = append(script.Actions, a)
 	}
 
-	return
+	return script
 }
 
 type LaunchReactor struct {
@@ -104,12 +105,12 @@ type LaunchReactor struct {
 func (a *LaunchReactor) React(signal Signal) {
 	switch sig := signal.(type) {
 	case *LaunchSignal:
-		actions := a.act(sig.Target, sig.Field.fighters, sig)
-		if actions == nil {
+		script := a.act(NewScript(sig.Target, a), sig.Field.fighters, sig)
+		if script == nil {
 			return
 		}
 
-		sig.Append(actions...)
+		sig.Append(script)
 		sig.Launched = true
 		a.WarmUp()
 
@@ -129,12 +130,12 @@ type RoundStartReactor struct {
 func (a *RoundStartReactor) React(signal Signal) {
 	switch sig := signal.(type) {
 	case *RoundStartSignal:
-		actions := a.act(sig.current, sig.Field.fighters, sig)
-		if actions == nil {
+		script := a.act(NewScript(sig.current, a), sig.Field.fighters, sig)
+		if script == nil {
 			return
 		}
 
-		sig.Append(actions...)
+		sig.Append(script)
 		a.WarmUp()
 		a.CoolDown()
 	}
@@ -155,16 +156,16 @@ func (c *PreAttackReactor) React(signal Signal) {
 		if !ok {
 			return
 		}
-		if sig.Current() != sig.Source {
+		if sig.Current() != sig.Script.Current {
 			return
 		}
 
-		actions := c.act(sig.Source, sig.Targets, sig)
-		if actions == nil {
+		script := c.act(NewScript(sig.Script.Current, c), sig.Targets, sig)
+		if script == nil {
 			return
 		}
 
-		sig.Append(actions...)
+		sig.Append(script)
 
 	case *RoundEndSignal:
 		c.WarmUp()

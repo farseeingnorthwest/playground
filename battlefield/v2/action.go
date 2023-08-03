@@ -2,8 +2,31 @@ package battlefield
 
 import "github.com/farseeingnorthwest/playground/battlefield/v2/evaluation"
 
+type Script struct {
+	Current *Fighter
+	Source  Reactor
+	Actions []*Action
+}
+
+func NewScript(current *Fighter, source Reactor, actions ...*Action) *Script {
+	s := &Script{current, source, actions}
+	for _, a := range actions {
+		a.Script = s
+	}
+
+	return s
+}
+
+func (s *Script) Render(f *BattleField) {
+	f.React(&PreScriptSignal{Script: s})
+	for _, action := range s.Actions {
+		action.Render(f)
+	}
+	f.React(&PostScriptSignal{Script: s})
+}
+
 type Action struct {
-	Source  *Fighter
+	Script  *Script
 	Targets []*Fighter
 	Verb
 	Interests []Interest
@@ -11,20 +34,18 @@ type Action struct {
 
 func (a *Action) Render(f *BattleField) {
 	pre := NewPreActionSignal(a)
-	f.React(pre) // TODO: render actions per warrior
-	for _, action := range pre.Actions() {
-		action.Render(f)
-	}
+	f.React(pre)
 
+	var current *Warrior
+	if a.Script.Current != nil {
+		current = a.Script.Current.Warrior
+	}
 	for _, object := range a.Targets {
-		a.Interests = append(a.Interests, a.Verb.Render(object.Warrior, a.Source.Warrior, a))
+		a.Interests = append(a.Interests, a.Verb.Render(object.Warrior, current, a))
 	}
 
 	post := NewPostActionSignal(a)
 	f.React(post)
-	for _, action := range post.Actions() {
-		action.Render(f)
-	}
 }
 
 type Verb interface {

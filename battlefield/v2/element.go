@@ -17,10 +17,10 @@ const (
 )
 
 var (
-	up     = NewBuffProto(NewClearingBuff("Element +", evaluation.Loss, nil, ClearingMultiplier(120)), nil)
-	down   = NewBuffProto(NewClearingBuff("Element -", evaluation.Loss, nil, ClearingMultiplier(80)), nil)
+	up     = NewBuffProto(NewClearingBuff("元素提高伤害", evaluation.Loss, nil, ClearingMultiplier(120)), nil)
+	down   = NewBuffProto(NewClearingBuff("元素降低伤害", evaluation.Loss, nil, ClearingMultiplier(80)), nil)
 	Theory = ElementTheory{
-		TaggerMod: mod.NewTaggerMod("ElementTheory"),
+		TaggerMod: mod.NewTaggerMod("元素"),
 		theory: map[Element]map[Element]Verb{
 			Water: {
 				Fire:    up,
@@ -73,14 +73,17 @@ func (t *ElementTheory) React(signal Signal) {
 		return
 	}
 
-	theory := t.theory[sig.Source.Element()]
+	theory := t.theory[sig.Script.Current.Element()]
 	for _, object := range sig.Targets {
 		if damage, ok := theory[object.Element()]; ok {
-			sig.Append(&Action{
-				Source:  sig.Source,
-				Targets: []*Fighter{object},
-				Verb:    damage.Fork(nil, signal),
-			})
+			sig.Append(NewScript(
+				nil,
+				t,
+				&Action{
+					Targets: []*Fighter{object},
+					Verb:    damage.Fork(nil, signal),
+				},
+			))
 		}
 	}
 }

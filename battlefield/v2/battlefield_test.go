@@ -1,17 +1,17 @@
 package battlefield
 
 import (
-	"fmt"
-	"github.com/farseeingnorthwest/playground/battlefield/v2/mod"
-	"reflect"
+	"encoding/json"
 	"testing"
+
+	"github.com/farseeingnorthwest/playground/battlefield/v2/mod"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func TestBattlefield_Fight(t *testing.T) {
-	ob := &observer{}
-	ob.SetTag("Ob")
+	ob := &Observer{}
+	ob.SetTag("Observer")
 	b := NewBattleField(
 		[]*Warrior{
 			NewWarrior(
@@ -51,22 +51,18 @@ func TestBattlefield_Fight(t *testing.T) {
 	)
 	b.Fight()
 
-	assert.Equal(
+	scripts, e := json.Marshal(ob.Scripts)
+	assert.NoError(t, e)
+	assert.JSONEq(
 		t,
-		[]string{
-			"<Buff> Alice -> [Bob]",
-			"<Buff> Alice -> [Bob]",
-			"<Attack> Alice -> [Bob]",
-			"<Buff> Bob -> [Alice]",
-			"<Attack> Bob -> [Alice]",
-			"<Buff> Alice -> [Bob]",
-			"<Attack> Alice -> [Bob]",
-			"<Buff> Bob -> [Alice]",
-			"<Attack> Bob -> [Alice]",
-			"<Buff> Alice -> [Bob]",
-			"<Attack> Alice -> [Bob]",
-		},
-		ob.scripts,
+		`[
+{"actions":[{"interests":[{"damage":10,"defense":5,"health":{"Current":10,"Maximum":22},"loss":12,"overflow":0,"target":"Bob","verb":"attack"}],"post_scripts":[],"pre_scripts":[{"actions":[{"interests":[{"buff":"元素提高伤害","target":"Bob","verb":"buff"}],"post_scripts":[],"pre_scripts":[]}],"current":null,"sources":"元素"},{"actions":[{"interests":[{"buff":"暴击提升伤害","target":"Bob","verb":"buff"}],"post_scripts":[],"pre_scripts":[]}],"current":"Alice","sources":"暴击"}]}],"current":"Alice","sources":"普通攻击"},
+{"actions":[{"interests":[{"damage":15,"defense":5,"health":{"Current":12,"Maximum":20},"loss":8,"overflow":0,"target":"Alice","verb":"attack"}],"post_scripts":[],"pre_scripts":[{"actions":[{"interests":[{"buff":"元素降低伤害","target":"Alice","verb":"buff"}],"post_scripts":[],"pre_scripts":[]}],"current":null,"sources":"元素"}]}],"current":"Bob","sources":"普通攻击"},
+{"actions":[{"interests":[{"damage":10,"defense":5,"health":{"Current":4,"Maximum":22},"loss":6,"overflow":0,"target":"Bob","verb":"attack"}],"post_scripts":[],"pre_scripts":[{"actions":[{"interests":[{"buff":"元素提高伤害","target":"Bob","verb":"buff"}],"post_scripts":[],"pre_scripts":[]}],"current":null,"sources":"元素"}]}],"current":"Alice","sources":"普通攻击"},
+{"actions":[{"interests":[{"damage":15,"defense":5,"health":{"Current":4,"Maximum":20},"loss":8,"overflow":0,"target":"Alice","verb":"attack"}],"post_scripts":[],"pre_scripts":[{"actions":[{"interests":[{"buff":"元素降低伤害","target":"Alice","verb":"buff"}],"post_scripts":[],"pre_scripts":[]}],"current":null,"sources":"元素"}]}],"current":"Bob","sources":"普通攻击"},
+{"actions":[{"interests":[{"damage":10,"defense":5,"health":{"Current":0,"Maximum":22},"loss":6,"overflow":2,"target":"Bob","verb":"attack"}],"post_scripts":[],"pre_scripts":[{"actions":[{"interests":[{"buff":"元素提高伤害","target":"Bob","verb":"buff"}],"post_scripts":[],"pre_scripts":[]}],"current":null,"sources":"元素"}]}],"current":"Alice","sources":"普通攻击"}
+]`,
+		string(scripts),
 	)
 }
 
@@ -97,23 +93,6 @@ func (f *baseline) Health() int {
 
 func (f *baseline) Speed() int {
 	return f.speed
-}
-
-type observer struct {
-	mod.TaggerMod
-	scripts []string
-}
-
-func (ob *observer) React(s Signal) {
-	switch sig := s.(type) {
-	case *PostActionSignal:
-		ob.scripts = append(ob.scripts, fmt.Sprintf(
-			"<%s> %v -> [%v]",
-			reflect.TypeOf(sig.Verb).Elem().Name(),
-			sig.Source.Baseline.(mod.Tagger).Tag(),
-			sig.Targets[0].Baseline.(mod.Tagger).Tag(),
-		))
-	}
 }
 
 type mockRng struct {

@@ -6,16 +6,16 @@ type Signal interface {
 	Current() any
 }
 
-type actions struct {
-	actions []*Action
+type scripts struct {
+	scripts []*Script
 }
 
-func (a *actions) Actions() []*Action {
-	return a.actions
+func (a *scripts) Scripts() []*Script {
+	return a.scripts
 }
 
-func (a *actions) Append(actions ...*Action) {
-	a.actions = append(a.actions, actions...)
+func (a *scripts) Append(scripts ...*Script) {
+	a.scripts = append(a.scripts, scripts...)
 }
 
 type LaunchSignal struct {
@@ -23,7 +23,7 @@ type LaunchSignal struct {
 	Field    *BattleField
 	Launched bool
 
-	actions
+	scripts
 }
 
 func NewLaunchSignal(target *Fighter, field *BattleField) *LaunchSignal {
@@ -40,7 +40,7 @@ func (s *LaunchSignal) Current() any {
 type RoundStartSignal struct {
 	current *Fighter
 	Field   *BattleField
-	actions
+	scripts
 }
 
 func (s *RoundStartSignal) Current() any {
@@ -55,38 +55,97 @@ func (s *RoundEndSignal) Current() any {
 	return s.current
 }
 
+type PreScriptSignal struct {
+	current any
+	*Script
+}
+
+func (s *PreScriptSignal) Current() any {
+	return s.current
+}
+
+func (s *PreScriptSignal) Fork(current any) any {
+	return &PreScriptSignal{current, s.Script}
+}
+
+func (s *PreScriptSignal) Scripts() []*Script {
+	return nil
+}
+
+type PostScriptSignal struct {
+	current any
+	*Script
+}
+
+func (s *PostScriptSignal) Current() any {
+	return s.current
+}
+
+func (s *PostScriptSignal) Fork(current any) any {
+	return &PostScriptSignal{current, s.Script}
+}
+
+func (s *PostScriptSignal) Scripts() []*Script {
+	return nil
+}
+
+type ActionSignal interface {
+	Signal
+	Fork(current any) any
+	Scripts() []*Script
+}
+
 type actionSignal struct {
 	current any
 	*Action
-	actions
+	scripts
 }
 
 func (s *actionSignal) Current() any {
 	return s.current
 }
 
+func (s *actionSignal) Fork(current any) any {
+	return &actionSignal{
+		current: current,
+		Action:  s.Action,
+	}
+}
+
+func (s *actionSignal) Scripts() []*Script {
+	return s.scripts.scripts
+}
+
 type PreActionSignal struct {
-	actionSignal
+	*actionSignal
 }
 
 func NewPreActionSignal(action *Action) *PreActionSignal {
 	return &PreActionSignal{
-		actionSignal: actionSignal{
+		actionSignal: &actionSignal{
 			Action: action,
 		},
 	}
 }
 
+func (s *PreActionSignal) Fork(current any) any {
+	return &PreActionSignal{s.actionSignal.Fork(current).(*actionSignal)}
+}
+
 type PostActionSignal struct {
-	actionSignal
+	*actionSignal
 }
 
 func NewPostActionSignal(action *Action) *PostActionSignal {
 	return &PostActionSignal{
-		actionSignal: actionSignal{
+		actionSignal: &actionSignal{
 			Action: action,
 		},
 	}
+}
+
+func (s *PostActionSignal) Fork(current any) any {
+	return &PostActionSignal{s.actionSignal.Fork(current).(*actionSignal)}
 }
 
 type EvaluationSignal struct {
