@@ -1,112 +1,55 @@
 package battlefield
 
-import (
-	"sort"
-
-	"github.com/farseeingnorthwest/playground/battlefield/v2/mod"
-)
-
-type Side uint8
-
-const (
-	Left Side = iota
-	Right
-)
-
-type Fighter struct {
-	*Warrior
-	Side
-	Position uint8
-}
-
-type bySpeed []*Fighter
-
-func (f bySpeed) Len() int { return len(f) }
-func (f bySpeed) Less(i, j int) bool {
-	if f[i].Speed() != f[j].Speed() {
-		return f[i].Speed() > f[j].Speed()
-	}
-	if f[i].Side != f[j].Side {
-		return f[i].Side == Left
-	}
-
-	return f[i].Position < f[i].Position
-}
-func (f bySpeed) Swap(i, j int) { f[i], f[j] = f[j], f[i] }
+import "sort"
 
 type BattleField struct {
-	fighters []*Fighter
+	warriors []Warrior
 	reactors []Reactor
 }
 
-func NewBattleField(a, b []*Warrior, reactors ...Reactor) *BattleField {
-	fighters := make([]*Fighter, len(a)+len(b))
-	for i, f := range a {
-		fighters[i] = &Fighter{f, Left, uint8(i)}
-	}
-	for i, f := range b {
-		fighters[i+len(a)] = &Fighter{f, Right, uint8(i)}
-	}
-
-	return &BattleField{
-		fighters: fighters,
-		reactors: reactors,
-	}
+func NewBattleField(warriors []Warrior, reactors ...Reactor) *BattleField {
+	return &BattleField{warriors, reactors}
 }
 
-func (b *BattleField) Warriors() []*Fighter {
-	return b.fighters
-}
-
-func (b *BattleField) React(signal ActionSignal) {
-	for _, reactor := range b.reactors {
-		if r, ok := reactor.(mod.Finite); ok && !r.Valid() {
-			continue
-		}
-		if r, ok := reactor.(mod.Periodic); ok && !r.Free() {
-			continue
-		}
-
-		sig := signal.Fork(nil).(ActionSignal)
-		reactor.React(sig)
-		for _, s := range sig.Scripts() {
+func (b *BattleField) React(signal ForkableSignal) {
+	for _, r := range b.reactors {
+		sig := signal.Fork(nil)
+		r.React(sig)
+		if s, ok := sig.(Renderer); ok {
 			s.Render(b)
 		}
 	}
-	for _, f := range b.fighters {
-		sig := signal.Fork(f).(ActionSignal)
-		f.React(sig)
-		for _, s := range sig.Scripts() {
+
+	warriors := make([]Warrior, len(b.warriors))
+	copy(warriors, b.warriors)
+	for i := 0; i < len(warriors); i++ {
+		sort.Sort(&ByAxis{Speed, false, warriors[i:]})
+
+		sig := signal.Fork(warriors[i])
+		warriors[i].React(sig)
+		if s, ok := sig.(Renderer); ok {
 			s.Render(b)
 		}
 	}
 }
 
-func (b *BattleField) Fight() {
+func (b *BattleField) Run() {
+	b.React(NewBattleStartSignal())
 	for {
-		n := 0
+		b.React(NewRoundStartSignal())
 
-		sorted := false
-		for i := 0; i < len(b.fighters); i++ {
-			if !sorted {
-				sort.Sort(bySpeed(b.fighters[i:]))
-				sorted = true
-			}
-			if b.fighters[i].current.Current <= 0 {
-				continue
-			}
+		warriors := make([]Warrior, len(b.warriors))
+		copy(warriors, b.warriors)
+		for i := 0; i < len(warriors); i++ {
+			sort.Sort(&ByAxis{Speed, false, warriors[i:]})
 
-			sorted = false
-			signal := NewLaunchSignal(b.fighters[i], b)
-			b.fighters[i].React(signal)
-			for _, s := range signal.Scripts() {
-				n++
-				s.Render(b)
-			}
+			sig := NewLaunchSignal(warriors[i])
+			warriors[i].React(sig)
+			sig.Render(b)
+
+			// TODO: check if the battle is over
 		}
 
-		if n == 0 {
-			break
-		}
+		b.React(NewRoundEndSignal())
 	}
 }

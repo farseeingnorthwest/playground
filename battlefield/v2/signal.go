@@ -1,189 +1,179 @@
 package battlefield
 
-import "github.com/farseeingnorthwest/playground/battlefield/v2/evaluation"
-
 type Signal interface {
 	Current() any
 }
 
-type scripts struct {
-	scripts []*Script
+type ForkableSignal interface {
+	Signal
+	Fork(any) Signal
 }
 
-func (a *scripts) Scripts() []*Script {
-	return a.scripts
+type Sourcer interface {
+	Source() (any, Reactor)
 }
 
-func (a *scripts) Append(scripts ...*Script) {
-	a.scripts = append(a.scripts, scripts...)
+type Renderer interface {
+	Render(*BattleField)
 }
 
-type LaunchSignal struct {
-	Target   *Fighter
-	Field    *BattleField
-	Launched bool
-
-	scripts
+type scripter struct {
+	scripts []Script
 }
 
-func NewLaunchSignal(target *Fighter, field *BattleField) *LaunchSignal {
-	return &LaunchSignal{
-		Target: target,
-		Field:  field,
+func (s *scripter) Render(b *BattleField) {
+	for _, script := range s.scripts {
+		script.Render(b)
 	}
 }
 
+type BattleStartSignal struct {
+	current any
+	scripter
+}
+
+func NewBattleStartSignal() *BattleStartSignal {
+	return &BattleStartSignal{nil, scripter{}}
+}
+
+func (s *BattleStartSignal) Current() any {
+	return s.current
+}
+
+func (s *BattleStartSignal) Fork(current any) Signal {
+	return &BattleStartSignal{current, scripter{}}
+}
+
+type LaunchSignal struct {
+	current Warrior
+	scripter
+}
+
+func NewLaunchSignal(current Warrior) *LaunchSignal {
+	return &LaunchSignal{current, scripter{}}
+}
+
 func (s *LaunchSignal) Current() any {
-	return s.Target
+	return s.current
+}
+
+type PreLossSignal struct {
+	current Warrior
+	loss    int
+}
+
+func NewPreLossSignal(current Warrior, loss int) *PreLossSignal {
+	return &PreLossSignal{current, loss}
+}
+
+func (s *PreLossSignal) Current() any {
+	return s.current
+}
+
+func (s *PreLossSignal) Loss() int {
+	return s.loss
+}
+
+func (s *PreLossSignal) SetLoss(loss int) {
+	s.loss = loss
+}
+
+type LossSignal struct {
+	current any
+	target  Warrior
+	scripter
+}
+
+func NewLossSignal(target Warrior) *LossSignal {
+	return &LossSignal{nil, target, scripter{}}
+}
+
+func (s *LossSignal) Current() any {
+	return s.current
+}
+
+func (s *LossSignal) Target() Warrior {
+	return s.target
+}
+
+func (s *LossSignal) Fork(current any) Signal {
+	return &LossSignal{current, s.target, scripter{}}
+}
+
+type PreActionSignal struct {
+	current any
+	action  Action
+	scripter
+}
+
+func NewPreActionSignal(action Action) *PreActionSignal {
+	return &PreActionSignal{nil, action, scripter{}}
+}
+
+func (s *PreActionSignal) Current() any {
+	return s.current
+}
+
+func (s *PreActionSignal) Action() Action {
+	return s.action
+}
+
+func (s *PreActionSignal) Fork(current any) Signal {
+	return &PreActionSignal{current, s.action, scripter{}}
+}
+
+type PostActionSignal struct {
+	current any
+	action  Action
+	scripter
+}
+
+func NewPostActionSignal(action Action) *PostActionSignal {
+	return &PostActionSignal{nil, action, scripter{}}
+}
+
+func (s *PostActionSignal) Current() any {
+	return s.current
+}
+
+func (s *PostActionSignal) Action() Action {
+	return s.action
+}
+
+func (s *PostActionSignal) Fork(current any) Signal {
+	return &PostActionSignal{current, s.action, scripter{}}
 }
 
 type RoundStartSignal struct {
-	current *Fighter
-	Field   *BattleField
-	scripts
+	current any
+	scripter
+}
+
+func NewRoundStartSignal() *RoundStartSignal {
+	return &RoundStartSignal{nil, scripter{}}
 }
 
 func (s *RoundStartSignal) Current() any {
 	return s.current
 }
 
+func (s *RoundStartSignal) Fork(current any) Signal {
+	return &RoundStartSignal{current, scripter{}}
+}
+
 type RoundEndSignal struct {
 	current any
+	scripter
+}
+
+func NewRoundEndSignal() *RoundEndSignal {
+	return &RoundEndSignal{nil, scripter{}}
 }
 
 func (s *RoundEndSignal) Current() any {
 	return s.current
 }
 
-type PreScriptSignal struct {
-	current any
-	*Script
-}
-
-func (s *PreScriptSignal) Current() any {
-	return s.current
-}
-
-func (s *PreScriptSignal) Fork(current any) any {
-	return &PreScriptSignal{current, s.Script}
-}
-
-func (s *PreScriptSignal) Scripts() []*Script {
-	return nil
-}
-
-type PostScriptSignal struct {
-	current any
-	*Script
-}
-
-func (s *PostScriptSignal) Current() any {
-	return s.current
-}
-
-func (s *PostScriptSignal) Fork(current any) any {
-	return &PostScriptSignal{current, s.Script}
-}
-
-func (s *PostScriptSignal) Scripts() []*Script {
-	return nil
-}
-
-type ActionSignal interface {
-	Signal
-	Fork(current any) any
-	Scripts() []*Script
-}
-
-type actionSignal struct {
-	current any
-	*Action
-	scripts
-}
-
-func (s *actionSignal) Current() any {
-	return s.current
-}
-
-func (s *actionSignal) Fork(current any) any {
-	return &actionSignal{
-		current: current,
-		Action:  s.Action,
-	}
-}
-
-func (s *actionSignal) Scripts() []*Script {
-	return s.scripts.scripts
-}
-
-type PreActionSignal struct {
-	*actionSignal
-}
-
-func NewPreActionSignal(action *Action) *PreActionSignal {
-	return &PreActionSignal{
-		actionSignal: &actionSignal{
-			Action: action,
-		},
-	}
-}
-
-func (s *PreActionSignal) Fork(current any) any {
-	return &PreActionSignal{s.actionSignal.Fork(current).(*actionSignal)}
-}
-
-type PostActionSignal struct {
-	*actionSignal
-}
-
-func NewPostActionSignal(action *Action) *PostActionSignal {
-	return &PostActionSignal{
-		actionSignal: &actionSignal{
-			Action: action,
-		},
-	}
-}
-
-func (s *PostActionSignal) Fork(current any) any {
-	return &PostActionSignal{s.actionSignal.Fork(current).(*actionSignal)}
-}
-
-type EvaluationSignal struct {
-	axis   evaluation.Axis
-	value  int
-	action *Action
-}
-
-func NewEvaluationSignal(axis evaluation.Axis, value int, action *Action) *EvaluationSignal {
-	return &EvaluationSignal{
-		axis,
-		value,
-		action,
-	}
-}
-
-func (s *EvaluationSignal) Current() any {
-	return nil
-}
-
-func (s *EvaluationSignal) Axis() evaluation.Axis {
-	return s.axis
-}
-
-func (s *EvaluationSignal) Value() int {
-	return s.value
-}
-
-func (s *EvaluationSignal) SetValue(value int) {
-	s.value = value
-}
-
-func (s *EvaluationSignal) Map(fn ...func(int) int) {
-	for _, f := range fn {
-		s.value = f(s.value)
-	}
-}
-
-func (s *EvaluationSignal) Action() *Action {
-	return s.action
+func (s *RoundEndSignal) Fork(current any) Signal {
+	return &RoundEndSignal{current, scripter{}}
 }

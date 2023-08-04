@@ -1,83 +1,60 @@
 package battlefield
 
-import "github.com/farseeingnorthwest/playground/battlefield/v2/evaluation"
+const (
+	Left  Side = false
+	Right      = true
+)
 
-type Baseline interface {
-	Element() Element
-	Damage() int
-	Defense() int
-	Speed() int
-	Health() int
-}
+const (
+	Damage Axis = iota
+	CriticalOdds
+	CriticalLoss
+	Defense
+	Loss
+	Health
+	HealthPercent
+	HealthMaximum
+	Position
+	Speed
+)
+
+type Axis uint8
+type Side bool
 
 type Ratio struct {
 	Current int
 	Maximum int
 }
 
-type Warrior struct {
-	Baseline
+type Warrior interface {
 	Portfolio
-
-	current Ratio
+	Side() Side
+	Health() Ratio
+	SetHealth(Ratio)
+	Component(Axis) int
 }
 
-func NewWarrior(b Baseline, portfolio Portfolio) *Warrior {
-	return &Warrior{
-		Baseline:  b,
-		Portfolio: portfolio,
-		current:   Ratio{b.Health(), b.Health()},
+type ByAxis struct {
+	Axis
+	Asc      bool
+	Warriors []Warrior
+}
+
+func (a *ByAxis) Len() int {
+	return len(a.Warriors)
+}
+
+func (a *ByAxis) Swap(i, j int) {
+	a.Warriors[i], a.Warriors[j] = a.Warriors[j], a.Warriors[i]
+}
+
+func (a *ByAxis) Less(i, j int) bool {
+	if a.Warriors[i].Component(a.Axis) != a.Warriors[j].Component(a.Axis) {
+		return a.Warriors[i].Component(a.Axis) < a.Warriors[j].Component(a.Axis) == a.Asc
 	}
-}
-
-func (w *Warrior) Damage() int {
-	sig := NewEvaluationSignal(evaluation.Damage, w.Baseline.Damage(), nil)
-	w.React(sig)
-
-	return sig.Value()
-}
-
-func (w *Warrior) Defense() int {
-	sig := NewEvaluationSignal(evaluation.Defense, w.Baseline.Defense(), nil)
-	w.React(sig)
-
-	return sig.Value()
-}
-
-func (w *Warrior) Speed() int {
-	sig := NewEvaluationSignal(evaluation.Speed, w.Baseline.Speed(), nil)
-	w.React(sig)
-
-	return sig.Value()
-}
-
-func (w *Warrior) Health() (Ratio, int) {
-	sig := NewEvaluationSignal(evaluation.Health, w.Baseline.Health(), nil)
-	w.React(sig)
-
-	return w.current, sig.Value()
-}
-
-func (w *Warrior) SetHealth(value Ratio) {
-	w.current = value
-}
-
-func (w *Warrior) Component(axis evaluation.Axis) (value int) {
-	switch axis {
-	case evaluation.Damage:
-		value = w.Damage()
-	case evaluation.Defense:
-		value = w.Defense()
-	case evaluation.Health:
-		r, m := w.Health()
-		value = r.Current * m / r.Maximum
-	case evaluation.HealthMax:
-		_, value = w.Health()
-	case evaluation.Speed:
-		value = w.Speed()
-	default:
-		panic("bad axis")
+	if a.Warriors[i].Component(Position) != a.Warriors[j].Component(Position) {
+		return a.Warriors[i].Component(Position) < a.Warriors[j].Component(Position)
 	}
 
-	return
+	return a.Warriors[i].Side() == Left
 }

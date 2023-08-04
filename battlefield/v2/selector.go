@@ -1,132 +1,118 @@
 package battlefield
 
-import (
-	"math/rand"
-	"sort"
-
-	"github.com/farseeingnorthwest/playground/battlefield/v2/evaluation"
-)
+import "sort"
 
 type Selector interface {
-	Select(*Fighter, []*Fighter) []*Fighter
-}
-
-type AndSelector []Selector
-
-func (s AndSelector) Select(i *Fighter, fighters []*Fighter) []*Fighter {
-	for _, selector := range s {
-		fighters = selector.Select(i, fighters)
-	}
-
-	return fighters
-}
-
-type CopySelector struct{}
-
-func (s CopySelector) Select(_ *Fighter, fighters []*Fighter) []*Fighter {
-	a := make([]*Fighter, len(fighters))
-	copy(a, fighters)
-	return a
-}
-
-type HealthSelector struct {
-}
-
-func (s HealthSelector) Select(_ *Fighter, fighters []*Fighter) []*Fighter {
-	var a []*Fighter
-	for _, f := range fighters {
-		if f.current.Current > 0 {
-			a = append(a, f)
-		}
-	}
-
-	return a
+	Select([]Warrior, Signal) []Warrior
 }
 
 type SideSelector struct {
-	Own bool
+	own bool
 }
 
-func (s SideSelector) Select(i *Fighter, fighters []*Fighter) []*Fighter {
-	var a []*Fighter
-	for _, f := range fighters {
-		if f.Side == i.Side == s.Own {
-			a = append(a, f)
+func (s *SideSelector) Select(inputs []Warrior, signal Signal) (outputs []Warrior) {
+	for _, w := range inputs {
+		if w.Side() == signal.Current().(Warrior).Side() == s.own {
+			outputs = append(outputs, w)
 		}
 	}
 
-	return a
+	return
 }
 
-type FrontSelector struct {
-	Count int
+type CurrentSelector struct {
 }
 
-func (s FrontSelector) Select(_ *Fighter, fighters []*Fighter) []*Fighter {
-	if s.Count < len(fighters) {
-		return fighters[:s.Count]
-	}
-
-	return fighters
-}
-
-type RandomSelector struct {
-	Count int
-}
-
-func (s RandomSelector) Select(_ *Fighter, fighters []*Fighter) []*Fighter {
-	for i := range fighters {
-		if s.Count <= i {
-			return fighters[:i]
-		}
-
-		j := i + rand.Intn(len(fighters)-i)
-		fighters[i], fighters[j] = fighters[j], fighters[i]
-	}
-
-	return fighters
+func (s *CurrentSelector) Select(_ []Warrior, signal Signal) []Warrior {
+	return []Warrior{signal.Current().(Warrior)}
 }
 
 type AxisSelector struct {
-	evaluation.Axis
-	Asc bool
+	axis Axis
+	asc  bool
 }
 
-type byAxis struct {
-	evaluation.Axis
-	Asc     bool
-	Fighter []*Fighter
+func (s *AxisSelector) Select(inputs []Warrior, _ Signal) (outputs []Warrior) {
+	outputs = make([]Warrior, len(inputs))
+	copy(outputs, inputs)
+
+	sort.Sort(&ByAxis{s.axis, s.asc, outputs})
+	return
 }
 
-func (a byAxis) Len() int { return len(a.Fighter) }
-func (a byAxis) Less(i, j int) bool {
-	return a.Fighter[i].Component(a.Axis) < a.Fighter[j].Component(a.Axis) == a.Asc
-}
-func (a byAxis) Swap(i, j int) { a.Fighter[i], a.Fighter[j] = a.Fighter[j], a.Fighter[i] }
-
-func (s AxisSelector) Select(_ *Fighter, fighters []*Fighter) []*Fighter {
-	sort.Sort(byAxis{s.Axis, s.Asc, fighters})
-
-	return fighters
+type CounterSelector struct {
 }
 
-type TagSelector struct {
-	Tag any
-}
-
-func (s TagSelector) Select(_ *Fighter, fighters []*Fighter) []*Fighter {
-	var a []*Fighter
-	for _, f := range fighters {
-		if f.Contains(s.Tag) {
-			a = append(a, f)
+func (s *CounterSelector) Select(inputs []Warrior, signal Signal) []Warrior {
+	current := signal.Current().(Warrior)
+	for _, w := range inputs {
+		if w != current && w.Component(Position) == current.Component(Position) {
+			return []Warrior{w}
 		}
 	}
 
-	return a
+	return nil
 }
 
-type CurrentSelector struct{}
+type ShuffleSelector struct {
+	randInt    func() int
+	preference any
+}
 
-func (s CurrentSelector) Select(current *Fighter, _ []*Fighter) []*Fighter {
-	return []*Fighter{current}
+func (s *ShuffleSelector) Select(inputs []Warrior, _ Signal) (outputs []Warrior) {
+	outputs = make([]Warrior, len(inputs))
+	copy(outputs, inputs)
+
+	randoms := make([]int, len(inputs))
+	for i := range randoms {
+		randoms[i] = s.randInt()
+	}
+
+	sort.Sort(&shuffle{s.preference, randoms, outputs})
+	return
+}
+
+type shuffle struct {
+	preference any
+	randoms    []int
+	warriors   []Warrior
+}
+
+func (s *shuffle) Len() int {
+	return len(s.warriors)
+}
+
+func (s *shuffle) Swap(i, j int) {
+	s.warriors[i], s.warriors[j] = s.warriors[j], s.warriors[i]
+	s.randoms[i], s.randoms[j] = s.randoms[j], s.randoms[i]
+}
+
+func (s *shuffle) Less(i, j int) bool {
+	if s.warriors[i].Contains(s.preference) != s.warriors[j].Contains(s.preference) {
+		return s.warriors[i].Contains(s.preference)
+	}
+
+	return s.randoms[i] < s.randoms[j]
+}
+
+type FrontSelector struct {
+	count int
+}
+
+func (s *FrontSelector) Select(inputs []Warrior, _ Signal) (outputs []Warrior) {
+	if len(inputs) <= s.count {
+		return inputs
+	}
+
+	outputs = make([]Warrior, s.count)
+	copy(outputs, inputs[:s.count])
+	return
+}
+
+type SourceSelector struct {
+}
+
+func (s *SourceSelector) Select(_ []Warrior, signal Signal) []Warrior {
+	source, _ := signal.(Sourcer).Source()
+	return []Warrior{source.(Warrior)}
 }
