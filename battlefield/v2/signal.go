@@ -17,11 +17,24 @@ type Renderer interface {
 	Render(*BattleField)
 }
 
-type scripter struct {
+type Scripter interface {
+	New(any, Reactor)
+	Add(Action)
+}
+
+type myScripter struct {
 	scripts []Script
 }
 
-func (s *scripter) Render(b *BattleField) {
+func (s *myScripter) New(any any, reactor Reactor) {
+	s.scripts = append(s.scripts, NewMyScript(any, reactor))
+}
+
+func (s *myScripter) Add(action Action) {
+	s.scripts[len(s.scripts)-1].Add(action)
+}
+
+func (s *myScripter) Render(b *BattleField) {
 	for _, script := range s.scripts {
 		script.Render(b)
 	}
@@ -29,11 +42,11 @@ func (s *scripter) Render(b *BattleField) {
 
 type BattleStartSignal struct {
 	current any
-	scripter
+	myScripter
 }
 
 func NewBattleStartSignal() *BattleStartSignal {
-	return &BattleStartSignal{nil, scripter{}}
+	return &BattleStartSignal{nil, myScripter{}}
 }
 
 func (s *BattleStartSignal) Current() any {
@@ -41,16 +54,16 @@ func (s *BattleStartSignal) Current() any {
 }
 
 func (s *BattleStartSignal) Fork(current any) Signal {
-	return &BattleStartSignal{current, scripter{}}
+	return &BattleStartSignal{current, myScripter{}}
 }
 
 type LaunchSignal struct {
 	current Warrior
-	scripter
+	myScripter
 }
 
 func NewLaunchSignal(current Warrior) *LaunchSignal {
-	return &LaunchSignal{current, scripter{}}
+	return &LaunchSignal{current, myScripter{}}
 }
 
 func (s *LaunchSignal) Current() any {
@@ -81,11 +94,11 @@ func (s *PreLossSignal) SetLoss(loss int) {
 type LossSignal struct {
 	current any
 	target  Warrior
-	scripter
+	myScripter
 }
 
 func NewLossSignal(target Warrior) *LossSignal {
-	return &LossSignal{nil, target, scripter{}}
+	return &LossSignal{nil, target, myScripter{}}
 }
 
 func (s *LossSignal) Current() any {
@@ -97,17 +110,21 @@ func (s *LossSignal) Target() Warrior {
 }
 
 func (s *LossSignal) Fork(current any) Signal {
-	return &LossSignal{current, s.target, scripter{}}
+	return &LossSignal{current, s.target, myScripter{}}
+}
+
+type ActionSignal interface {
+	Action() Action
 }
 
 type PreActionSignal struct {
 	current any
 	action  Action
-	scripter
+	myScripter
 }
 
 func NewPreActionSignal(action Action) *PreActionSignal {
-	return &PreActionSignal{nil, action, scripter{}}
+	return &PreActionSignal{nil, action, myScripter{}}
 }
 
 func (s *PreActionSignal) Current() any {
@@ -119,17 +136,17 @@ func (s *PreActionSignal) Action() Action {
 }
 
 func (s *PreActionSignal) Fork(current any) Signal {
-	return &PreActionSignal{current, s.action, scripter{}}
+	return &PreActionSignal{current, s.action, myScripter{}}
 }
 
 type PostActionSignal struct {
 	current any
 	action  Action
-	scripter
+	myScripter
 }
 
 func NewPostActionSignal(action Action) *PostActionSignal {
-	return &PostActionSignal{nil, action, scripter{}}
+	return &PostActionSignal{nil, action, myScripter{}}
 }
 
 func (s *PostActionSignal) Current() any {
@@ -141,16 +158,16 @@ func (s *PostActionSignal) Action() Action {
 }
 
 func (s *PostActionSignal) Fork(current any) Signal {
-	return &PostActionSignal{current, s.action, scripter{}}
+	return &PostActionSignal{current, s.action, myScripter{}}
 }
 
 type RoundStartSignal struct {
 	current any
-	scripter
+	myScripter
 }
 
 func NewRoundStartSignal() *RoundStartSignal {
-	return &RoundStartSignal{nil, scripter{}}
+	return &RoundStartSignal{nil, myScripter{}}
 }
 
 func (s *RoundStartSignal) Current() any {
@@ -158,16 +175,16 @@ func (s *RoundStartSignal) Current() any {
 }
 
 func (s *RoundStartSignal) Fork(current any) Signal {
-	return &RoundStartSignal{current, scripter{}}
+	return &RoundStartSignal{current, myScripter{}}
 }
 
 type RoundEndSignal struct {
 	current any
-	scripter
+	myScripter
 }
 
 func NewRoundEndSignal() *RoundEndSignal {
-	return &RoundEndSignal{nil, scripter{}}
+	return &RoundEndSignal{nil, myScripter{}}
 }
 
 func (s *RoundEndSignal) Current() any {
@@ -175,5 +192,31 @@ func (s *RoundEndSignal) Current() any {
 }
 
 func (s *RoundEndSignal) Fork(current any) Signal {
-	return &RoundEndSignal{current, scripter{}}
+	return &RoundEndSignal{current, myScripter{}}
+}
+
+type EvaluationSignal struct {
+	current any
+	axis    Axis
+	value   int
+}
+
+func NewEvaluationSignal(current any, axis Axis, value int) *EvaluationSignal {
+	return &EvaluationSignal{current, axis, value}
+}
+
+func (s *EvaluationSignal) Current() any {
+	return s.current
+}
+
+func (s *EvaluationSignal) Axis() Axis {
+	return s.axis
+}
+
+func (s *EvaluationSignal) Value() int {
+	return s.value
+}
+
+func (s *EvaluationSignal) SetValue(value int) {
+	s.value = value
 }

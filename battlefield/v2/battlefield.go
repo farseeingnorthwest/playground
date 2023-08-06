@@ -14,7 +14,7 @@ func NewBattleField(warriors []Warrior, reactors ...Reactor) *BattleField {
 func (b *BattleField) React(signal ForkableSignal) {
 	for _, r := range b.reactors {
 		sig := signal.Fork(nil)
-		r.React(sig)
+		r.React(sig, b.warriors)
 		if s, ok := sig.(Renderer); ok {
 			s.Render(b)
 		}
@@ -26,7 +26,7 @@ func (b *BattleField) React(signal ForkableSignal) {
 		sort.Sort(&ByAxis{Speed, false, warriors[i:]})
 
 		sig := signal.Fork(warriors[i])
-		warriors[i].React(sig)
+		warriors[i].React(sig, b.warriors)
 		if s, ok := sig.(Renderer); ok {
 			s.Render(b)
 		}
@@ -44,10 +44,14 @@ func (b *BattleField) Run() {
 			sort.Sort(&ByAxis{Speed, false, warriors[i:]})
 
 			sig := NewLaunchSignal(warriors[i])
-			warriors[i].React(sig)
+			warriors[i].React(sig, b.warriors)
 			sig.Render(b)
 
-			// TODO: check if the battle is over
+			healthy := Healthy.Select(b.warriors, nil)
+			left := AbsoluteSideSelector(Left).Select(healthy, nil)
+			if len(healthy) == len(left) {
+				return
+			}
 		}
 
 		b.React(NewRoundEndSignal())
