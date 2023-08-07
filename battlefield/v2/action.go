@@ -180,7 +180,7 @@ func (h *Heal) Fork(evaluator Evaluator) any {
 	return &Heal{evaluator, 0}
 }
 
-func (h *Heal) Render(target Warrior, action Action) {
+func (h *Heal) Render(target Warrior, _ Action) {
 	r := target.Health()
 	m := target.Component(HealthMaximum)
 	c := r.Current * m / r.Maximum
@@ -197,11 +197,10 @@ func (h *Heal) Render(target Warrior, action Action) {
 type Buff struct {
 	evaluator Evaluator
 	reactor   ForkReactor
-	perAction bool
 }
 
-func NewBuff(evaluator Evaluator, reactor ForkReactor, perAction bool) *Buff {
-	return &Buff{evaluator, reactor, perAction}
+func NewBuff(evaluator Evaluator, reactor ForkReactor) *Buff {
+	return &Buff{evaluator, reactor}
 }
 
 func (b *Buff) Fork(evaluator Evaluator) any {
@@ -209,21 +208,17 @@ func (b *Buff) Fork(evaluator Evaluator) any {
 		return b
 	}
 
-	return &Buff{evaluator, b.reactor, b.perAction}
+	return &Buff{evaluator, b.reactor}
 }
 
-func (b *Buff) Render(target Warrior, action Action) {
+func (b *Buff) Render(target Warrior, _ Action) {
 	reactor := b.reactor
 	if b.evaluator != nil {
 		e := ConstEvaluator(b.evaluator.Evaluate(target))
 		reactor = reactor.Fork(e).(ForkReactor)
 	}
 
-	if b.perAction {
-		action.Add(reactor)
-	} else {
-		target.Add(reactor)
-	}
+	target.Add(reactor)
 }
 
 type Purge struct {

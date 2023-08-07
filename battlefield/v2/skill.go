@@ -1,9 +1,7 @@
 package battlefield
 
-import "math/rand"
-
 var (
-	rng = rand.New(rand.NewSource(0))
+	rng = &RngProxy{}
 	T0  = []Reactor{
 		NewFatReactor(
 			FatRespond(
@@ -28,18 +26,9 @@ var (
 					AxisEvaluator(CriticalOdds),
 					NewSequenceActor(
 						CriticalActor{},
-						NewVerbActor(
-							NewBuff(
-								nil,
-								NewFatReactor(
-									FatRespond(
-										NewSignalTrigger(&EvaluationSignal{}),
-										NewBuffer(Loss, nil),
-									),
-								),
-								true,
-							),
+						NewActionBuffer(
 							AxisEvaluator(CriticalLoss),
+							NewBuffer(Loss, nil),
 						),
 					),
 				),

@@ -112,8 +112,40 @@ func (CriticalActor) Fork(_ Evaluator) any {
 	return CriticalActor{}
 }
 
-type Rng interface {
-	Float64() float64
+type ActionBuffer struct {
+	evaluator Evaluator
+	buffer    *Buffer
+}
+
+func NewActionBuffer(evaluator Evaluator, buffer *Buffer) *ActionBuffer {
+	return &ActionBuffer{evaluator, buffer}
+}
+
+func (b *ActionBuffer) Act(signal Signal, _ []Warrior) {
+	sig := signal.(ActionSignal)
+	e := b.evaluator
+	if e != nil {
+		var current Warrior
+		if warrior, ok := signal.Current().(Warrior); ok {
+			current = warrior
+		}
+		e = ConstEvaluator(e.Evaluate(current))
+	}
+
+	sig.Action().Add(
+		NewFatReactor(FatRespond(
+			NewSignalTrigger(&EvaluationSignal{}),
+			b.buffer.Fork(e).(*Buffer),
+		)),
+	)
+}
+
+func (b *ActionBuffer) Fork(evaluator Evaluator) any {
+	if evaluator == nil {
+		return b
+	}
+
+	return NewActionBuffer(evaluator, b.buffer)
 }
 
 type ProbabilityActor struct {
@@ -127,7 +159,7 @@ func NewProbabilityActor(rng Rng, evaluator Evaluator, actor Actor) *Probability
 }
 
 func (a *ProbabilityActor) Act(signal Signal, warriors []Warrior) {
-	if int(a.rng.Float64()*100) < a.evaluator.Evaluate(signal.Current().(Warrior)) {
+	if a.rng.Float64() < float64(a.evaluator.Evaluate(signal.Current().(Warrior)))/100 {
 		a.actor.Act(signal, warriors)
 	}
 }
