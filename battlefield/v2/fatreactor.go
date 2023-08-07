@@ -105,12 +105,15 @@ type Responder struct {
 	actors  []Actor
 }
 
-func (r *Responder) React(signal Signal, warriors []Warrior) {
-	if r.trigger.Trigger(signal) {
+func (r *Responder) React(signal Signal, warriors []Warrior) (trigger bool) {
+	trigger = r.trigger.Trigger(signal)
+	if trigger {
 		for _, actor := range r.actors {
 			actor.Act(signal, warriors)
 		}
 	}
+
+	return
 }
 
 func (r *Responder) Fork(evaluator Evaluator) any {
@@ -122,8 +125,10 @@ func (r *Responder) Fork(evaluator Evaluator) any {
 	return &Responder{r.trigger, actors}
 }
 
+type ExclusionGroup uint8
+
 type FatReactor struct {
-	taggers    map[any]struct{}
+	TagSet
 	leading    *Leading
 	cooling    *Cooling
 	capacity   *Capacity
@@ -131,7 +136,7 @@ type FatReactor struct {
 }
 
 func NewFatReactor(options ...func(*FatReactor)) *FatReactor {
-	r := &FatReactor{taggers: make(map[any]struct{})}
+	r := &FatReactor{}
 	for _, option := range options {
 		option(r)
 	}
@@ -139,11 +144,9 @@ func NewFatReactor(options ...func(*FatReactor)) *FatReactor {
 	return r
 }
 
-func FatTag(tags ...any) func(*FatReactor) {
+func FatTags(tags ...any) func(*FatReactor) {
 	return func(r *FatReactor) {
-		for _, tag := range tags {
-			r.taggers[tag] = struct{}{}
-		}
+		r.TagSet = NewTagSet(tags...)
 	}
 }
 
@@ -180,33 +183,42 @@ func (r *FatReactor) React(signal Signal, warriors []Warrior) {
 		return
 	}
 
-	if scripter, ok := signal.(Scripter); ok {
-		scripter.New(signal.Current(), r)
-	}
-	for _, responder := range r.responders {
-		responder.React(signal, warriors)
-	}
+	trigger := false
+	defer func() {
+		if trigger {
+			r.capacity.Flush()
+			r.cooling.WarmUp()
+		}
+	}()
 
-	r.cooling.WarmUp()
-	r.capacity.Flush()
-}
+	if tagger, ok := signal.(Tagger); ok {
+		g := r.Find(NewTypeMatcher(ExclusionGroup(0)))
+		if g != nil {
+			if tagger.Match(g) {
+				return
+			}
 
-func (r *FatReactor) Tags() (tags []any) {
-	for tag := range r.taggers {
-		tags = append(tags, tag)
-	}
-
-	return
-}
-
-func (r *FatReactor) Match(tags ...any) bool {
-	for _, tag := range tags {
-		if _, ok := r.taggers[tag]; !ok {
-			return false
+			defer func() {
+				if !trigger {
+					tagger.Save(g)
+				}
+			}()
 		}
 	}
 
-	return true
+	if scripter, ok := signal.(Scripter); ok {
+		scripter.Push(signal.Current(), r)
+		defer func() {
+			if !trigger {
+				scripter.Pop()
+			}
+		}()
+	}
+	for _, responder := range r.responders {
+		if responder.React(signal, warriors) {
+			trigger = true
+		}
+	}
 }
 
 func (r *FatReactor) Fork(evaluator Evaluator) any {
@@ -216,7 +228,7 @@ func (r *FatReactor) Fork(evaluator Evaluator) any {
 	}
 
 	return &FatReactor{
-		r.taggers,
+		r.TagSet,
 		r.leading.Fork(),
 		r.cooling.Fork(),
 		r.capacity.Fork(),

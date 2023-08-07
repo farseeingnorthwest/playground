@@ -18,7 +18,8 @@ type Renderer interface {
 }
 
 type Scripter interface {
-	New(any, Reactor)
+	Push(any, Reactor)
+	Pop()
 	Add(Action)
 }
 
@@ -26,8 +27,12 @@ type myScripter struct {
 	scripts []Script
 }
 
-func (s *myScripter) New(any any, reactor Reactor) {
+func (s *myScripter) Push(any any, reactor Reactor) {
 	s.scripts = append(s.scripts, NewMyScript(any, reactor))
+}
+
+func (s *myScripter) Pop() {
+	s.scripts = s.scripts[:len(s.scripts)-1]
 }
 
 func (s *myScripter) Add(action Action) {
@@ -58,12 +63,13 @@ func (s *BattleStartSignal) Fork(current any) Signal {
 }
 
 type LaunchSignal struct {
+	TagSet
 	current Warrior
 	myScripter
 }
 
 func NewLaunchSignal(current Warrior) *LaunchSignal {
-	return &LaunchSignal{current, myScripter{}}
+	return &LaunchSignal{NewTagSet(), current, myScripter{}}
 }
 
 func (s *LaunchSignal) Current() any {

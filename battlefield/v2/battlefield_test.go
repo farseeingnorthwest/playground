@@ -1,8 +1,9 @@
 package battlefield
 
 import (
-	"golang.org/x/exp/slog"
 	"os"
+
+	"golang.org/x/exp/slog"
 )
 
 func ExampleBattleField_Run() {
@@ -29,18 +30,19 @@ func ExampleBattleField_Run() {
 					Defense:      5,
 					CriticalOdds: 10,
 					CriticalLoss: 200,
-					Health:       20,
+					Health:       100,
 				},
 				Left,
 				0,
 				T0[0],
 				T0[1],
+				T0[2],
 			),
 			NewMyWarrior(
 				MyBaseline{
 					Damage:  12,
 					Defense: 8,
-					Health:  22,
+					Health:  120,
 				},
 				Right,
 				0,

@@ -8,11 +8,6 @@ type Forker interface {
 	Fork(Evaluator) any
 }
 
-type Tagger interface {
-	Tags() []any
-	Match(...any) bool
-}
-
 type ForkReactor interface {
 	Reactor
 	Forker
