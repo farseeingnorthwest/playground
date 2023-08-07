@@ -49,7 +49,7 @@ func (b *BattleField) Run() {
 
 			healthy := Healthy.Select(b.warriors, nil)
 			left := AbsoluteSideSelector(Left).Select(healthy, nil)
-			if len(healthy) == len(left) {
+			if len(left) == 0 || len(healthy) == len(left) {
 				return
 			}
 		}

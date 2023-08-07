@@ -21,6 +21,14 @@ const (
 type Axis uint8
 type Side bool
 
+func (s Side) String() string {
+	if s == Left {
+		return "Left"
+	}
+
+	return "Right"
+}
+
 type Ratio struct {
 	Current int
 	Maximum int
@@ -29,6 +37,7 @@ type Ratio struct {
 type Warrior interface {
 	Portfolio
 	Side() Side
+	Position() int
 	Health() Ratio
 	SetHealth(Ratio)
 	Component(Axis) int
@@ -57,4 +66,102 @@ func (a *ByAxis) Less(i, j int) bool {
 	}
 
 	return a.Warriors[i].Side() == Left
+}
+
+type Baseline interface {
+	Component(Axis) int
+}
+
+type MyBaseline struct {
+	Damage       int
+	CriticalOdds int
+	CriticalLoss int
+	Defense      int
+	Health       int
+	Speed        int
+}
+
+func (b MyBaseline) Component(axis Axis) int {
+	switch axis {
+	case Damage:
+		return b.Damage
+	case CriticalOdds:
+		return b.CriticalOdds
+	case CriticalLoss:
+		return b.CriticalLoss
+	case Defense:
+		return b.Defense
+	case HealthMaximum:
+		return b.Health
+	case Speed:
+		return b.Speed
+
+	default:
+		panic("unknown axis")
+	}
+}
+
+type MyWarrior struct {
+	*FatPortfolio
+	baseline Baseline
+	side     Side
+	position int
+	health   Ratio
+}
+
+func NewMyWarrior(baseline Baseline, side Side, position int, reactors ...Reactor) *MyWarrior {
+	portfolio := NewFatPortfolio()
+	for _, r := range reactors {
+		portfolio.Add(r)
+	}
+
+	return &MyWarrior{
+		FatPortfolio: portfolio,
+		baseline:     baseline,
+		side:         side,
+		position:     position,
+		health: Ratio{
+			baseline.Component(HealthMaximum),
+			baseline.Component(HealthMaximum),
+		},
+	}
+}
+
+func (w *MyWarrior) Baseline() Baseline {
+	return w.baseline
+}
+
+func (w *MyWarrior) Side() Side {
+	return w.side
+}
+
+func (w *MyWarrior) Position() int {
+	return w.position
+}
+
+func (w *MyWarrior) Health() Ratio {
+	return w.health
+}
+
+func (w *MyWarrior) SetHealth(health Ratio) {
+	w.health = health
+}
+
+func (w *MyWarrior) Component(axis Axis) int {
+	switch axis {
+	case Position:
+		return w.position
+
+	case Health:
+		m := w.Component(HealthMaximum)
+		return w.health.Current * m / w.health.Maximum
+
+	case HealthPercent:
+		return w.health.Current * 100 / w.health.Maximum
+
+	default:
+		signal := NewEvaluationSignal(w, axis, w.baseline.Component(axis))
+		w.React(signal, nil)
+		return signal.Value()
+	}
 }

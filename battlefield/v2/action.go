@@ -1,5 +1,7 @@
 package battlefield
 
+import "golang.org/x/exp/slog"
+
 type Script interface {
 	Renderer
 	Source() (any, Reactor)
@@ -41,14 +43,14 @@ type Action interface {
 }
 
 type MyAction struct {
-	*MyPortfolio
+	*FatPortfolio
 	script  Script
 	targets []Warrior
 	verb    Verb
 }
 
 func NewMyAction(targets []Warrior, verb Verb) *MyAction {
-	return &MyAction{NewMyPortfolio(), nil, targets, verb}
+	return &MyAction{NewFatPortfolio(), nil, targets, verb}
 }
 
 func (a *MyAction) Script() Script {
@@ -115,25 +117,46 @@ func (a *Attack) Fork(evaluator Evaluator) any {
 func (a *Attack) Render(target Warrior, action Action) {
 	damage := a.evaluator.Evaluate(target)
 	defense := target.Component(Defense)
-	a.loss = damage - defense
-	if a.loss < 0 {
-		a.loss = 0
+	t := damage - defense
+	if t < 0 {
+		t = 0
 	}
 
-	e := NewEvaluationSignal(target, Loss, a.loss)
+	e := NewEvaluationSignal(target, Loss, t)
 	action.React(e, nil)
+	target.React(e, nil)
 	loss := NewPreLossSignal(target, e.Value())
 	target.React(loss, nil)
 
-	a.loss = loss.Loss()
 	r := target.Health()
 	m := target.Component(HealthMaximum)
-	c := r.Current*m/r.Maximum - a.loss
+	c := r.Current*m/r.Maximum - loss.Loss()
+	overflow := 0
 	if c < 0 {
-		a.loss += c
+		overflow = -c
 		c = 0
 	}
 	target.SetHealth(Ratio{c, m})
+	a.loss = loss.Loss() - overflow
+	source, _ := action.Script().Source()
+	slog.Debug(
+		"render",
+		slog.String("verb", "attack"),
+		slog.Bool("critical", a.critical),
+		slog.Int("loss", loss.Loss()),
+		slog.Int("overflow", overflow),
+		slog.Group("source",
+			slog.Any("side", source.(Warrior).Side()),
+			slog.Int("position", source.(Warrior).Position()),
+			slog.Int("damage", damage)),
+		slog.Group("target",
+			slog.Any("side", target.Side()),
+			slog.Int("position", target.Position()),
+			slog.Int("defense", defense),
+			slog.Group("health",
+				slog.Int("current", c),
+				slog.Int("maximum", m))),
+	)
 }
 
 type Heal struct {

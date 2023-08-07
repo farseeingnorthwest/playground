@@ -22,12 +22,10 @@ func (s AbsoluteSideSelector) Select(inputs []Warrior, _ Signal) (outputs []Warr
 	return
 }
 
-type SideSelector struct {
-	own bool
-}
+type SideSelector bool
 
-func (s *SideSelector) Select(inputs []Warrior, signal Signal) []Warrior {
-	side := Side(s.own == bool(signal.Current().(Warrior).Side()))
+func (s SideSelector) Select(inputs []Warrior, signal Signal) []Warrior {
+	side := Side(bool(s) == bool(signal.Current().(Warrior).Side()))
 	return AbsoluteSideSelector(side).Select(inputs, signal)
 }
 
@@ -60,8 +58,12 @@ func (s *SortSelector) Select(inputs []Warrior, _ Signal) (outputs []Warrior) {
 }
 
 type ShuffleSelector struct {
-	randInt    func() int
+	rng        Rng
 	preference any
+}
+
+func NewShuffleSelector(rng Rng, preference any) *ShuffleSelector {
+	return &ShuffleSelector{rng, preference}
 }
 
 func (s *ShuffleSelector) Select(inputs []Warrior, _ Signal) (outputs []Warrior) {
@@ -70,7 +72,7 @@ func (s *ShuffleSelector) Select(inputs []Warrior, _ Signal) (outputs []Warrior)
 
 	randoms := make([]int, len(inputs))
 	for i := range randoms {
-		randoms[i] = s.randInt()
+		randoms[i] = int(s.rng.Float64() * 1e6)
 	}
 
 	sort.Sort(&shuffle{s.preference, randoms, outputs})
@@ -93,25 +95,25 @@ func (s *shuffle) Swap(i, j int) {
 }
 
 func (s *shuffle) Less(i, j int) bool {
-	p, q := len(s.warriors[i].Buffs(s.preference)) > 0, len(s.warriors[j].Buffs(s.preference)) > 0
-	if p != q {
-		return p
+	if s.preference != nil {
+		p, q := len(s.warriors[i].Buffs(s.preference)) > 0, len(s.warriors[j].Buffs(s.preference)) > 0
+		if p != q {
+			return p
+		}
 	}
 
 	return s.randoms[i] < s.randoms[j]
 }
 
-type FrontSelector struct {
-	count int
-}
+type FrontSelector int
 
-func (s *FrontSelector) Select(inputs []Warrior, _ Signal) (outputs []Warrior) {
-	if len(inputs) <= s.count {
+func (s FrontSelector) Select(inputs []Warrior, _ Signal) (outputs []Warrior) {
+	if len(inputs) <= int(s) {
 		return inputs
 	}
 
-	outputs = make([]Warrior, s.count)
-	copy(outputs, inputs[:s.count])
+	outputs = make([]Warrior, int(s))
+	copy(outputs, inputs[:int(s)])
 	return
 }
 

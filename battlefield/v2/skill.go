@@ -8,7 +8,13 @@ var (
 		NewFatReactor(
 			FatRespond(
 				NewSignalTrigger(&LaunchSignal{}),
-				NewVerbActor(&Attack{}, AxisEvaluator(Damage)),
+				NewSelectActor(
+					NewVerbActor(&Attack{}, AxisEvaluator(Damage)),
+					Healthy,
+					SideSelector(false),
+					NewShuffleSelector(rng, nil),
+					FrontSelector(1),
+				),
 			),
 		),
 		NewFatReactor(
