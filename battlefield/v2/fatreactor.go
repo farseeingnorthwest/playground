@@ -199,7 +199,7 @@ func (r *FatReactor) React(signal Signal, warriors []Warrior) {
 			}
 
 			defer func() {
-				if !trigger {
+				if trigger {
 					tagger.Save(g)
 				}
 			}()

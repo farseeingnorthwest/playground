@@ -42,7 +42,7 @@ func ExampleBattleField_Run() {
 				MyBaseline{
 					Damage:  12,
 					Defense: 8,
-					Health:  120,
+					Health:  200,
 				},
 				Right,
 				0,
@@ -52,10 +52,19 @@ func ExampleBattleField_Run() {
 	)
 	f.Run()
 	// Output:
-	// verb=attack critical=true loss=4 overflow=0 source.side=Left source.position=0 source.damage=10 target.side=Right target.position=0 target.defense=8 target.health.current=18 target.health.maximum=22
-	// verb=attack critical=false loss=7 overflow=0 source.side=Right source.position=0 source.damage=12 target.side=Left target.position=0 target.defense=5 target.health.current=13 target.health.maximum=20
-	// verb=attack critical=false loss=2 overflow=0 source.side=Left source.position=0 source.damage=10 target.side=Right target.position=0 target.defense=8 target.health.current=16 target.health.maximum=22
-	// verb=attack critical=false loss=7 overflow=0 source.side=Right source.position=0 source.damage=12 target.side=Left target.position=0 target.defense=5 target.health.current=6 target.health.maximum=20
-	// verb=attack critical=false loss=2 overflow=0 source.side=Left source.position=0 source.damage=10 target.side=Right target.position=0 target.defense=8 target.health.current=14 target.health.maximum=22
-	// verb=attack critical=false loss=7 overflow=1 source.side=Right source.position=0 source.damage=12 target.side=Left target.position=0 target.defense=5 target.health.current=0 target.health.maximum=20
+	// verb=attack critical=true loss=76 overflow=0 source.side=Left source.position=0 source.damage=46 target.side=Right target.position=0 target.defense=8 target.health.current=124 target.health.maximum=200
+	// verb=attack critical=false loss=38 overflow=0 source.side=Left source.position=0 source.damage=46 target.side=Right target.position=0 target.defense=8 target.health.current=86 target.health.maximum=200
+	// verb=attack critical=false loss=38 overflow=0 source.side=Left source.position=0 source.damage=46 target.side=Right target.position=0 target.defense=8 target.health.current=48 target.health.maximum=200
+	// verb=attack critical=false loss=7 overflow=0 source.side=Right source.position=0 source.damage=12 target.side=Left target.position=0 target.defense=5 target.health.current=93 target.health.maximum=100
+	// verb=attack critical=false loss=2 overflow=0 source.side=Left source.position=0 source.damage=10 target.side=Right target.position=0 target.defense=8 target.health.current=46 target.health.maximum=200
+	// verb=attack critical=false loss=7 overflow=0 source.side=Right source.position=0 source.damage=12 target.side=Left target.position=0 target.defense=5 target.health.current=86 target.health.maximum=100
+	// verb=attack critical=false loss=2 overflow=0 source.side=Left source.position=0 source.damage=10 target.side=Right target.position=0 target.defense=8 target.health.current=44 target.health.maximum=200
+	// verb=attack critical=false loss=7 overflow=0 source.side=Right source.position=0 source.damage=12 target.side=Left target.position=0 target.defense=5 target.health.current=79 target.health.maximum=100
+	// verb=attack critical=false loss=2 overflow=0 source.side=Left source.position=0 source.damage=10 target.side=Right target.position=0 target.defense=8 target.health.current=42 target.health.maximum=200
+	// verb=attack critical=false loss=7 overflow=0 source.side=Right source.position=0 source.damage=12 target.side=Left target.position=0 target.defense=5 target.health.current=72 target.health.maximum=100
+	// verb=attack critical=false loss=2 overflow=0 source.side=Left source.position=0 source.damage=10 target.side=Right target.position=0 target.defense=8 target.health.current=40 target.health.maximum=200
+	// verb=attack critical=false loss=7 overflow=0 source.side=Right source.position=0 source.damage=12 target.side=Left target.position=0 target.defense=5 target.health.current=65 target.health.maximum=100
+	// verb=attack critical=false loss=38 overflow=0 source.side=Left source.position=0 source.damage=46 target.side=Right target.position=0 target.defense=8 target.health.current=2 target.health.maximum=200
+	// verb=attack critical=false loss=38 overflow=36 source.side=Left source.position=0 source.damage=46 target.side=Right target.position=0 target.defense=8 target.health.current=0 target.health.maximum=200
+	// verb=attack critical=false loss=38 overflow=38 source.side=Left source.position=0 source.damage=46 target.side=Right target.position=0 target.defense=8 target.health.current=0 target.health.maximum=200
 }
