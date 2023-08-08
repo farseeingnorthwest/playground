@@ -192,8 +192,7 @@ func (r *FatReactor) React(signal Signal, warriors []Warrior) {
 	}()
 
 	if tagger, ok := signal.(Tagger); ok {
-		g := r.Find(NewTypeMatcher(ExclusionGroup(0)))
-		if g != nil {
+		if g := r.Find(NewTypeMatcher(ExclusionGroup(0))); g != nil {
 			if tagger.Match(g) {
 				return
 			}
@@ -234,4 +233,16 @@ func (r *FatReactor) Fork(evaluator Evaluator) any {
 		r.capacity.Fork(),
 		responders,
 	}
+}
+
+func NewBuffReactor(axis Axis, bias bool, evaluator Evaluator, options ...func(*FatReactor)) *FatReactor {
+	options = append(
+		options,
+		FatRespond(
+			NewSignalTrigger(&EvaluationSignal{}),
+			NewBuffer(axis, bias, evaluator),
+		),
+	)
+
+	return NewFatReactor(options...)
 }

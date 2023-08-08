@@ -32,7 +32,7 @@ func (s SideSelector) Select(inputs []Warrior, signal Signal) []Warrior {
 type CurrentSelector struct {
 }
 
-func (s *CurrentSelector) Select(_ []Warrior, signal Signal) []Warrior {
+func (CurrentSelector) Select(_ []Warrior, signal Signal) []Warrior {
 	return []Warrior{signal.Current().(Warrior)}
 }
 
@@ -47,6 +47,10 @@ func (s *SourceSelector) Select(_ []Warrior, signal Signal) []Warrior {
 type SortSelector struct {
 	axis Axis
 	asc  bool
+}
+
+func NewSortSelector(axis Axis, asc bool) *SortSelector {
+	return &SortSelector{axis, asc}
 }
 
 func (s *SortSelector) Select(inputs []Warrior, _ Signal) (outputs []Warrior) {
@@ -67,6 +71,10 @@ func NewShuffleSelector(rng Rng, preference any) *ShuffleSelector {
 }
 
 func (s *ShuffleSelector) Select(inputs []Warrior, _ Signal) (outputs []Warrior) {
+	if len(inputs) < 2 {
+		return inputs
+	}
+
 	outputs = make([]Warrior, len(inputs))
 	copy(outputs, inputs)
 

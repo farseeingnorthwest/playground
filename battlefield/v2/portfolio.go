@@ -12,15 +12,6 @@ type Portfolio interface {
 
 type Priority int
 
-func priorityTag(a any) any {
-	tagger, ok := a.(Tagger)
-	if !ok {
-		return nil
-	}
-
-	return tagger.Find(NewTypeMatcher(Priority(0)))
-}
-
 type FatPortfolio struct {
 	reactors *list.List
 }
@@ -36,10 +27,10 @@ func (p *FatPortfolio) React(signal Signal, warriors []Warrior) {
 }
 
 func (p *FatPortfolio) Add(reactor Reactor) {
-	if pr := priorityTag(reactor); pr != nil {
+	if pr, ok := QueryTag[Priority](reactor); ok {
 		for e := p.reactors.Front(); e != nil; e = e.Next() {
-			pr2 := priorityTag(e.Value)
-			if pr2 == nil || pr.(Priority) > pr2.(Priority) {
+			pr2, ok := QueryTag[Priority](e.Value)
+			if !ok || pr > pr2 {
 				p.reactors.InsertBefore(reactor, e)
 				return
 			}

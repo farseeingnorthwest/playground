@@ -148,6 +148,7 @@ func (a *Attack) Render(target Warrior, action Action) {
 		slog.Group("source",
 			slog.Any("side", source.(Warrior).Side()),
 			slog.Int("position", source.(Warrior).Position()),
+			slog.Any("reactor", QueryTagA[Label](Second(action.Script().Source()))),
 			slog.Int("damage", damage)),
 		slog.Group("target",
 			slog.Any("side", target.Side()),
@@ -211,7 +212,7 @@ func (b *Buff) Fork(evaluator Evaluator) any {
 	return &Buff{evaluator, b.reactor}
 }
 
-func (b *Buff) Render(target Warrior, _ Action) {
+func (b *Buff) Render(target Warrior, action Action) {
 	reactor := b.reactor
 	if b.evaluator != nil {
 		e := ConstEvaluator(b.evaluator.Evaluate(target))
@@ -219,6 +220,16 @@ func (b *Buff) Render(target Warrior, _ Action) {
 	}
 
 	target.Add(reactor)
+	slog.Debug("render",
+		slog.String("verb", "buff"),
+		slog.Any("reactor", QueryTagA[Label](reactor)),
+		slog.Group("target",
+			slog.Any("side", target.Side()),
+			slog.Int("position", target.Position()),
+		),
+		slog.Group("source",
+			slog.Any("reactor", QueryTagA[Label](Second(action.Script().Source())))),
+	)
 }
 
 type Purge struct {

@@ -13,31 +13,43 @@ type ForkReactor interface {
 	Forker
 }
 
+type Label string
+
 type Actor interface {
 	Act(Signal, []Warrior)
 	Forker
 }
 
 type Buffer struct {
-	axis       Axis
-	multiplier Evaluator
+	axis      Axis
+	bias      bool
+	evaluator Evaluator
 }
 
-func NewBuffer(axis Axis, multiplier Evaluator) *Buffer {
-	return &Buffer{axis, multiplier}
+func NewBuffer(axis Axis, bias bool, evaluator Evaluator) *Buffer {
+	return &Buffer{axis, bias, evaluator}
 }
 
 func (a *Buffer) Act(signal Signal, _ []Warrior) {
 	s := signal.(*EvaluationSignal)
+	if a.axis != s.Axis() {
+		return
+	}
+
 	var current Warrior
 	if warrior, ok := signal.Current().(Warrior); ok {
 		current = warrior
 	}
-	s.SetValue(a.multiplier.Evaluate(current) * s.Value() / 100)
+
+	if a.bias {
+		s.SetValue(a.evaluator.Evaluate(current) + s.Value())
+	} else {
+		s.SetValue(a.evaluator.Evaluate(current) * s.Value() / 100)
+	}
 }
 
 func (a *Buffer) Fork(evaluator Evaluator) any {
-	return NewBuffer(a.axis, evaluator)
+	return &Buffer{a.axis, a.bias, evaluator}
 }
 
 type VerbActor struct {

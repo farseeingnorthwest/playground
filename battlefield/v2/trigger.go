@@ -55,6 +55,18 @@ func (t *ReactorTrigger) Trigger(action Action, _ Signal) bool {
 	return r == t.reactor
 }
 
+type VerbTrigger[T Verb] struct {
+}
+
+func NewVerbTrigger[T Verb]() VerbTrigger[T] {
+	return VerbTrigger[T]{}
+}
+
+func (VerbTrigger[T]) Trigger(action Action, _ Signal) bool {
+	_, ok := action.Verb().(T)
+	return ok
+}
+
 type CriticalStrikeTrigger struct {
 }
 

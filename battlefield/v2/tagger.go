@@ -67,3 +67,34 @@ func (t TagSet) Find(matcher Matcher) any {
 func (t TagSet) Save(tag any) {
 	t[tag] = struct{}{}
 }
+
+func QueryTag[T any](a any) (T, bool) {
+	proto := new(T)
+	tagger, ok := a.(Tagger)
+	if !ok {
+		return *proto, false
+	}
+
+	tag := tagger.Find(NewTypeMatcher(*proto))
+	if tag == nil {
+		return *proto, false
+	}
+
+	return tag.(T), true
+}
+
+func QueryTagA[T any](a any) any {
+	if tag, ok := QueryTag[T](a); ok {
+		return tag
+	}
+
+	return nil
+}
+
+func First[A any, B any](a A, _ B) A {
+	return a
+}
+
+func Second[A any, B any](a A, b B) B {
+	return b
+}
