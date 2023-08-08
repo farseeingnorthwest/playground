@@ -181,18 +181,37 @@ func (h *Heal) Fork(evaluator Evaluator) any {
 	return &Heal{evaluator, 0}
 }
 
-func (h *Heal) Render(target Warrior, _ Action) {
+func (h *Heal) Render(target Warrior, action Action) {
 	r := target.Health()
 	m := target.Component(HealthMaximum)
 	c := r.Current * m / r.Maximum
-	h.rise = h.evaluator.Evaluate(target)
+	rise := h.evaluator.Evaluate(target)
 
-	c += h.rise
+	c += rise
+	overflow := 0
 	if c > m {
-		h.rise -= c - m
+		overflow = c - m
 		c = m
 	}
 	target.SetHealth(Ratio{c, m})
+	h.rise = rise - overflow
+	source, _ := action.Script().Source()
+	slog.Debug(
+		"render",
+		slog.String("verb", "heal"),
+		slog.Int("rise", rise),
+		slog.Int("overflow", overflow),
+		slog.Group("source",
+			slog.Any("side", source.(Warrior).Side()),
+			slog.Int("position", source.(Warrior).Position()),
+			slog.Any("reactor", QueryTagA[Label](Second(action.Script().Source())))),
+		slog.Group("target",
+			slog.Any("side", target.Side()),
+			slog.Int("position", target.Position()),
+			slog.Group("health",
+				slog.Int("current", c),
+				slog.Int("maximum", m))),
+	)
 }
 
 type Buff struct {

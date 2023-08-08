@@ -296,5 +296,74 @@ var (
 				),
 			),
 		},
+
+		// ////////////////////////////////////////////////////////////
+		// [3] 徳川
+		{
+			// 對攻擊力最高的敵人進行 4 次攻擊，每次造成攻擊力 340% 的傷害。
+			NewFatReactor(
+				FatTags(SkillGroup, Priority(1), Label("@Launch({1^/D} 4 * 340% Damage)")),
+				FatRespond(
+					NewSignalTrigger(&LaunchSignal{}),
+					NewSelectActor(
+						NewSequenceActor(
+							NewVerbActor(&Attack{}, NewMultiplier(AxisEvaluator(Damage), 340)),
+							NewVerbActor(&Attack{}, NewMultiplier(AxisEvaluator(Damage), 340)),
+							NewVerbActor(&Attack{}, NewMultiplier(AxisEvaluator(Damage), 340)),
+							NewVerbActor(&Attack{}, NewMultiplier(AxisEvaluator(Damage), 340)),
+						),
+						SideSelector(false),
+						Healthy,
+						NewSortSelector(Damage, false),
+						FrontSelector(1),
+					),
+				),
+				FatCooling(NewSignalTrigger(&RoundEndSignal{}), 4),
+			),
+
+			// 對生命值百分比最低的 3 名友軍治療，恢復徳川攻擊力 250% 的生命值
+			NewFatReactor(
+				FatTags(SkillGroup, Priority(2), Label("@Launch({3!/%} 250% Damage+)")),
+				FatRespond(
+					NewSignalTrigger(&LaunchSignal{}),
+					NewSelectActor(
+						NewVerbActor(NewHeal(nil), NewMultiplier(AxisEvaluator(Damage), 250)),
+						SideSelector(true),
+						Healthy,
+						NewSortSelector(HealthPercent, true),
+						FrontSelector(3),
+					),
+				),
+				FatCooling(NewSignalTrigger(&RoundEndSignal{}), 4),
+			),
+
+			// 強化自身的普通攻擊(無法被解除)，普通攻擊爆擊時，提昇5%攻擊力(最高3層，3回合)，並刷新層數的回合。
+			NewFatReactor(
+				FatTags(SkillGroup, Priority(3), Label("@PreAction({$} +5% Attack*)")),
+				FatRespond(
+					NewFatTrigger(
+						&PreActionSignal{},
+						CurrentIsSourceTrigger{},
+						NewVerbTrigger[*Attack](),
+						NewActionReactorTrigger(Regular[0]),
+						CriticalStrikeTrigger{},
+					),
+					NewSelectActor(
+						NewVerbActor(
+							NewBuff(nil, NewBuffReactor(
+								Damage,
+								false,
+								ConstEvaluator(105),
+								FatTags(Label("+5% Attack*")),
+								FatCapacity(NewSignalTrigger(&RoundEndSignal{}), 3))),
+							nil,
+						),
+						CurrentSelector{},
+					),
+				),
+			),
+
+			// 自身的生命值百分比為50%以下時，獲得「庇護」(最大生命值30%，無法被解除)。
+		},
 	}
 )

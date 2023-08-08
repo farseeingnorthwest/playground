@@ -180,3 +180,65 @@ func ExampleBattleField_Run_special_2() {
 	// verb=attack critical=false loss=7 overflow=0 source.side=Right source.position=0 source.reactor=NormalAttack source.damage=12 target.side=Left target.position=0 target.defense=5 target.health.current=111 target.health.maximum=125
 	// verb=attack critical=false loss=2 overflow=0 source.side=Left source.position=0 source.reactor=NormalAttack source.damage=10 target.side=Right target.position=0 target.defense=8 target.health.current=0 target.health.maximum=130
 }
+
+func ExampleBattleField_Run_special_3() {
+	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelDebug,
+		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+			if len(groups) == 0 {
+				switch a.Key {
+				case slog.TimeKey, slog.LevelKey, slog.MessageKey:
+					return slog.Attr{}
+				}
+			}
+
+			return a
+		},
+	})))
+
+	rng.SetRng(NewSequence(0.5, 0.5, 0.5, 0.5, 0.01, 0.9))
+	f := NewBattleField(
+		[]Warrior{
+			NewMyWarrior(
+				MyBaseline{
+					Damage:       10,
+					Defense:      5,
+					CriticalOdds: 10,
+					CriticalLoss: 200,
+					Health:       100,
+				},
+				Left,
+				0,
+				Regular[0],
+				Regular[1],
+				Regular[2],
+				Special[3][0],
+				Special[3][1],
+				Special[3][2],
+			),
+			NewMyWarrior(
+				MyBaseline{
+					Damage:  12,
+					Defense: 8,
+					Health:  110,
+				},
+				Right,
+				0,
+				Regular[0],
+			),
+		},
+	)
+	f.Run()
+	// Output:
+	// verb=heal rise=25 overflow=25 source.side=Left source.position=0 source.reactor="@Launch({3!/%} 250% Damage+)" target.side=Left target.position=0 target.health.current=100 target.health.maximum=100
+	// verb=attack critical=false loss=7 overflow=0 source.side=Right source.position=0 source.reactor=NormalAttack source.damage=12 target.side=Left target.position=0 target.defense=5 target.health.current=93 target.health.maximum=100
+	// verb=attack critical=false loss=26 overflow=0 source.side=Left source.position=0 source.reactor="@Launch({1^/D} 4 * 340% Damage)" source.damage=34 target.side=Right target.position=0 target.defense=8 target.health.current=84 target.health.maximum=110
+	// verb=attack critical=false loss=26 overflow=0 source.side=Left source.position=0 source.reactor="@Launch({1^/D} 4 * 340% Damage)" source.damage=34 target.side=Right target.position=0 target.defense=8 target.health.current=58 target.health.maximum=110
+	// verb=attack critical=false loss=26 overflow=0 source.side=Left source.position=0 source.reactor="@Launch({1^/D} 4 * 340% Damage)" source.damage=34 target.side=Right target.position=0 target.defense=8 target.health.current=32 target.health.maximum=110
+	// verb=attack critical=false loss=26 overflow=0 source.side=Left source.position=0 source.reactor="@Launch({1^/D} 4 * 340% Damage)" source.damage=34 target.side=Right target.position=0 target.defense=8 target.health.current=6 target.health.maximum=110
+	// verb=attack critical=false loss=7 overflow=0 source.side=Right source.position=0 source.reactor=NormalAttack source.damage=12 target.side=Left target.position=0 target.defense=5 target.health.current=86 target.health.maximum=100
+	// verb=buff reactor="+5% Attack*" target.side=Left target.position=0 source.reactor="@PreAction({$} +5% Attack*)"
+	// verb=attack critical=true loss=4 overflow=0 source.side=Left source.position=0 source.reactor=NormalAttack source.damage=10 target.side=Right target.position=0 target.defense=8 target.health.current=2 target.health.maximum=110
+	// verb=attack critical=false loss=7 overflow=0 source.side=Right source.position=0 source.reactor=NormalAttack source.damage=12 target.side=Left target.position=0 target.defense=5 target.health.current=79 target.health.maximum=100
+	// verb=attack critical=false loss=2 overflow=0 source.side=Left source.position=0 source.reactor=NormalAttack source.damage=10 target.side=Right target.position=0 target.defense=8 target.health.current=0 target.health.maximum=110
+}
