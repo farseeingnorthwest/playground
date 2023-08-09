@@ -238,3 +238,30 @@ func (s *EvaluationSignal) Value() int {
 func (s *EvaluationSignal) SetValue(value int) {
 	s.value = value
 }
+
+type LifecycleSignal struct {
+	current   any
+	scripter  any
+	reactor   Reactor
+	lifecycle *Lifecycle
+}
+
+func NewTempoSignal(scripter any, reactor Reactor, lifecycle *Lifecycle) *LifecycleSignal {
+	return &LifecycleSignal{nil, scripter, reactor, lifecycle}
+}
+
+func (s *LifecycleSignal) Current() any {
+	return s.current
+}
+
+func (s *LifecycleSignal) Source() (any, Reactor) {
+	return s.scripter, s.reactor
+}
+
+func (s *LifecycleSignal) Lifecycle() *Lifecycle {
+	return s.lifecycle
+}
+
+func (s *LifecycleSignal) Fork(current any) Signal {
+	return &LifecycleSignal{current, s.scripter, s.reactor, s.lifecycle}
+}

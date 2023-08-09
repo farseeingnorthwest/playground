@@ -1,17 +1,55 @@
 package battlefield
 
+import "log/slog"
+
+type Lifecycle struct {
+	Leading  Option[int]
+	Cooling  Option[Ratio]
+	Capacity Option[int]
+}
+
+func (c *Lifecycle) SetLeading(count int) {
+	c.Leading = Some(count)
+}
+
+func (c *Lifecycle) SetCooling(current int, maximum int) {
+	c.Cooling = Some(Ratio{current, maximum})
+}
+
+func (c *Lifecycle) SetCapacity(count int) {
+	c.Capacity = Some(count)
+}
+
+func (c *Lifecycle) Flush(current any, reactor Reactor, ec EvaluationContext) {
+	if c.Leading.Ok() || c.Cooling.Ok() || c.Capacity.Ok() {
+		slog.Debug(
+			"flush",
+			slog.Group("source",
+				slog.Int("position", current.(Warrior).Position()),
+				slog.Any("side", current.(Warrior).Side()),
+				slog.Any("reactor", QueryTagA[Label](reactor))),
+			slog.Group("lifecycle",
+				slog.Int("leading", c.Leading.Value()),
+				slog.Any("cooling", c.Cooling.Value()),
+				slog.Int("capacity", c.Capacity.UnwrapOr(-1))),
+		)
+		ec.React(NewTempoSignal(current, reactor, c))
+	}
+}
+
 type Leading struct {
 	trigger Trigger
 	count   int
 }
 
-func (l *Leading) React(signal Signal, ec EvaluationContext) {
+func (l *Leading) React(signal Signal, ec EvaluationContext, lc *Lifecycle) {
 	if l == nil {
 		return
 	}
 
 	if l.trigger.Trigger(signal, ec) && l.count > 0 {
 		l.count--
+		lc.SetLeading(l.count)
 	}
 }
 
@@ -33,22 +71,24 @@ type Cooling struct {
 	p       int
 }
 
-func (c *Cooling) React(signal Signal, ec EvaluationContext) {
+func (c *Cooling) React(signal Signal, ec EvaluationContext, lc *Lifecycle) {
 	if c == nil {
 		return
 	}
 
 	if c.trigger.Trigger(signal, ec) && c.p > 0 {
 		c.p--
+		lc.SetCooling(c.p, c.count)
 	}
 }
 
-func (c *Cooling) WarmUp() {
+func (c *Cooling) WarmUp(lc *Lifecycle) {
 	if c == nil {
 		return
 	}
 
 	c.p = c.count
+	lc.SetCooling(c.p, c.count)
 }
 
 func (c *Cooling) Ready() bool {
@@ -68,23 +108,25 @@ type Capacity struct {
 	count   int
 }
 
-func (c *Capacity) React(signal Signal, ec EvaluationContext) {
+func (c *Capacity) React(signal Signal, ec EvaluationContext, lc *Lifecycle) {
 	if c == nil {
 		return
 	}
 
-	if c.trigger != nil && c.trigger.Trigger(signal, ec) {
+	if c.trigger != nil && c.trigger.Trigger(signal, ec) && c.count > 0 {
 		c.count--
+		lc.SetCapacity(c.count)
 	}
 }
 
-func (c *Capacity) Flush() {
+func (c *Capacity) Flush(lc *Lifecycle) {
 	if c == nil {
 		return
 	}
 
-	if c.trigger == nil {
+	if c.trigger == nil && c.count > 0 {
 		c.count--
+		lc.SetCapacity(c.count)
 	}
 }
 
@@ -175,9 +217,11 @@ func FatCapacity(trigger Trigger, count int) func(*FatReactor) {
 }
 
 func (r *FatReactor) React(signal Signal, ec EvaluationContext) {
-	r.leading.React(signal, ec)
-	r.cooling.React(signal, ec)
-	r.capacity.React(signal, ec)
+	lc := &Lifecycle{}
+	r.leading.React(signal, ec, lc)
+	r.cooling.React(signal, ec, lc)
+	r.capacity.React(signal, ec, lc)
+	lc.Flush(signal.Current(), r, ec)
 
 	if !r.leading.Ready() || !r.cooling.Ready() || !r.capacity.Ready() {
 		return
@@ -186,8 +230,10 @@ func (r *FatReactor) React(signal Signal, ec EvaluationContext) {
 	trigger := false
 	defer func() {
 		if trigger {
-			r.capacity.Flush()
-			r.cooling.WarmUp()
+			lc := &Lifecycle{}
+			r.capacity.Flush(lc)
+			r.cooling.WarmUp(lc)
+			lc.Flush(signal.Current(), r, ec)
 		}
 	}()
 

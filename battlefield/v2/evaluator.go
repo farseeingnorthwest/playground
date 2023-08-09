@@ -30,6 +30,7 @@ func (c IntComparator) Compare(a, b int) bool {
 
 type EvaluationContext interface {
 	Warriors() []Warrior
+	React(ForkableSignal)
 }
 
 type Evaluator interface {
