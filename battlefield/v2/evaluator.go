@@ -56,15 +56,46 @@ func (e BuffCounter) Evaluate(warrior Warrior, _ EvaluationContext) int {
 	return len(warrior.Buffs(e.tag))
 }
 
-type Multiplier struct {
-	evaluator  Evaluator
-	multiplier int
+type Adder struct {
+	adder     int
+	evaluator Evaluator
 }
 
-func NewMultiplier(evaluator Evaluator, multiplier int) *Multiplier {
-	return &Multiplier{evaluator, multiplier}
+func NewAdder(adder int, evaluator Evaluator) *Adder {
+	return &Adder{adder, evaluator}
+}
+
+func (e *Adder) Evaluate(warrior Warrior, ec EvaluationContext) int {
+	return e.adder + e.evaluator.Evaluate(warrior, ec)
+}
+
+type Multiplier struct {
+	multiplier int
+	evaluator  Evaluator
+}
+
+func NewMultiplier(multiplier int, evaluator Evaluator) *Multiplier {
+	return &Multiplier{multiplier, evaluator}
 }
 
 func (e *Multiplier) Evaluate(warrior Warrior, ec EvaluationContext) int {
-	return e.evaluator.Evaluate(warrior, ec) * e.multiplier / 100
+	return e.multiplier * e.evaluator.Evaluate(warrior, ec) / 100
+}
+
+type SelectCounter struct {
+	selectors []Selector
+}
+
+func NewSelectCounter(selectors ...Selector) *SelectCounter {
+	return &SelectCounter{selectors}
+}
+
+func (e *SelectCounter) Evaluate(warrior Warrior, ec EvaluationContext) int {
+	signal := NewFreeSignal(warrior)
+	warriors := ec.Warriors()
+	for _, selector := range e.selectors {
+		warriors = selector.Select(warriors, signal, ec)
+	}
+
+	return len(warriors)
 }

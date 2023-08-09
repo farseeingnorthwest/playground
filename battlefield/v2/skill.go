@@ -60,9 +60,9 @@ var (
 					NewSignalTrigger(&LaunchSignal{}),
 					NewSelectActor(
 						NewSequenceActor(
-							NewVerbActor(&Attack{}, NewMultiplier(AxisEvaluator(Damage), 460)),
-							NewVerbActor(&Attack{}, NewMultiplier(AxisEvaluator(Damage), 460)),
-							NewVerbActor(&Attack{}, NewMultiplier(AxisEvaluator(Damage), 460)),
+							NewVerbActor(&Attack{}, NewMultiplier(460, AxisEvaluator(Damage))),
+							NewVerbActor(&Attack{}, NewMultiplier(460, AxisEvaluator(Damage))),
+							NewVerbActor(&Attack{}, NewMultiplier(460, AxisEvaluator(Damage))),
 						),
 						SideSelector(false),
 						Healthy,
@@ -79,12 +79,12 @@ var (
 				FatRespond(
 					NewSignalTrigger(&LaunchSignal{}),
 					NewSelectActor(
-						NewVerbActor(&Attack{}, NewMultiplier(AxisEvaluator(Damage), 480)),
+						NewVerbActor(&Attack{}, NewMultiplier(480, AxisEvaluator(Damage))),
 						SideSelector(false),
 						Healthy,
 					),
 					NewSelectActor(
-						NewVerbActor(&Attack{}, NewMultiplier(AxisEvaluator(Damage), 520)),
+						NewVerbActor(&Attack{}, NewMultiplier(520, AxisEvaluator(Damage))),
 						SideSelector(false),
 						Healthy,
 						NewSortSelector(HealthPercent, true),
@@ -143,7 +143,7 @@ var (
 					NewSignalTrigger(&LaunchSignal{}),
 					NewSelectActor(
 						NewSequenceActor(
-							NewVerbActor(&Attack{}, NewMultiplier(AxisEvaluator(Damage), 420)),
+							NewVerbActor(&Attack{}, NewMultiplier(420, AxisEvaluator(Damage))),
 							NewVerbActor(
 								// 30% 被擊增傷 (1回合)
 								NewBuff(nil, NewBuffReactor(
@@ -192,7 +192,7 @@ var (
 					NewSignalTrigger(&LaunchSignal{}),
 					NewSelectActor(
 						NewSequenceActor(
-							NewVerbActor(&Attack{}, NewMultiplier(AxisEvaluator(Damage), 520)),
+							NewVerbActor(&Attack{}, NewMultiplier(520, AxisEvaluator(Damage))),
 							// 「暈眩」 (1回合)
 							NewProbabilityActor(rng, ConstEvaluator(70), NewVerbActor(
 								NewBuff(nil, NewFatReactor(
@@ -232,7 +232,7 @@ var (
 				FatRespond(
 					NewSignalTrigger(&LaunchSignal{}),
 					NewSelectActor(
-						NewVerbActor(NewAttack(nil, true), NewMultiplier(AxisEvaluator(Damage), 400)),
+						NewVerbActor(NewAttack(nil, true), NewMultiplier(400, AxisEvaluator(Damage))),
 						SideSelector(false),
 						Healthy,
 						NewSortSelector(HealthPercent, false),
@@ -248,7 +248,7 @@ var (
 				FatRespond(
 					NewSignalTrigger(&LaunchSignal{}),
 					NewSelectActor(
-						NewVerbActor(NewAttack(nil, true), NewMultiplier(AxisEvaluator(Damage), 400)),
+						NewVerbActor(NewAttack(nil, true), NewMultiplier(400, AxisEvaluator(Damage))),
 						SideSelector(false),
 						Healthy,
 						NewSortSelector(HealthPercent, true),
@@ -287,7 +287,10 @@ var (
 							NewBuff(nil, NewBuffReactor(
 								Damage,
 								false,
-								ConstEvaluator(102), // TODO:
+								NewAdder(100, NewMultiplier(2, NewSelectCounter(
+									SideSelector(true),
+									Healthy,
+								))),
 								FatTags(Label("+2% Attack*")))),
 							nil,
 						),
@@ -307,10 +310,10 @@ var (
 					NewSignalTrigger(&LaunchSignal{}),
 					NewSelectActor(
 						NewSequenceActor(
-							NewVerbActor(&Attack{}, NewMultiplier(AxisEvaluator(Damage), 340)),
-							NewVerbActor(&Attack{}, NewMultiplier(AxisEvaluator(Damage), 340)),
-							NewVerbActor(&Attack{}, NewMultiplier(AxisEvaluator(Damage), 340)),
-							NewVerbActor(&Attack{}, NewMultiplier(AxisEvaluator(Damage), 340)),
+							NewVerbActor(&Attack{}, NewMultiplier(340, AxisEvaluator(Damage))),
+							NewVerbActor(&Attack{}, NewMultiplier(340, AxisEvaluator(Damage))),
+							NewVerbActor(&Attack{}, NewMultiplier(340, AxisEvaluator(Damage))),
+							NewVerbActor(&Attack{}, NewMultiplier(340, AxisEvaluator(Damage))),
 						),
 						SideSelector(false),
 						Healthy,
@@ -327,7 +330,7 @@ var (
 				FatRespond(
 					NewSignalTrigger(&LaunchSignal{}),
 					NewSelectActor(
-						NewVerbActor(NewHeal(nil), NewMultiplier(AxisEvaluator(Damage), 250)),
+						NewVerbActor(NewHeal(nil), NewMultiplier(250, AxisEvaluator(Damage))),
 						SideSelector(true),
 						Healthy,
 						NewSortSelector(HealthPercent, true),

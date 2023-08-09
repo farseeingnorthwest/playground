@@ -4,6 +4,18 @@ type Signal interface {
 	Current() any
 }
 
+type FreeSignal struct {
+	current any
+}
+
+func NewFreeSignal(current any) *FreeSignal {
+	return &FreeSignal{current}
+}
+
+func (s *FreeSignal) Current() any {
+	return s.current
+}
+
 type ForkableSignal interface {
 	Signal
 	Fork(any) Signal
