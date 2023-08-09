@@ -1,6 +1,6 @@
 package battlefield
 
-import "golang.org/x/exp/slog"
+import "log/slog"
 
 type Script interface {
 	Renderer

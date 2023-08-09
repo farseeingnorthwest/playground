@@ -3,7 +3,7 @@ package battlefield
 import (
 	"os"
 
-	"golang.org/x/exp/slog"
+	"log/slog"
 )
 
 func ExampleBattleField_Run_special_0() {
