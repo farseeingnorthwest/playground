@@ -40,12 +40,13 @@ type Warrior interface {
 	Position() int
 	Health() Ratio
 	SetHealth(Ratio)
-	Component(Axis) int
+	Component(Axis, EvaluationContext) int
 }
 
 type ByAxis struct {
 	Axis
 	Asc      bool
+	Context  EvaluationContext
 	Warriors []Warrior
 }
 
@@ -58,11 +59,11 @@ func (a *ByAxis) Swap(i, j int) {
 }
 
 func (a *ByAxis) Less(i, j int) bool {
-	if a.Warriors[i].Component(a.Axis) != a.Warriors[j].Component(a.Axis) {
-		return a.Warriors[i].Component(a.Axis) < a.Warriors[j].Component(a.Axis) == a.Asc
+	if a.Warriors[i].Component(a.Axis, a.Context) != a.Warriors[j].Component(a.Axis, a.Context) {
+		return a.Warriors[i].Component(a.Axis, a.Context) < a.Warriors[j].Component(a.Axis, a.Context) == a.Asc
 	}
-	if a.Warriors[i].Component(Position) != a.Warriors[j].Component(Position) {
-		return a.Warriors[i].Component(Position) < a.Warriors[j].Component(Position)
+	if a.Warriors[i].Component(Position, nil) != a.Warriors[j].Component(Position, nil) {
+		return a.Warriors[i].Component(Position, nil) < a.Warriors[j].Component(Position, nil)
 	}
 
 	return a.Warriors[i].Side() == Left
@@ -147,13 +148,13 @@ func (w *MyWarrior) SetHealth(health Ratio) {
 	w.health = health
 }
 
-func (w *MyWarrior) Component(axis Axis) int {
+func (w *MyWarrior) Component(axis Axis, ec EvaluationContext) int {
 	switch axis {
 	case Position:
 		return w.position
 
 	case Health:
-		m := w.Component(HealthMaximum)
+		m := w.Component(HealthMaximum, ec)
 		return w.health.Current * m / w.health.Maximum
 
 	case HealthPercent:
@@ -161,7 +162,7 @@ func (w *MyWarrior) Component(axis Axis) int {
 
 	default:
 		signal := NewEvaluationSignal(w, axis, w.baseline.Component(axis))
-		w.React(signal, nil)
+		w.React(signal, ec)
 		return signal.Value()
 	}
 }

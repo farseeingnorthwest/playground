@@ -7,12 +7,12 @@ var (
 )
 
 type Selector interface {
-	Select([]Warrior, Signal) []Warrior
+	Select([]Warrior, Signal, EvaluationContext) []Warrior
 }
 
 type AbsoluteSideSelector Side
 
-func (s AbsoluteSideSelector) Select(inputs []Warrior, _ Signal) (outputs []Warrior) {
+func (s AbsoluteSideSelector) Select(inputs []Warrior, _ Signal, _ EvaluationContext) (outputs []Warrior) {
 	for _, w := range inputs {
 		if w.Side() == Side(s) {
 			outputs = append(outputs, w)
@@ -24,22 +24,22 @@ func (s AbsoluteSideSelector) Select(inputs []Warrior, _ Signal) (outputs []Warr
 
 type SideSelector bool
 
-func (s SideSelector) Select(inputs []Warrior, signal Signal) []Warrior {
+func (s SideSelector) Select(inputs []Warrior, signal Signal, ec EvaluationContext) []Warrior {
 	side := Side(bool(s) == bool(signal.Current().(Warrior).Side()))
-	return AbsoluteSideSelector(side).Select(inputs, signal)
+	return AbsoluteSideSelector(side).Select(inputs, signal, ec)
 }
 
 type CurrentSelector struct {
 }
 
-func (CurrentSelector) Select(_ []Warrior, signal Signal) []Warrior {
+func (CurrentSelector) Select(_ []Warrior, signal Signal, _ EvaluationContext) []Warrior {
 	return []Warrior{signal.Current().(Warrior)}
 }
 
 type SourceSelector struct {
 }
 
-func (s *SourceSelector) Select(_ []Warrior, signal Signal) []Warrior {
+func (s *SourceSelector) Select(_ []Warrior, signal Signal, _ EvaluationContext) []Warrior {
 	source, _ := signal.(Sourcer).Source()
 	return []Warrior{source.(Warrior)}
 }
@@ -53,11 +53,11 @@ func NewSortSelector(axis Axis, asc bool) *SortSelector {
 	return &SortSelector{axis, asc}
 }
 
-func (s *SortSelector) Select(inputs []Warrior, _ Signal) (outputs []Warrior) {
+func (s *SortSelector) Select(inputs []Warrior, _ Signal, ec EvaluationContext) (outputs []Warrior) {
 	outputs = make([]Warrior, len(inputs))
 	copy(outputs, inputs)
 
-	sort.Sort(&ByAxis{s.axis, s.asc, outputs})
+	sort.Sort(&ByAxis{s.axis, s.asc, ec, outputs})
 	return
 }
 
@@ -70,7 +70,7 @@ func NewShuffleSelector(rng Rng, preference any) *ShuffleSelector {
 	return &ShuffleSelector{rng, preference}
 }
 
-func (s *ShuffleSelector) Select(inputs []Warrior, _ Signal) (outputs []Warrior) {
+func (s *ShuffleSelector) Select(inputs []Warrior, _ Signal, _ EvaluationContext) (outputs []Warrior) {
 	if len(inputs) < 2 {
 		return inputs
 	}
@@ -115,7 +115,7 @@ func (s *shuffle) Less(i, j int) bool {
 
 type FrontSelector int
 
-func (s FrontSelector) Select(inputs []Warrior, _ Signal) (outputs []Warrior) {
+func (s FrontSelector) Select(inputs []Warrior, _ Signal, _ EvaluationContext) (outputs []Warrior) {
 	if len(inputs) <= int(s) {
 		return inputs
 	}
@@ -131,9 +131,9 @@ type WaterLevelSelector struct {
 	value      int
 }
 
-func (s *WaterLevelSelector) Select(inputs []Warrior, _ Signal) (outputs []Warrior) {
+func (s *WaterLevelSelector) Select(inputs []Warrior, _ Signal, ec EvaluationContext) (outputs []Warrior) {
 	for _, w := range inputs {
-		if s.comparator.Compare(s.evaluator.Evaluate(w), s.value) {
+		if s.comparator.Compare(s.evaluator.Evaluate(w, ec), s.value) {
 			outputs = append(outputs, w)
 		}
 	}
@@ -144,10 +144,10 @@ func (s *WaterLevelSelector) Select(inputs []Warrior, _ Signal) (outputs []Warri
 type CounterPositionSelector struct {
 }
 
-func (s *CounterPositionSelector) Select(inputs []Warrior, signal Signal) []Warrior {
+func (s *CounterPositionSelector) Select(inputs []Warrior, signal Signal, _ EvaluationContext) []Warrior {
 	current := signal.Current().(Warrior)
 	for _, w := range inputs {
-		if w != current && w.Component(Position) == current.Component(Position) {
+		if w != current && w.Component(Position, nil) == current.Component(Position, nil) {
 			return []Warrior{w}
 		}
 	}

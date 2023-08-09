@@ -28,27 +28,31 @@ func (c IntComparator) Compare(a, b int) bool {
 	}
 }
 
+type EvaluationContext interface {
+	Warriors() []Warrior
+}
+
 type Evaluator interface {
-	Evaluate(Warrior) int
+	Evaluate(Warrior, EvaluationContext) int
 }
 
 type ConstEvaluator int
 
-func (e ConstEvaluator) Evaluate(Warrior) int {
+func (e ConstEvaluator) Evaluate(Warrior, EvaluationContext) int {
 	return int(e)
 }
 
 type AxisEvaluator Axis
 
-func (e AxisEvaluator) Evaluate(warrior Warrior) int {
-	return warrior.Component(Axis(e))
+func (e AxisEvaluator) Evaluate(warrior Warrior, ec EvaluationContext) int {
+	return warrior.Component(Axis(e), ec)
 }
 
 type BuffCounter struct {
 	tag any
 }
 
-func (e BuffCounter) Evaluate(warrior Warrior) int {
+func (e BuffCounter) Evaluate(warrior Warrior, _ EvaluationContext) int {
 	return len(warrior.Buffs(e.tag))
 }
 
@@ -61,6 +65,6 @@ func NewMultiplier(evaluator Evaluator, multiplier int) *Multiplier {
 	return &Multiplier{evaluator, multiplier}
 }
 
-func (e *Multiplier) Evaluate(warrior Warrior) int {
-	return e.evaluator.Evaluate(warrior) * e.multiplier / 100
+func (e *Multiplier) Evaluate(warrior Warrior, ec EvaluationContext) int {
+	return e.evaluator.Evaluate(warrior, ec) * e.multiplier / 100
 }

@@ -73,14 +73,14 @@ func (a *MyAction) Render(b *BattleField) {
 	b.React(NewPreActionSignal(a))
 
 	for _, target := range a.targets {
-		a.verb.Render(target, a)
+		a.verb.Render(target, a, b)
 	}
 
 	b.React(NewPostActionSignal(a))
 }
 
 type Verb interface {
-	Render(target Warrior, action Action)
+	Render(target Warrior, action Action, ec EvaluationContext)
 	Forker
 }
 
@@ -114,22 +114,22 @@ func (a *Attack) Fork(evaluator Evaluator) any {
 	return &Attack{evaluator, a.critical, 0}
 }
 
-func (a *Attack) Render(target Warrior, action Action) {
-	damage := a.evaluator.Evaluate(target)
-	defense := target.Component(Defense)
+func (a *Attack) Render(target Warrior, action Action, ec EvaluationContext) {
+	damage := a.evaluator.Evaluate(target, ec)
+	defense := target.Component(Defense, ec)
 	t := damage - defense
 	if t < 0 {
 		t = 0
 	}
 
 	e := NewEvaluationSignal(target, Loss, t)
-	action.React(e, nil)
-	target.React(e, nil)
+	action.React(e, ec)
+	target.React(e, ec)
 	loss := NewPreLossSignal(target, e.Value())
-	target.React(loss, nil)
+	target.React(loss, ec)
 
 	r := target.Health()
-	m := target.Component(HealthMaximum)
+	m := target.Component(HealthMaximum, ec)
 	c := r.Current*m/r.Maximum - loss.Loss()
 	overflow := 0
 	if c < 0 {
@@ -181,11 +181,11 @@ func (h *Heal) Fork(evaluator Evaluator) any {
 	return &Heal{evaluator, 0}
 }
 
-func (h *Heal) Render(target Warrior, action Action) {
+func (h *Heal) Render(target Warrior, action Action, ec EvaluationContext) {
 	r := target.Health()
-	m := target.Component(HealthMaximum)
+	m := target.Component(HealthMaximum, ec)
 	c := r.Current * m / r.Maximum
-	rise := h.evaluator.Evaluate(target)
+	rise := h.evaluator.Evaluate(target, ec)
 
 	c += rise
 	overflow := 0
@@ -231,10 +231,10 @@ func (b *Buff) Fork(evaluator Evaluator) any {
 	return &Buff{evaluator, b.reactor}
 }
 
-func (b *Buff) Render(target Warrior, action Action) {
+func (b *Buff) Render(target Warrior, action Action, ec EvaluationContext) {
 	reactor := b.reactor
 	if b.evaluator != nil {
-		e := ConstEvaluator(b.evaluator.Evaluate(target))
+		e := ConstEvaluator(b.evaluator.Evaluate(target, ec))
 		reactor = reactor.Fork(e).(ForkReactor)
 	}
 
@@ -265,7 +265,7 @@ func (p *Purge) Fork(Evaluator) any {
 	return p
 }
 
-func (p *Purge) Render(target Warrior, action Action) {
+func (p *Purge) Render(target Warrior, _ Action, _ EvaluationContext) {
 	buffs := target.Buffs(p.tag)
 	m, n := len(buffs), p.count
 	if m > n && n > 0 {

@@ -20,9 +20,9 @@ func NewFatPortfolio() *FatPortfolio {
 	return &FatPortfolio{list.New()}
 }
 
-func (p *FatPortfolio) React(signal Signal, warriors []Warrior) {
+func (p *FatPortfolio) React(signal Signal, ec EvaluationContext) {
 	for e := p.reactors.Front(); e != nil; e = e.Next() {
-		e.Value.(Reactor).React(signal, warriors)
+		e.Value.(Reactor).React(signal, ec)
 	}
 }
 

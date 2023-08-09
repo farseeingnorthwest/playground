@@ -5,12 +5,12 @@ type Leading struct {
 	count   int
 }
 
-func (l *Leading) React(signal Signal) {
+func (l *Leading) React(signal Signal, ec EvaluationContext) {
 	if l == nil {
 		return
 	}
 
-	if l.trigger.Trigger(signal) && l.count > 0 {
+	if l.trigger.Trigger(signal, ec) && l.count > 0 {
 		l.count--
 	}
 }
@@ -33,12 +33,12 @@ type Cooling struct {
 	p       int
 }
 
-func (c *Cooling) React(signal Signal) {
+func (c *Cooling) React(signal Signal, ec EvaluationContext) {
 	if c == nil {
 		return
 	}
 
-	if c.trigger.Trigger(signal) && c.p > 0 {
+	if c.trigger.Trigger(signal, ec) && c.p > 0 {
 		c.p--
 	}
 }
@@ -68,12 +68,12 @@ type Capacity struct {
 	count   int
 }
 
-func (c *Capacity) React(signal Signal) {
+func (c *Capacity) React(signal Signal, ec EvaluationContext) {
 	if c == nil {
 		return
 	}
 
-	if c.trigger != nil && c.trigger.Trigger(signal) {
+	if c.trigger != nil && c.trigger.Trigger(signal, ec) {
 		c.count--
 	}
 }
@@ -105,11 +105,11 @@ type Responder struct {
 	actors  []Actor
 }
 
-func (r *Responder) React(signal Signal, warriors []Warrior) (trigger bool) {
-	trigger = r.trigger.Trigger(signal)
+func (r *Responder) React(signal Signal, ec EvaluationContext) (trigger bool) {
+	trigger = r.trigger.Trigger(signal, ec)
 	if trigger {
 		for _, actor := range r.actors {
-			actor.Act(signal, warriors)
+			actor.Act(signal, ec.Warriors(), ec)
 		}
 	}
 
@@ -174,10 +174,10 @@ func FatCapacity(trigger Trigger, count int) func(*FatReactor) {
 	}
 }
 
-func (r *FatReactor) React(signal Signal, warriors []Warrior) {
-	r.leading.React(signal)
-	r.cooling.React(signal)
-	r.capacity.React(signal)
+func (r *FatReactor) React(signal Signal, ec EvaluationContext) {
+	r.leading.React(signal, ec)
+	r.cooling.React(signal, ec)
+	r.capacity.React(signal, ec)
 
 	if !r.leading.Ready() || !r.cooling.Ready() || !r.capacity.Ready() {
 		return
@@ -214,7 +214,7 @@ func (r *FatReactor) React(signal Signal, warriors []Warrior) {
 		}()
 	}
 	for _, responder := range r.responders {
-		if responder.React(signal, warriors) {
+		if responder.React(signal, ec) {
 			trigger = true
 		}
 	}

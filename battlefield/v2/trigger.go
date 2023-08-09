@@ -3,7 +3,7 @@ package battlefield
 import "reflect"
 
 type Trigger interface {
-	Trigger(Signal) bool
+	Trigger(Signal, EvaluationContext) bool
 }
 
 type SignalTrigger struct {
@@ -14,18 +14,18 @@ func NewSignalTrigger(signal Signal) *SignalTrigger {
 	return &SignalTrigger{signal}
 }
 
-func (t *SignalTrigger) Trigger(signal Signal) bool {
+func (t *SignalTrigger) Trigger(signal Signal, _ EvaluationContext) bool {
 	return reflect.TypeOf(t.signal) == reflect.TypeOf(signal)
 }
 
 type ActionTrigger interface {
-	Trigger(Action, Signal) bool
+	Trigger(Action, Signal, EvaluationContext) bool
 }
 
 type CurrentIsSourceTrigger struct {
 }
 
-func (CurrentIsSourceTrigger) Trigger(action Action, signal Signal) bool {
+func (CurrentIsSourceTrigger) Trigger(action Action, signal Signal, _ EvaluationContext) bool {
 	a, _ := action.Script().Source()
 	return a == signal.Current()
 }
@@ -33,7 +33,7 @@ func (CurrentIsSourceTrigger) Trigger(action Action, signal Signal) bool {
 type CurrentIsTargetTrigger struct {
 }
 
-func (CurrentIsTargetTrigger) Trigger(action Action, signal Signal) bool {
+func (CurrentIsTargetTrigger) Trigger(action Action, signal Signal, _ EvaluationContext) bool {
 	for _, target := range action.Targets() {
 		if target == signal.Current() {
 			return true
@@ -50,7 +50,7 @@ func NewActionReactorTrigger(reactor Reactor) *ReactorTrigger {
 	return &ReactorTrigger{reactor}
 }
 
-func (t *ReactorTrigger) Trigger(action Action, _ Signal) bool {
+func (t *ReactorTrigger) Trigger(action Action, _ Signal, _ EvaluationContext) bool {
 	_, r := action.Script().Source()
 	return r == t.reactor
 }
@@ -62,7 +62,7 @@ func NewVerbTrigger[T Verb]() VerbTrigger[T] {
 	return VerbTrigger[T]{}
 }
 
-func (VerbTrigger[T]) Trigger(action Action, _ Signal) bool {
+func (VerbTrigger[T]) Trigger(action Action, _ Signal, _ EvaluationContext) bool {
 	_, ok := action.Verb().(T)
 	return ok
 }
@@ -70,7 +70,7 @@ func (VerbTrigger[T]) Trigger(action Action, _ Signal) bool {
 type CriticalStrikeTrigger struct {
 }
 
-func (CriticalStrikeTrigger) Trigger(action Action, _ Signal) bool {
+func (CriticalStrikeTrigger) Trigger(action Action, _ Signal, _ EvaluationContext) bool {
 	a, ok := action.Verb().(*Attack)
 	return ok && a.Critical()
 }
@@ -84,9 +84,9 @@ func NewLossTrigger(comparator IntComparator, evaluator Evaluator) *LossTrigger 
 	return &LossTrigger{comparator, evaluator}
 }
 
-func (t *LossTrigger) Trigger(action Action, signal Signal) bool {
+func (t *LossTrigger) Trigger(action Action, signal Signal, ec EvaluationContext) bool {
 	a, ok := action.Verb().(*Attack)
-	return ok && t.comparator.Compare(a.Loss(), t.evaluator.Evaluate(signal.Current().(Warrior)))
+	return ok && t.comparator.Compare(a.Loss(), t.evaluator.Evaluate(signal.Current().(Warrior), ec))
 }
 
 type FatTrigger struct {
@@ -98,14 +98,14 @@ func NewFatTrigger(signal Signal, triggers ...ActionTrigger) *FatTrigger {
 	return &FatTrigger{SignalTrigger{signal}, triggers}
 }
 
-func (t *FatTrigger) Trigger(signal Signal) bool {
-	if !t.signalTrigger.Trigger(signal) {
+func (t *FatTrigger) Trigger(signal Signal, ec EvaluationContext) bool {
+	if !t.signalTrigger.Trigger(signal, ec) {
 		return false
 	}
 
 	a := signal.(ActionSignal).Action()
 	for _, trigger := range t.actionTriggers {
-		if !trigger.Trigger(a, signal) {
+		if !trigger.Trigger(a, signal, ec) {
 			return false
 		}
 	}
@@ -121,9 +121,9 @@ func NewOrTrigger(triggers ...Trigger) *OrTrigger {
 	return &OrTrigger{triggers}
 }
 
-func (t *OrTrigger) Trigger(signal Signal) bool {
+func (t *OrTrigger) Trigger(signal Signal, ec EvaluationContext) bool {
 	for _, trigger := range t.triggers {
-		if trigger.Trigger(signal) {
+		if trigger.Trigger(signal, ec) {
 			return true
 		}
 	}
