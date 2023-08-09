@@ -281,7 +281,11 @@ func (p *Purge) Render(target Warrior, _ Action, _ EvaluationContext) {
 		buffs = buffs[m:]
 	}
 
-	for _, buff := range buffs {
+	attrs := make([]any, 1+len(buffs))
+	attrs[0] = slog.String("verb", "purge")
+	for i, buff := range buffs {
 		target.Remove(buff)
+		attrs[1+i] = slog.Any("reactor", QueryTagA[Label](buff))
 	}
+	slog.Debug("render", attrs...)
 }

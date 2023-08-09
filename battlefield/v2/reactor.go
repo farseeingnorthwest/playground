@@ -212,10 +212,11 @@ func (a *SequenceActor) Fork(evaluator Evaluator) any {
 
 type LossStopper struct {
 	evaluator Evaluator
+	zero      bool
 }
 
-func NewLossStopper(evaluator Evaluator) *LossStopper {
-	return &LossStopper{evaluator}
+func NewLossStopper(evaluator Evaluator, zero bool) *LossStopper {
+	return &LossStopper{evaluator, zero}
 }
 
 func (s *LossStopper) Act(signal Signal, _ []Warrior, ec EvaluationContext) bool {
@@ -225,7 +226,11 @@ func (s *LossStopper) Act(signal Signal, _ []Warrior, ec EvaluationContext) bool
 		return false
 	}
 
-	sig.SetLoss(stopper)
+	if s.zero {
+		sig.SetLoss(0)
+	} else {
+		sig.SetLoss(stopper)
+	}
 	return true
 }
 
@@ -234,5 +239,5 @@ func (s *LossStopper) Fork(evaluator Evaluator) any {
 		return s
 	}
 
-	return NewLossStopper(evaluator)
+	return NewLossStopper(evaluator, false)
 }

@@ -3,6 +3,7 @@ package battlefield
 var (
 	rng        = &RngProxy{}
 	SkillGroup = ExclusionGroup(0)
+	Shuffle    = NewShuffleSelector(rng, Label("Taunt"))
 	Regular    = []Reactor{
 		NewFatReactor(
 			FatTags(SkillGroup, Label("NormalAttack")),
@@ -12,7 +13,7 @@ var (
 					NewVerbActor(&Attack{}, AxisEvaluator(Damage)),
 					SideSelector(false),
 					Healthy,
-					NewShuffleSelector(rng, nil),
+					Shuffle,
 					FrontSelector(1),
 				),
 			),
@@ -53,7 +54,7 @@ var (
 		// ////////////////////////////////////////////////////////////
 		// [0] 織田
 		{
-			// 對隨機1名敵人進行3次攻擊，每次造成攻擊力460%的傷害。
+			// 對隨機 1 名敵人進行 3 次攻擊，每次造成攻擊力 460% 的傷害。
 			NewFatReactor(
 				FatTags(SkillGroup, Priority(1), Label("@Launch({1} 3 * 460% Damage)")),
 				FatRespond(
@@ -66,14 +67,14 @@ var (
 						),
 						SideSelector(false),
 						Healthy,
-						NewShuffleSelector(rng, nil),
+						Shuffle,
 						FrontSelector(1),
 					),
 				),
 				FatCooling(NewSignalTrigger(&RoundEndSignal{}), 5),
 			),
 
-			// 對全體敵人造成攻擊力480%的傷害。再對當前生命值最低的1名敵人造成攻擊力520%的傷害。
+			// 對全體敵人造成攻擊力 480% 的傷害。再對當前生命值最低的1名敵人造成攻擊力 520% 的傷害。
 			NewFatReactor(
 				FatTags(SkillGroup, Priority(2), Label("@Launch({*} 480% Damage; {1} 520% Damage)")),
 				FatRespond(
@@ -94,7 +95,7 @@ var (
 				FatCooling(NewSignalTrigger(&RoundEndSignal{}), 4),
 			),
 
-			// 每次行動開始時，提升2%爆擊率(最高15層，無法被解除)。
+			// 每次行動開始時，提升 2% 爆擊率(最高 15 層，無法被解除)。
 			NewFatReactor(
 				FatTags(Priority(3), Label("@Launch([15] +2% CriticalOdds)")),
 				FatRespond(
@@ -113,7 +114,7 @@ var (
 				),
 			),
 
-			// 提升20%攻擊力。(無法被解除)
+			// 提升 20% 攻擊力。(無法被解除)
 			NewFatReactor(
 				FatTags(Priority(4), Label("@BattleStart({$} +20% Damage)")),
 				FatRespond(
@@ -136,7 +137,7 @@ var (
 		// ////////////////////////////////////////////////////////////
 		// [1] 豐臣
 		{
-			// 對隨機2名敵人造成攻擊力420%的傷害。並對目標附加30%被擊增傷(1回合)&「沉睡」(1回合)。
+			// 對隨機 2 名敵人造成攻擊力 420% 的傷害。並對目標附加 30% 被擊增傷(1 回合)&「沉睡」(1 回合)。
 			NewFatReactor(
 				FatTags(SkillGroup, Priority(1), Label("@Launch({2} 420% Damage, +30% Loss, Sleeping)")),
 				FatRespond(
@@ -178,14 +179,14 @@ var (
 						),
 						SideSelector(false),
 						Healthy,
-						NewShuffleSelector(rng, nil),
+						Shuffle,
 						FrontSelector(2),
 					),
 				),
 				FatCooling(NewSignalTrigger(&RoundEndSignal{}), 5),
 			),
 
-			// 對攻擊力最高的1名敵人造成攻擊力520%的傷害。並有70%機率對目標附加「暈眩」(1回合)。
+			// 對攻擊力最高的 1 名敵人造成攻擊力 520% 的傷害。並有 70% 機率對目標附加「暈眩」(1 回合)。
 			NewFatReactor(
 				FatTags(SkillGroup, Priority(2), Label("@Launch({1} 520% Damage, P(70%, Dizzy))")),
 				FatRespond(
@@ -218,9 +219,44 @@ var (
 				FatCooling(NewSignalTrigger(&RoundEndSignal{}), 4),
 			),
 
-			// 自身附帶2種以上減益效果時觸發，解除所有減益效果。
+			// 自身附帶 2 種以上減益效果時觸發，解除所有減益效果。
+			NewFatReactor(
+				FatTags(Priority(2), Label("@PostAction({$/<Nerf> >= 2} Purge())")),
+				FatRespond(
+					NewOrTrigger(
+						NewSignalTrigger(&RoundStartSignal{}),
+						NewSignalTrigger(&PostActionSignal{}),
+					),
+					NewSelectActor(
+						NewVerbActor(NewPurge(rng, "Nerf", 0), nil),
+						CurrentSelector{},
+						NewWaterLevelSelector(Ge, NewBuffCounter("Nerf"), 2),
+					),
+				),
+				FatCooling(NewSignalTrigger(&RoundEndSignal{}), 4),
+			),
 
-			// 行動開始時獲得「多重屏障」(2層，無法被解除)。
+			// 行動開始時獲得「多重屏障」(2 層，無法被解除)。
+			NewFatReactor(
+				FatTags(Priority(3), Label("@Launch({$} Barrier)")),
+				FatRespond(
+					NewSignalTrigger(&LaunchSignal{}),
+					NewSelectActor(
+						NewVerbActor(
+							NewBuff(nil, NewFatReactor(
+								FatTags(Label("Barrier")),
+								FatRespond(
+									NewSignalTrigger(&PreLossSignal{}),
+									NewLossStopper(NewMultiplier(10, AxisEvaluator(HealthMaximum)), true),
+								),
+								FatCapacity(nil, 1))),
+							nil,
+						),
+						CurrentSelector{},
+					),
+				),
+				FatCooling(NewSignalTrigger(&RoundEndSignal{}), 4),
+			),
 		},
 
 		// ////////////////////////////////////////////////////////////
@@ -242,7 +278,7 @@ var (
 				FatCooling(NewSignalTrigger(&RoundEndSignal{}), 3),
 			),
 
-			// 對當前生命值百分比最低的 1 名敵人造成攻擊力400%的傷害；此攻擊必定爆擊。
+			// 對當前生命值百分比最低的 1 名敵人造成攻擊力 400% 的傷害；此攻擊必定爆擊。
 			NewFatReactor(
 				FatTags(SkillGroup, Priority(2), Label("@Launch({1!/%} 400% Critical Damage)")),
 				FatRespond(
@@ -258,9 +294,9 @@ var (
 				FatCooling(NewSignalTrigger(&RoundEndSignal{}), 3),
 			),
 
-			// 提升25%最大生命值(無法被解除)。
+			// 提升 25% 最大生命值(無法被解除)。
 			NewFatReactor(
-				FatTags(SkillGroup, Priority(3), Label("@BattleStart({$} +25% HealthMaximum)")),
+				FatTags(Priority(3), Label("@BattleStart({$} +25% HealthMaximum)")),
 				FatRespond(
 					NewSignalTrigger(&BattleStartSignal{}),
 					NewSelectActor(
@@ -277,9 +313,9 @@ var (
 				),
 			),
 
-			// 戰鬥開始時，每有一名友軍，全體友軍提升2%攻擊力。(無法被解除)
+			// 戰鬥開始時，每有一名友軍，全體友軍提升 2% 攻擊力。(無法被解除)
 			NewFatReactor(
-				FatTags(SkillGroup, Priority(4), Label("@BattleStart({~} +2% Attack*)")),
+				FatTags(Priority(4), Label("@BattleStart({~} +2% Attack*)")),
 				FatRespond(
 					NewSignalTrigger(&BattleStartSignal{}),
 					NewSelectActor(
@@ -340,9 +376,9 @@ var (
 				FatCooling(NewSignalTrigger(&RoundEndSignal{}), 4),
 			),
 
-			// 強化自身的普通攻擊(無法被解除)，普通攻擊爆擊時，提昇5%攻擊力(最高3層，3回合)，並刷新層數的回合。
+			// 強化自身的普通攻擊(無法被解除)，普通攻擊爆擊時，提昇 5% 攻擊力(最高 3 層，3 回合)，並刷新層數的回合。
 			NewFatReactor(
-				FatTags(SkillGroup, Priority(3), Label("@PreAction({$} +5% Attack*)")),
+				FatTags(Priority(3), Label("@PreAction({$} +5% Attack*)")),
 				FatRespond(
 					NewFatTrigger(
 						&PreActionSignal{},
@@ -366,9 +402,9 @@ var (
 				),
 			),
 
-			// 自身的生命值百分比為50%以下時，獲得「庇護」(最大生命值30%，無法被解除)。
+			// 自身的生命值百分比為 50% 以下時，獲得「庇護」(最大生命值 30%，無法被解除)。
 			NewFatReactor(
-				FatTags(SkillGroup, Priority(4), Label("@Loss({$/< 50%} Sanctuary)")),
+				FatTags(Priority(4), Label("@Loss({$/< 50%} Sanctuary)")),
 				FatRespond(
 					NewSignalTrigger(&LossSignal{}),
 					NewSelectActor(
@@ -377,7 +413,7 @@ var (
 								FatTags(Label("Sanctuary")),
 								FatRespond(
 									NewSignalTrigger(&PreLossSignal{}),
-									NewLossStopper(NewMultiplier(30, AxisEvaluator(HealthMaximum))),
+									NewLossStopper(NewMultiplier(30, AxisEvaluator(HealthMaximum)), false),
 								),
 							)),
 							nil,
@@ -393,6 +429,84 @@ var (
 					),
 				),
 			),
+		},
+
+		// ////////////////////////////////////////////////////////////
+		// [4] 武田
+
+		{
+			// 對全體敵人造成攻擊力 300% 的傷害。
+			NewFatReactor(
+				FatTags(SkillGroup, Priority(1), Label("@Launch({*} 300% Damage)")),
+				FatRespond(
+					NewSignalTrigger(&LaunchSignal{}),
+					NewSelectActor(
+						NewVerbActor(&Attack{}, NewMultiplier(300, AxisEvaluator(Damage))),
+						SideSelector(false),
+						Healthy,
+					),
+				),
+			),
+
+			// 對隨機1名敵人造成攻擊力 560% 的傷害，並使目標減少 25% 攻擊力(2 回合)。
+			NewFatReactor(
+				FatTags(SkillGroup, Priority(2), Label("@Launch({1} 560% Damage, -25% Damage)")),
+				FatRespond(
+					NewSignalTrigger(&LaunchSignal{}),
+					NewSelectActor(
+						NewSequenceActor(
+							NewVerbActor(&Attack{}, NewMultiplier(560, AxisEvaluator(Damage))),
+							NewVerbActor(
+								NewBuff(nil, NewBuffReactor(
+									Damage,
+									false,
+									ConstEvaluator(75),
+									FatCapacity(NewSignalTrigger(&RoundEndSignal{}), 2),
+									FatTags(Label("-25% Damage")),
+								)),
+								nil,
+							),
+						),
+						SideSelector(false),
+						Healthy,
+						Shuffle,
+						FrontSelector(1),
+					),
+				),
+			),
+
+			// 行動開始時，若自身的生命值百分比為 60% 以上，獲得「嘲諷」(2 回合)&減少 15% 攻擊力(2 回合)。
+			NewFatReactor(
+				FatTags(Priority(3), Label("@Launch({$/>= 60%}, -15% Damage, Taunt)")),
+				FatRespond(
+					NewSignalTrigger(&LaunchSignal{}),
+					NewSelectActor(
+						NewSequenceActor(
+							NewVerbActor(
+								NewBuff(nil, NewFatReactor(
+									FatTags(Label("Taunt")),
+									FatCapacity(NewSignalTrigger(&RoundEndSignal{}), 2))),
+								nil,
+							),
+							NewVerbActor(
+								NewBuff(nil, NewBuffReactor(
+									Damage,
+									false,
+									ConstEvaluator(85),
+									FatCapacity(NewSignalTrigger(&RoundEndSignal{}), 2),
+									FatTags(Label("-15% Damage")))),
+								nil,
+							),
+						),
+						CurrentSelector{},
+						NewWaterLevelSelector(Ge, AxisEvaluator(HealthPercent), 60),
+					),
+				),
+				FatCooling(NewSignalTrigger(&RoundEndSignal{}), 4),
+			),
+
+			// 提升 25% 最大生命值(無法被解除)。
+			// [2][2]
 		},
 	}
 )
