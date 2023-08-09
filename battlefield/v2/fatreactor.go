@@ -144,27 +144,19 @@ func (c *Capacity) Fork() *Capacity {
 
 type Responder struct {
 	trigger Trigger
-	actors  []Actor
+	actor   Actor
 }
 
-func (r *Responder) React(signal Signal, ec EvaluationContext) (trigger bool) {
-	trigger = r.trigger.Trigger(signal, ec)
-	if trigger {
-		for _, actor := range r.actors {
-			actor.Act(signal, ec.Warriors(), ec)
-		}
+func (r *Responder) React(signal Signal, ec EvaluationContext) bool {
+	if !r.trigger.Trigger(signal, ec) {
+		return false
 	}
 
-	return
+	return r.actor.Act(signal, ec.Warriors(), ec)
 }
 
 func (r *Responder) Fork(evaluator Evaluator) any {
-	actors := make([]Actor, len(r.actors))
-	for i, actor := range r.actors {
-		actors[i] = actor.Fork(evaluator).(Actor)
-	}
-
-	return &Responder{r.trigger, actors}
+	return &Responder{r.trigger, r.actor.Fork(evaluator).(Actor)}
 }
 
 type ExclusionGroup uint8
@@ -194,7 +186,7 @@ func FatTags(tags ...any) func(*FatReactor) {
 
 func FatRespond(trigger Trigger, actors ...Actor) func(*FatReactor) {
 	return func(r *FatReactor) {
-		r.responders = append(r.responders, &Responder{trigger, actors})
+		r.responders = append(r.responders, &Responder{trigger, NewSequenceActor(actors...)})
 	}
 }
 

@@ -112,11 +112,12 @@ func (s *PreLossSignal) SetLoss(loss int) {
 type LossSignal struct {
 	current any
 	target  Warrior
+	action  Action
 	myScripter
 }
 
-func NewLossSignal(target Warrior) *LossSignal {
-	return &LossSignal{nil, target, myScripter{}}
+func NewLossSignal(target Warrior, action Action) *LossSignal {
+	return &LossSignal{nil, target, action, myScripter{}}
 }
 
 func (s *LossSignal) Current() any {
@@ -127,8 +128,12 @@ func (s *LossSignal) Target() Warrior {
 	return s.target
 }
 
+func (s *LossSignal) Action() Action {
+	return s.action
+}
+
 func (s *LossSignal) Fork(current any) Signal {
-	return &LossSignal{current, s.target, myScripter{}}
+	return &LossSignal{current, s.target, s.action, myScripter{}}
 }
 
 type ActionSignal interface {

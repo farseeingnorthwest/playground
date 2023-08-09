@@ -16,7 +16,7 @@ type ForkReactor interface {
 type Label string
 
 type Actor interface {
-	Act(Signal, []Warrior, EvaluationContext)
+	Act(Signal, []Warrior, EvaluationContext) (trigger bool)
 	Forker
 }
 
@@ -30,10 +30,10 @@ func NewBuffer(axis Axis, bias bool, evaluator Evaluator) *Buffer {
 	return &Buffer{axis, bias, evaluator}
 }
 
-func (a *Buffer) Act(signal Signal, _ []Warrior, ec EvaluationContext) {
+func (a *Buffer) Act(signal Signal, _ []Warrior, ec EvaluationContext) bool {
 	s := signal.(*EvaluationSignal)
 	if a.axis != s.Axis() {
-		return
+		return false
 	}
 
 	var current Warrior
@@ -46,6 +46,8 @@ func (a *Buffer) Act(signal Signal, _ []Warrior, ec EvaluationContext) {
 	} else {
 		s.SetValue(a.evaluator.Evaluate(current, ec) * s.Value() / 100)
 	}
+
+	return true
 }
 
 func (a *Buffer) Fork(evaluator Evaluator) any {
@@ -61,7 +63,7 @@ func NewVerbActor(verb Verb, evaluator Evaluator) *VerbActor {
 	return &VerbActor{verb, evaluator}
 }
 
-func (a *VerbActor) Act(signal Signal, targets []Warrior, ec EvaluationContext) {
+func (a *VerbActor) Act(signal Signal, targets []Warrior, ec EvaluationContext) bool {
 	e := a.evaluator
 	if e != nil {
 		var current Warrior
@@ -72,6 +74,7 @@ func (a *VerbActor) Act(signal Signal, targets []Warrior, ec EvaluationContext) 
 	}
 
 	signal.(Scripter).Add(NewMyAction(targets, a.verb.Fork(e).(Verb)))
+	return true
 }
 
 func (a *VerbActor) Fork(evaluator Evaluator) any {
@@ -91,15 +94,16 @@ func NewSelectActor(actor Actor, selectors ...Selector) *SelectActor {
 	return &SelectActor{actor, selectors}
 }
 
-func (a *SelectActor) Act(signal Signal, warriors []Warrior, ec EvaluationContext) {
+func (a *SelectActor) Act(signal Signal, warriors []Warrior, ec EvaluationContext) bool {
 	for _, selector := range a.selectors {
 		warriors = selector.Select(warriors, signal, ec)
 		if len(warriors) == 0 {
-			return
+			return false
 		}
 	}
 
 	a.actor.Act(signal, warriors, ec)
+	return true
 }
 
 func (a *SelectActor) Fork(evaluator Evaluator) any {
@@ -109,10 +113,11 @@ func (a *SelectActor) Fork(evaluator Evaluator) any {
 type CriticalActor struct {
 }
 
-func (CriticalActor) Act(signal Signal, _ []Warrior, _ EvaluationContext) {
+func (CriticalActor) Act(signal Signal, _ []Warrior, _ EvaluationContext) bool {
 	sig := signal.(ActionSignal)
 	attack := sig.Action().Verb().(*Attack)
 	attack.SetCritical(true)
+	return true
 }
 
 func (CriticalActor) Fork(_ Evaluator) any {
@@ -128,7 +133,7 @@ func NewActionBuffer(evaluator Evaluator, buffer *Buffer) *ActionBuffer {
 	return &ActionBuffer{evaluator, buffer}
 }
 
-func (b *ActionBuffer) Act(signal Signal, _ []Warrior, ec EvaluationContext) {
+func (b *ActionBuffer) Act(signal Signal, _ []Warrior, ec EvaluationContext) bool {
 	sig := signal.(ActionSignal)
 	e := b.evaluator
 	if e != nil {
@@ -145,6 +150,7 @@ func (b *ActionBuffer) Act(signal Signal, _ []Warrior, ec EvaluationContext) {
 			b.buffer.Fork(e).(*Buffer),
 		)),
 	)
+	return true
 }
 
 func (b *ActionBuffer) Fork(evaluator Evaluator) any {
@@ -165,10 +171,12 @@ func NewProbabilityActor(rng Rng, evaluator Evaluator, actor Actor) *Probability
 	return &ProbabilityActor{rng, evaluator, actor}
 }
 
-func (a *ProbabilityActor) Act(signal Signal, warriors []Warrior, ec EvaluationContext) {
+func (a *ProbabilityActor) Act(signal Signal, warriors []Warrior, ec EvaluationContext) bool {
 	if a.rng.Float64() < float64(a.evaluator.Evaluate(signal.Current().(Warrior), ec))/100 {
 		a.actor.Act(signal, warriors, ec)
 	}
+
+	return true
 }
 
 func (a *ProbabilityActor) Fork(evaluator Evaluator) any {
@@ -183,10 +191,14 @@ func NewSequenceActor(actors ...Actor) *SequenceActor {
 	return &SequenceActor{actors}
 }
 
-func (a *SequenceActor) Act(signal Signal, warriors []Warrior, ec EvaluationContext) {
+func (a *SequenceActor) Act(signal Signal, warriors []Warrior, ec EvaluationContext) bool {
 	for _, actor := range a.actors {
-		actor.Act(signal, warriors, ec)
+		if !actor.Act(signal, warriors, ec) {
+			return false
+		}
 	}
+
+	return true
 }
 
 func (a *SequenceActor) Fork(evaluator Evaluator) any {
@@ -196,4 +208,31 @@ func (a *SequenceActor) Fork(evaluator Evaluator) any {
 	}
 
 	return NewSequenceActor(actors...)
+}
+
+type LossStopper struct {
+	evaluator Evaluator
+}
+
+func NewLossStopper(evaluator Evaluator) *LossStopper {
+	return &LossStopper{evaluator}
+}
+
+func (s *LossStopper) Act(signal Signal, _ []Warrior, ec EvaluationContext) bool {
+	sig := signal.(*PreLossSignal)
+	stopper := s.evaluator.Evaluate(sig.Current().(Warrior), ec)
+	if sig.Loss() <= stopper {
+		return false
+	}
+
+	sig.SetLoss(stopper)
+	return true
+}
+
+func (s *LossStopper) Fork(evaluator Evaluator) any {
+	if evaluator == nil {
+		return s
+	}
+
+	return NewLossStopper(evaluator)
 }

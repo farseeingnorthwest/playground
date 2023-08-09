@@ -367,6 +367,32 @@ var (
 			),
 
 			// 自身的生命值百分比為50%以下時，獲得「庇護」(最大生命值30%，無法被解除)。
+			NewFatReactor(
+				FatTags(SkillGroup, Priority(4), Label("@Loss({$/< 50%} Sanctuary)")),
+				FatRespond(
+					NewSignalTrigger(&LossSignal{}),
+					NewSelectActor(
+						NewVerbActor(
+							NewBuff(nil, NewFatReactor(
+								FatTags(Label("Sanctuary")),
+								FatRespond(
+									NewSignalTrigger(&PreLossSignal{}),
+									NewLossStopper(NewMultiplier(30, AxisEvaluator(HealthMaximum))),
+								),
+							)),
+							nil,
+						),
+						CurrentSelector{},
+						NewWaterLevelSelector(Lt, NewBuffCounter(Label("Sanctuary")), 1),
+						Healthy,
+						NewWaterLevelSelector(
+							Lt,
+							AxisEvaluator(HealthPercent),
+							50,
+						),
+					),
+				),
+			),
 		},
 	}
 )

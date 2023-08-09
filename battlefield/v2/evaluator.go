@@ -53,6 +53,10 @@ type BuffCounter struct {
 	tag any
 }
 
+func NewBuffCounter(tag any) BuffCounter {
+	return BuffCounter{tag}
+}
+
 func (e BuffCounter) Evaluate(warrior Warrior, _ EvaluationContext) int {
 	return len(warrior.Buffs(e.tag))
 }

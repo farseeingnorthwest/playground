@@ -131,6 +131,10 @@ type WaterLevelSelector struct {
 	value      int
 }
 
+func NewWaterLevelSelector(comparator IntComparator, evaluator Evaluator, value int) *WaterLevelSelector {
+	return &WaterLevelSelector{comparator, evaluator, value}
+}
+
 func (s *WaterLevelSelector) Select(inputs []Warrior, _ Signal, ec EvaluationContext) (outputs []Warrior) {
 	for _, w := range inputs {
 		if s.comparator.Compare(s.evaluator.Evaluate(w, ec), s.value) {

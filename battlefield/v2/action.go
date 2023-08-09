@@ -158,6 +158,8 @@ func (a *Attack) Render(target Warrior, action Action, ec EvaluationContext) {
 				slog.Int("current", c),
 				slog.Int("maximum", m))),
 	)
+
+	ec.React(NewLossSignal(target, action))
 }
 
 type Heal struct {
