@@ -42,15 +42,23 @@ func (a *Buffer) Act(signal Signal, _ []Warrior, ec EvaluationContext) bool {
 	}
 
 	if a.bias {
-		s.SetValue(a.evaluator.Evaluate(current, ec) + s.Value())
+		s.Amend(func(v float64) float64 {
+			return v + float64(a.evaluator.Evaluate(current, ec))
+		})
 	} else {
-		s.SetValue(a.evaluator.Evaluate(current, ec) * s.Value() / 100)
+		s.Amend(func(v float64) float64 {
+			return v * float64(a.evaluator.Evaluate(current, ec)) / 100
+		})
 	}
 
 	return true
 }
 
 func (a *Buffer) Fork(evaluator Evaluator) any {
+	if evaluator == nil {
+		return a
+	}
+
 	return &Buffer{a.axis, a.bias, evaluator}
 }
 
@@ -70,7 +78,9 @@ func (a *VerbActor) Act(signal Signal, targets []Warrior, ec EvaluationContext) 
 		if warrior, ok := signal.Current().(Warrior); ok {
 			current = warrior
 		}
-		e = ConstEvaluator(e.Evaluate(current, ec))
+		e = NewCustomEvaluator(func(warrior Warrior, context EvaluationContext) int {
+			return a.evaluator.Evaluate(current, ec)
+		})
 	}
 
 	signal.(Scripter).Add(NewMyAction(targets, a.verb.Fork(e).(Verb)))

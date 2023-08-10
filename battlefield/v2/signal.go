@@ -221,11 +221,11 @@ func (s *RoundEndSignal) Fork(current any) Signal {
 type EvaluationSignal struct {
 	current any
 	axis    Axis
-	value   int
+	value   float64
 }
 
 func NewEvaluationSignal(current any, axis Axis, value int) *EvaluationSignal {
-	return &EvaluationSignal{current, axis, value}
+	return &EvaluationSignal{current, axis, float64(value)}
 }
 
 func (s *EvaluationSignal) Current() any {
@@ -237,11 +237,11 @@ func (s *EvaluationSignal) Axis() Axis {
 }
 
 func (s *EvaluationSignal) Value() int {
-	return s.value
+	return int(s.value)
 }
 
-func (s *EvaluationSignal) SetValue(value int) {
-	s.value = value
+func (s *EvaluationSignal) Amend(f func(float64) float64) {
+	s.value = f(s.value)
 }
 
 type LifecycleSignal struct {

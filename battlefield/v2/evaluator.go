@@ -104,3 +104,15 @@ func (e *SelectCounter) Evaluate(warrior Warrior, ec EvaluationContext) int {
 
 	return len(warriors)
 }
+
+type CustomEvaluator struct {
+	evaluator func(Warrior, EvaluationContext) int
+}
+
+func NewCustomEvaluator(evaluator func(Warrior, EvaluationContext) int) *CustomEvaluator {
+	return &CustomEvaluator{evaluator}
+}
+
+func (e *CustomEvaluator) Evaluate(warrior Warrior, ec EvaluationContext) int {
+	return e.evaluator(warrior, ec)
+}

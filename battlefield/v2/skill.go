@@ -416,13 +416,9 @@ var (
 							nil,
 						),
 						CurrentSelector{},
-						NewWaterLevelSelector(Lt, NewBuffCounter(Label("Sanctuary")), 1),
 						Healthy,
-						NewWaterLevelSelector(
-							Lt,
-							AxisEvaluator(HealthPercent),
-							50,
-						),
+						NewWaterLevelSelector(Lt, AxisEvaluator(HealthPercent), 50),
+						NewWaterLevelSelector(Lt, NewBuffCounter(Label("Sanctuary")), 1),
 					),
 				),
 			),
@@ -442,9 +438,10 @@ var (
 						Healthy,
 					),
 				),
+				FatCooling(NewSignalTrigger(&RoundEndSignal{}), 5),
 			),
 
-			// 對隨機1名敵人造成攻擊力 560% 的傷害，並使目標減少 25% 攻擊力(2 回合)。
+			// 對隨機 1 名敵人造成攻擊力 560% 的傷害，並使目標減少 25% 攻擊力(2 回合)。
 			NewFatReactor(
 				FatTags(SkillGroup, Priority(2), Label("@Launch({1} 560% Damage, -25% Damage)")),
 				FatRespond(
@@ -469,9 +466,10 @@ var (
 						FrontSelector(1),
 					),
 				),
+				FatCooling(NewSignalTrigger(&RoundEndSignal{}), 4),
 			),
 
-			// 行動開始時，若自身的生命值百分比為 60% 以上，獲得「嘲諷」(2 回合)&減少 15% 攻擊力(2 回合)。
+			// 行動開始時，若自身的生命值百分比為 60% 以上，獲得「嘲諷」(2 回合) & 減少 15% 攻擊力(2 回合)。
 			NewFatReactor(
 				FatTags(Priority(3), Label("@Launch({$/>= 60%}, -15% Damage, Taunt)")),
 				FatRespond(
@@ -510,26 +508,91 @@ var (
 		{
 			// 對隨機 1 名敵人進行 3 次攻擊，每次造成攻擊力 550% 傷害。每次攻擊都有 50% 機率對目標附加「暈眩」(1 回合)
 			NewFatReactor(
-				FatTags(SkillGroup, Priority(1), Label("@Launch({1} 550% Damage, P(50%) Stun)")),
+				FatTags(SkillGroup, Priority(1), Label("@Launch({1} 3 * 550% Damage, P(50%) Stun)")),
 				FatRespond(
 					NewSignalTrigger(&LaunchSignal{}),
-					NewRepeatActor(
-						3,
-						NewVerbActor(&Attack{}, NewMultiplier(550, AxisEvaluator(Damage))),
-						NewProbabilityActor(RngX, ConstEvaluator(50), NewVerbActor(
-							NewBuff(nil, NewFatReactor(
-								FatTags(SkillGroup, Priority(10), Label("Stun")),
-								FatRespond(
-									NewSignalTrigger(&LaunchSignal{}),
-									NewSequenceActor(),
-								),
-								FatCapacity(
-									NewSignalTrigger(&RoundEndSignal{}),
-									1,
-								),
+					NewSelectActor(
+						NewRepeatActor(
+							3,
+							NewVerbActor(&Attack{}, NewMultiplier(550, AxisEvaluator(Damage))),
+							NewProbabilityActor(RngX, ConstEvaluator(50), NewVerbActor(
+								NewBuff(nil, NewFatReactor(
+									FatTags(SkillGroup, Priority(10), Label("Stun")),
+									FatRespond(
+										NewSignalTrigger(&LaunchSignal{}),
+										NewSequenceActor(),
+									),
+									FatCapacity(
+										NewSignalTrigger(&RoundEndSignal{}),
+										1,
+									),
+								)),
+								nil,
+							)),
+						),
+						SideSelector(false),
+						Healthy,
+						Shuffle,
+						FrontSelector(1),
+					),
+				),
+				FatCooling(NewSignalTrigger(&RoundEndSignal{}), 4),
+			),
+
+			// 對隨機 3 名敵人造成攻擊力 510% 的傷害。
+			NewFatReactor(
+				FatTags(SkillGroup, Priority(2), Label("@Launch({3} 510% Damage)")),
+				FatRespond(
+					NewSignalTrigger(&LaunchSignal{}),
+					NewSelectActor(
+						NewVerbActor(&Attack{}, NewMultiplier(510, AxisEvaluator(Damage))),
+						SideSelector(false),
+						Healthy,
+						Shuffle,
+						FrontSelector(3),
+					),
+				),
+				FatCooling(NewSignalTrigger(&RoundEndSignal{}), 4),
+			),
+
+			// 自身的生命值百分比為 50% 以下時，獲得 20% 被擊減傷。(無法被解除)
+			NewFatReactor(
+				FatTags(Priority(3), Label("@Loss({$/< 50%}, -20% Loss)")),
+				FatRespond(
+					NewSignalTrigger(&LossSignal{}),
+					NewSelectActor(
+						NewVerbActor(
+							NewBuff(nil, NewBuffReactor(
+								Loss,
+								false,
+								ConstEvaluator(80),
+								FatTags(Label("-20% Loss"), "PBCj8umTGgCwqpTWV8KtqP"),
 							)),
 							nil,
-						)),
+						),
+						CurrentSelector{},
+						Healthy,
+						NewWaterLevelSelector(Lt, AxisEvaluator(HealthPercent), 50),
+						NewWaterLevelSelector(Lt, NewBuffCounter("PBCj8umTGgCwqpTWV8KtqP"), 1),
+					),
+				),
+			),
+
+			// 提升 30% 攻擊力(無法被解除)。
+			NewFatReactor(
+				FatTags(Priority(4), Label("@BattleStart({$}, 30% Damage)")),
+				FatRespond(
+					NewSignalTrigger(&BattleStartSignal{}),
+					NewSelectActor(
+						NewVerbActor(
+							NewBuff(nil, NewBuffReactor(
+								Damage,
+								false,
+								ConstEvaluator(130),
+								FatTags(Label("30% Damage")))),
+							nil,
+						),
+						CurrentSelector{},
 					),
 				),
 			),
