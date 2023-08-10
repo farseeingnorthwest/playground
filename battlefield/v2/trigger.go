@@ -85,8 +85,9 @@ func NewLossTrigger(comparator IntComparator, evaluator Evaluator) *LossTrigger 
 }
 
 func (t *LossTrigger) Trigger(action Action, signal Signal, ec EvaluationContext) bool {
+	sig := signal.(*LossSignal)
 	a, ok := action.Verb().(*Attack)
-	return ok && t.comparator.Compare(a.Loss(), t.evaluator.Evaluate(signal.Current().(Warrior), ec))
+	return ok && t.comparator.Compare(a.Loss()[sig.Target()], t.evaluator.Evaluate(signal.Current().(Warrior), ec))
 }
 
 type FatTrigger struct {

@@ -87,11 +87,11 @@ type Verb interface {
 type Attack struct {
 	evaluator Evaluator
 	critical  bool
-	loss      int
+	loss      map[Warrior]int
 }
 
 func NewAttack(evaluator Evaluator, critical bool) *Attack {
-	return &Attack{evaluator, critical, 0}
+	return &Attack{evaluator, critical, make(map[Warrior]int)}
 }
 
 func (a *Attack) Critical() bool {
@@ -102,16 +102,16 @@ func (a *Attack) SetCritical(critical bool) {
 	a.critical = critical
 }
 
-func (a *Attack) Loss() int {
+func (a *Attack) Loss() map[Warrior]int {
 	return a.loss
 }
 
 func (a *Attack) Fork(evaluator Evaluator) any {
 	if evaluator == nil {
-		return a
+		evaluator = a.evaluator
 	}
 
-	return &Attack{evaluator, a.critical, 0}
+	return &Attack{evaluator, a.critical, make(map[Warrior]int)}
 }
 
 func (a *Attack) Render(target Warrior, action Action, ec EvaluationContext) {
@@ -137,8 +137,8 @@ func (a *Attack) Render(target Warrior, action Action, ec EvaluationContext) {
 		c = 0
 	}
 	target.SetHealth(Ratio{c, m})
-	a.loss = loss.Loss() - overflow
-	source, _ := action.Script().Source()
+	a.loss[target] = loss.Loss() - overflow
+	source, reactor := action.Script().Source()
 	slog.Debug(
 		"render",
 		slog.String("verb", "attack"),
@@ -148,7 +148,7 @@ func (a *Attack) Render(target Warrior, action Action, ec EvaluationContext) {
 		slog.Group("source",
 			slog.Any("side", source.(Warrior).Side()),
 			slog.Int("position", source.(Warrior).Position()),
-			slog.Any("reactor", QueryTagA[Label](Second(action.Script().Source()))),
+			slog.Any("reactor", QueryTagA[Label](reactor)),
 			slog.Int("damage", damage)),
 		slog.Group("target",
 			slog.Any("side", target.Side()),
@@ -164,23 +164,23 @@ func (a *Attack) Render(target Warrior, action Action, ec EvaluationContext) {
 
 type Heal struct {
 	evaluator Evaluator
-	rise      int
+	rise      map[Warrior]int
 }
 
 func NewHeal(evaluator Evaluator) *Heal {
-	return &Heal{evaluator, 0}
+	return &Heal{evaluator, make(map[Warrior]int)}
 }
 
-func (h *Heal) Rise() int {
+func (h *Heal) Rise() map[Warrior]int {
 	return h.rise
 }
 
 func (h *Heal) Fork(evaluator Evaluator) any {
 	if evaluator == nil {
-		return h
+		evaluator = h.evaluator
 	}
 
-	return &Heal{evaluator, 0}
+	return &Heal{evaluator, make(map[Warrior]int)}
 }
 
 func (h *Heal) Render(target Warrior, action Action, ec EvaluationContext) {
@@ -196,7 +196,7 @@ func (h *Heal) Render(target Warrior, action Action, ec EvaluationContext) {
 		c = m
 	}
 	target.SetHealth(Ratio{c, m})
-	h.rise = rise - overflow
+	h.rise[target] = rise - overflow
 	source, _ := action.Script().Source()
 	slog.Debug(
 		"render",

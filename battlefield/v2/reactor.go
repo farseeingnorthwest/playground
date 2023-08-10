@@ -241,3 +241,26 @@ func (s *LossStopper) Fork(evaluator Evaluator) any {
 
 	return NewLossStopper(evaluator, false)
 }
+
+type RepeatActor struct {
+	count int
+	actor Actor
+}
+
+func NewRepeatActor(count int, actors ...Actor) *RepeatActor {
+	return &RepeatActor{count, NewSequenceActor(actors...)}
+}
+
+func (a *RepeatActor) Act(signal Signal, warriors []Warrior, ec EvaluationContext) bool {
+	for i := 0; i < a.count; i++ {
+		if !a.actor.Act(signal, warriors, ec) {
+			return false
+		}
+	}
+
+	return true
+}
+
+func (a *RepeatActor) Fork(evaluator Evaluator) any {
+	return NewRepeatActor(a.count, a.actor.Fork(evaluator).(Actor))
+}

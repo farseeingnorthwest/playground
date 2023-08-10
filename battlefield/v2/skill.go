@@ -60,9 +60,8 @@ var (
 				FatRespond(
 					NewSignalTrigger(&LaunchSignal{}),
 					NewSelectActor(
-						NewSequenceActor(
-							NewVerbActor(&Attack{}, NewMultiplier(460, AxisEvaluator(Damage))),
-							NewVerbActor(&Attack{}, NewMultiplier(460, AxisEvaluator(Damage))),
+						NewRepeatActor(
+							3,
 							NewVerbActor(&Attack{}, NewMultiplier(460, AxisEvaluator(Damage))),
 						),
 						SideSelector(false),
@@ -139,7 +138,7 @@ var (
 		{
 			// 對隨機 2 名敵人造成攻擊力 420% 的傷害。並對目標附加 30% 被擊增傷(1 回合)&「沉睡」(1 回合)。
 			NewFatReactor(
-				FatTags(SkillGroup, Priority(1), Label("@Launch({2} 420% Damage, +30% Loss, Sleeping)")),
+				FatTags(SkillGroup, Priority(1), Label("@Launch({2} 420% Damage, +30% Loss, Sleep)")),
 				FatRespond(
 					NewSignalTrigger(&LaunchSignal{}),
 					NewSelectActor(
@@ -158,7 +157,7 @@ var (
 							// 「沉睡」 (1回合)
 							NewVerbActor(
 								NewBuff(nil, NewFatReactor(
-									FatTags(SkillGroup, Priority(10), Label("Sleeping")),
+									FatTags(SkillGroup, Priority(10), Label("Sleep")),
 									FatRespond(
 										NewSignalTrigger(&LaunchSignal{}),
 										NewSequenceActor(),
@@ -345,10 +344,8 @@ var (
 				FatRespond(
 					NewSignalTrigger(&LaunchSignal{}),
 					NewSelectActor(
-						NewSequenceActor(
-							NewVerbActor(&Attack{}, NewMultiplier(340, AxisEvaluator(Damage))),
-							NewVerbActor(&Attack{}, NewMultiplier(340, AxisEvaluator(Damage))),
-							NewVerbActor(&Attack{}, NewMultiplier(340, AxisEvaluator(Damage))),
+						NewRepeatActor(
+							4,
 							NewVerbActor(&Attack{}, NewMultiplier(340, AxisEvaluator(Damage))),
 						),
 						SideSelector(false),
@@ -433,7 +430,6 @@ var (
 
 		// ////////////////////////////////////////////////////////////
 		// [4] 武田
-
 		{
 			// 對全體敵人造成攻擊力 300% 的傷害。
 			NewFatReactor(
@@ -507,6 +503,36 @@ var (
 
 			// 提升 25% 最大生命值(無法被解除)。
 			// [2][2]
+		},
+
+		// ////////////////////////////////////////////////////////////
+		// 梅花
+		{
+			// 對隨機 1 名敵人進行 3 次攻擊，每次造成攻擊力 550% 傷害。每次攻擊都有 50% 機率對目標附加「暈眩」(1 回合)
+			NewFatReactor(
+				FatTags(SkillGroup, Priority(1), Label("@Launch({1} 550% Damage, P(50%) Stun)")),
+				FatRespond(
+					NewSignalTrigger(&LaunchSignal{}),
+					NewRepeatActor(
+						3,
+						NewVerbActor(&Attack{}, NewMultiplier(550, AxisEvaluator(Damage))),
+						NewProbabilityActor(RngX, ConstEvaluator(50), NewVerbActor(
+							NewBuff(nil, NewFatReactor(
+								FatTags(SkillGroup, Priority(10), Label("Stun")),
+								FatRespond(
+									NewSignalTrigger(&LaunchSignal{}),
+									NewSequenceActor(),
+								),
+								FatCapacity(
+									NewSignalTrigger(&RoundEndSignal{}),
+									1,
+								),
+							)),
+							nil,
+						)),
+					),
+				),
+			),
 		},
 	}
 )
