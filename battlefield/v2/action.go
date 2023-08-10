@@ -6,6 +6,7 @@ type Script interface {
 	Renderer
 	Source() (any, Reactor)
 	Add(Action)
+	Loss() int
 }
 
 type MyScript struct {
@@ -25,6 +26,19 @@ func (s *MyScript) Source() (any, Reactor) {
 func (s *MyScript) Add(action Action) {
 	s.actions = append(s.actions, action)
 	action.SetScript(s)
+}
+
+func (s *MyScript) Loss() int {
+	loss := 0
+	for _, action := range s.actions {
+		if a, ok := action.Verb().(*Attack); ok {
+			for _, lo := range a.Loss() {
+				loss += lo
+			}
+		}
+	}
+
+	return loss
 }
 
 func (s *MyScript) Render(b *BattleField) {
@@ -73,14 +87,27 @@ func (a *MyAction) Render(b *BattleField) {
 	b.React(NewPreActionSignal(a))
 
 	for _, target := range a.targets {
-		a.verb.Render(target, a, b)
+		a.verb.Render(target, NewMyActionContext(a, b))
 	}
 
 	b.React(NewPostActionSignal(a))
 }
 
+type MyActionContext struct {
+	EvaluationContext
+	action Action
+}
+
+func NewMyActionContext(action Action, ac EvaluationContext) *MyActionContext {
+	return &MyActionContext{ac, action}
+}
+
+func (ac *MyActionContext) Action() Action {
+	return ac.action
+}
+
 type Verb interface {
-	Render(target Warrior, action Action, ec EvaluationContext)
+	Render(target Warrior, ac ActionContext)
 	Forker
 }
 
@@ -114,22 +141,22 @@ func (a *Attack) Fork(evaluator Evaluator) any {
 	return &Attack{evaluator, a.critical, make(map[Warrior]int)}
 }
 
-func (a *Attack) Render(target Warrior, action Action, ec EvaluationContext) {
-	damage := a.evaluator.Evaluate(target, ec)
-	defense := target.Component(Defense, ec)
+func (a *Attack) Render(target Warrior, ac ActionContext) {
+	damage := a.evaluator.Evaluate(target, ac)
+	defense := target.Component(Defense, ac)
 	t := damage - defense
 	if t < 0 {
 		t = 0
 	}
 
 	e := NewEvaluationSignal(target, Loss, t)
-	action.React(e, ec)
-	target.React(e, ec)
+	ac.Action().React(e, ac)
+	target.React(e, ac)
 	loss := NewPreLossSignal(target, e.Value())
-	target.React(loss, ec)
+	target.React(loss, ac)
 
 	r := target.Health()
-	m := target.Component(HealthMaximum, ec)
+	m := target.Component(HealthMaximum, ac)
 	c := r.Current*m/r.Maximum - loss.Loss()
 	overflow := 0
 	if c < 0 {
@@ -138,7 +165,7 @@ func (a *Attack) Render(target Warrior, action Action, ec EvaluationContext) {
 	}
 	target.SetHealth(Ratio{c, m})
 	a.loss[target] = loss.Loss() - overflow
-	source, reactor := action.Script().Source()
+	source, reactor := ac.Action().Script().Source()
 	slog.Debug(
 		"render",
 		slog.String("verb", "attack"),
@@ -159,7 +186,7 @@ func (a *Attack) Render(target Warrior, action Action, ec EvaluationContext) {
 				slog.Int("maximum", m))),
 	)
 
-	ec.React(NewLossSignal(target, action))
+	ac.React(NewLossSignal(target, ac.Action()))
 }
 
 type Heal struct {
@@ -183,11 +210,11 @@ func (h *Heal) Fork(evaluator Evaluator) any {
 	return &Heal{evaluator, make(map[Warrior]int)}
 }
 
-func (h *Heal) Render(target Warrior, action Action, ec EvaluationContext) {
+func (h *Heal) Render(target Warrior, ac ActionContext) {
 	r := target.Health()
-	m := target.Component(HealthMaximum, ec)
+	m := target.Component(HealthMaximum, ac)
 	c := r.Current * m / r.Maximum
-	rise := h.evaluator.Evaluate(target, ec)
+	rise := h.evaluator.Evaluate(target, ac)
 
 	c += rise
 	overflow := 0
@@ -197,7 +224,7 @@ func (h *Heal) Render(target Warrior, action Action, ec EvaluationContext) {
 	}
 	target.SetHealth(Ratio{c, m})
 	h.rise[target] = rise - overflow
-	source, _ := action.Script().Source()
+	source, reactor := ac.Action().Script().Source()
 	slog.Debug(
 		"render",
 		slog.String("verb", "heal"),
@@ -206,7 +233,7 @@ func (h *Heal) Render(target Warrior, action Action, ec EvaluationContext) {
 		slog.Group("source",
 			slog.Any("side", source.(Warrior).Side()),
 			slog.Int("position", source.(Warrior).Position()),
-			slog.Any("reactor", QueryTagA[Label](Second(action.Script().Source())))),
+			slog.Any("reactor", QueryTagA[Label](reactor))),
 		slog.Group("target",
 			slog.Any("side", target.Side()),
 			slog.Int("position", target.Position()),
@@ -217,12 +244,13 @@ func (h *Heal) Render(target Warrior, action Action, ec EvaluationContext) {
 }
 
 type Buff struct {
+	capacity  bool
 	evaluator Evaluator
 	reactor   ForkReactor
 }
 
-func NewBuff(evaluator Evaluator, reactor ForkReactor) *Buff {
-	return &Buff{evaluator, reactor}
+func NewBuff(capacity bool, evaluator Evaluator, reactor ForkReactor) *Buff {
+	return &Buff{capacity, evaluator, reactor}
 }
 
 func (b *Buff) Reactor() ForkReactor {
@@ -234,18 +262,25 @@ func (b *Buff) Fork(evaluator Evaluator) any {
 		return b
 	}
 
-	return &Buff{evaluator, b.reactor}
+	return &Buff{b.capacity, evaluator, b.reactor}
 }
 
-func (b *Buff) Render(target Warrior, action Action, ec EvaluationContext) {
+func (b *Buff) Render(target Warrior, ac ActionContext) {
+	logger := slog.With()
 	reactor := b.reactor
 	if b.evaluator != nil {
-		e := ConstEvaluator(b.evaluator.Evaluate(target, ec))
-		reactor = reactor.Fork(e).(ForkReactor)
+		n := b.evaluator.Evaluate(target, ac)
+		if !b.capacity {
+			reactor = reactor.Fork(ConstEvaluator(n)).(ForkReactor)
+		} else {
+			reactor = reactor.Fork(nil).(ForkReactor)
+			reactor.(*FatReactor).Amend(FatCapacity(nil, n))
+			logger = logger.With(slog.Int("capacity", n))
+		}
 	}
 
 	target.Add(reactor)
-	slog.Debug("render",
+	logger.Debug("render",
 		slog.String("verb", "buff"),
 		slog.Any("reactor", QueryTagA[Label](reactor)),
 		slog.Group("target",
@@ -253,7 +288,7 @@ func (b *Buff) Render(target Warrior, action Action, ec EvaluationContext) {
 			slog.Int("position", target.Position()),
 		),
 		slog.Group("source",
-			slog.Any("reactor", QueryTagA[Label](Second(action.Script().Source())))),
+			slog.Any("reactor", QueryTagA[Label](Second(ac.Action().Script().Source())))),
 	)
 }
 
@@ -276,7 +311,7 @@ func (p *Purge) Fork(Evaluator) any {
 	return p
 }
 
-func (p *Purge) Render(target Warrior, _ Action, _ EvaluationContext) {
+func (p *Purge) Render(target Warrior, _ ActionContext) {
 	buffs := target.Buffs(p.tag)
 	m, n := len(buffs), p.count
 	if m > n && n > 0 {

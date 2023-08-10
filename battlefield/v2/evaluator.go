@@ -116,3 +116,15 @@ func NewCustomEvaluator(evaluator func(Warrior, EvaluationContext) int) *CustomE
 func (e *CustomEvaluator) Evaluate(warrior Warrior, ec EvaluationContext) int {
 	return e.evaluator(warrior, ec)
 }
+
+type ActionContext interface {
+	EvaluationContext
+	Action() Action
+}
+
+type LossEvaluator struct {
+}
+
+func (LossEvaluator) Evaluate(_ Warrior, ec EvaluationContext) int {
+	return ec.(ActionContext).Action().Script().Loss()
+}

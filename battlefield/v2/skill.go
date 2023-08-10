@@ -101,11 +101,8 @@ var (
 					NewSignalTrigger(&LaunchSignal{}),
 					NewSelectActor(
 						NewVerbActor(
-							NewBuff(
-								nil,
-								NewBuffReactor(CriticalOdds, true, ConstEvaluator(2), FatTags(
-									Label("[15] +2% CriticalOdds"))),
-							),
+							NewBuff(false, nil, NewBuffReactor(CriticalOdds, true, ConstEvaluator(2), FatTags(
+								Label("[15] +2% CriticalOdds")))),
 							nil,
 						),
 						CurrentSelector{},
@@ -120,7 +117,7 @@ var (
 					NewSignalTrigger(&BattleStartSignal{}),
 					NewSelectActor(
 						NewVerbActor(
-							NewBuff(nil, NewBuffReactor(
+							NewBuff(false, nil, NewBuffReactor(
 								Damage,
 								false,
 								ConstEvaluator(120),
@@ -146,7 +143,7 @@ var (
 							NewVerbActor(&Attack{}, NewMultiplier(420, AxisEvaluator(Damage))),
 							NewVerbActor(
 								// 30% 被擊增傷 (1回合)
-								NewBuff(nil, NewBuffReactor(
+								NewBuff(false, nil, NewBuffReactor(
 									Loss,
 									false,
 									ConstEvaluator(130),
@@ -156,7 +153,7 @@ var (
 							),
 							// 「沉睡」 (1回合)
 							NewVerbActor(
-								NewBuff(nil, NewFatReactor(
+								NewBuff(false, nil, NewFatReactor(
 									FatTags(SkillGroup, Priority(10), Label("Sleep")),
 									FatRespond(
 										NewSignalTrigger(&LaunchSignal{}),
@@ -195,7 +192,7 @@ var (
 							NewVerbActor(&Attack{}, NewMultiplier(520, AxisEvaluator(Damage))),
 							// 「暈眩」 (1回合)
 							NewProbabilityActor(RngX, ConstEvaluator(70), NewVerbActor(
-								NewBuff(nil, NewFatReactor(
+								NewBuff(false, nil, NewFatReactor(
 									FatTags(SkillGroup, Priority(10), Label("Dizzy")),
 									FatRespond(
 										NewSignalTrigger(&LaunchSignal{}),
@@ -242,7 +239,7 @@ var (
 					NewSignalTrigger(&LaunchSignal{}),
 					NewSelectActor(
 						NewVerbActor(
-							NewBuff(nil, NewFatReactor(
+							NewBuff(false, nil, NewFatReactor(
 								FatTags(Label("Barrier")),
 								FatRespond(
 									NewSignalTrigger(&PreLossSignal{}),
@@ -300,7 +297,7 @@ var (
 					NewSignalTrigger(&BattleStartSignal{}),
 					NewSelectActor(
 						NewVerbActor(
-							NewBuff(nil, NewBuffReactor(
+							NewBuff(false, nil, NewBuffReactor(
 								HealthMaximum,
 								false,
 								ConstEvaluator(125),
@@ -319,7 +316,7 @@ var (
 					NewSignalTrigger(&BattleStartSignal{}),
 					NewSelectActor(
 						NewVerbActor(
-							NewBuff(nil, NewBuffReactor(
+							NewBuff(false, nil, NewBuffReactor(
 								Damage,
 								false,
 								NewAdder(100, NewMultiplier(2, NewSelectCounter(
@@ -386,7 +383,7 @@ var (
 					),
 					NewSelectActor(
 						NewVerbActor(
-							NewBuff(nil, NewBuffReactor(
+							NewBuff(false, nil, NewBuffReactor(
 								Damage,
 								false,
 								ConstEvaluator(105),
@@ -406,7 +403,7 @@ var (
 					NewSignalTrigger(&LossSignal{}),
 					NewSelectActor(
 						NewVerbActor(
-							NewBuff(nil, NewFatReactor(
+							NewBuff(false, nil, NewFatReactor(
 								FatTags(Label("Sanctuary")),
 								FatRespond(
 									NewSignalTrigger(&PreLossSignal{}),
@@ -450,7 +447,7 @@ var (
 						NewSequenceActor(
 							NewVerbActor(&Attack{}, NewMultiplier(560, AxisEvaluator(Damage))),
 							NewVerbActor(
-								NewBuff(nil, NewBuffReactor(
+								NewBuff(false, nil, NewBuffReactor(
 									Damage,
 									false,
 									ConstEvaluator(75),
@@ -477,13 +474,13 @@ var (
 					NewSelectActor(
 						NewSequenceActor(
 							NewVerbActor(
-								NewBuff(nil, NewFatReactor(
+								NewBuff(false, nil, NewFatReactor(
 									FatTags(Label("Taunt")),
 									FatCapacity(NewSignalTrigger(&RoundEndSignal{}), 2))),
 								nil,
 							),
 							NewVerbActor(
-								NewBuff(nil, NewBuffReactor(
+								NewBuff(false, nil, NewBuffReactor(
 									Damage,
 									false,
 									ConstEvaluator(85),
@@ -504,7 +501,7 @@ var (
 		},
 
 		// ////////////////////////////////////////////////////////////
-		// 梅花
+		// [5] 梅花
 		{
 			// 對隨機 1 名敵人進行 3 次攻擊，每次造成攻擊力 550% 傷害。每次攻擊都有 50% 機率對目標附加「暈眩」(1 回合)
 			NewFatReactor(
@@ -516,7 +513,7 @@ var (
 							3,
 							NewVerbActor(&Attack{}, NewMultiplier(550, AxisEvaluator(Damage))),
 							NewProbabilityActor(RngX, ConstEvaluator(50), NewVerbActor(
-								NewBuff(nil, NewFatReactor(
+								NewBuff(false, nil, NewFatReactor(
 									FatTags(SkillGroup, Priority(10), Label("Stun")),
 									FatRespond(
 										NewSignalTrigger(&LaunchSignal{}),
@@ -562,7 +559,7 @@ var (
 					NewSignalTrigger(&LossSignal{}),
 					NewSelectActor(
 						NewVerbActor(
-							NewBuff(nil, NewBuffReactor(
+							NewBuff(false, nil, NewBuffReactor(
 								Loss,
 								false,
 								ConstEvaluator(80),
@@ -585,7 +582,7 @@ var (
 					NewSignalTrigger(&BattleStartSignal{}),
 					NewSelectActor(
 						NewVerbActor(
-							NewBuff(nil, NewBuffReactor(
+							NewBuff(false, nil, NewBuffReactor(
 								Damage,
 								false,
 								ConstEvaluator(130),
@@ -595,6 +592,65 @@ var (
 						CurrentSelector{},
 					),
 				),
+			),
+		},
+
+		// ////////////////////////////////////////////////////////////
+		// [6] 鑽石
+		{
+			// 使全體友軍增加攻擊力，增幅為鑽石攻擊力 15% (2 回合)
+			NewFatReactor(
+				FatTags(SkillGroup, Priority(1), Label("@Launch({~}, 15% Damage*)")),
+				FatRespond(
+					NewSignalTrigger(&LaunchSignal{}),
+					NewSelectActor(
+						NewVerbActor(
+							NewBuff(false, nil, NewBuffReactor(
+								Damage,
+								true,
+								nil,
+								FatCapacity(NewSignalTrigger(&RoundEndSignal{}), 2),
+								FatTags(Label("15% Damage*")))),
+							NewMultiplier(15, AxisEvaluator(Damage)),
+						),
+						SideSelector(true),
+						Healthy,
+					),
+				),
+				FatCooling(NewSignalTrigger(&RoundEndSignal{}), 4),
+			),
+
+			// 對隨機 1 名敵人進行 4 次攻擊，每次造成攻擊力 350% 的傷害；使全體友軍獲得總傷害 40% 的「護盾」。
+			NewFatReactor(
+				FatTags(SkillGroup, Priority(2), Label("@Launch({1} 4 * 350% Damage; {*} +40% Shield)")),
+				FatRespond(
+					NewSignalTrigger(&LaunchSignal{}),
+					NewSelectActor(
+						NewRepeatActor(4, NewVerbActor(&Attack{}, NewMultiplier(350, AxisEvaluator(Damage)))),
+						SideSelector(false),
+						Healthy,
+						Shuffle,
+						FrontSelector(1),
+					),
+					NewSelectActor(
+						NewVerbActor(
+							NewBuff(true, NewMultiplier(40, LossEvaluator{}), NewFatReactor(
+								FatTags(Label("+40% Shield")),
+								FatRespond(
+									NewSignalTrigger(&PreLossSignal{}),
+									NewSelectActor(
+										LossResister{},
+										CurrentSelector{},
+									),
+								),
+							)),
+							nil,
+						),
+						SideSelector(true),
+						Healthy,
+					),
+				),
+				FatCooling(NewSignalTrigger(&RoundEndSignal{}), 4),
 			),
 		},
 	}

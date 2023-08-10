@@ -119,13 +119,21 @@ func (c *Capacity) React(signal Signal, ec EvaluationContext, lc *Lifecycle) {
 	}
 }
 
-func (c *Capacity) Flush(lc *Lifecycle) {
+func (c *Capacity) Count() int {
+	if c == nil {
+		return 0
+	}
+
+	return c.count
+}
+
+func (c *Capacity) Flush(lc *Lifecycle, n int) {
 	if c == nil {
 		return
 	}
 
 	if c.trigger == nil && c.count > 0 {
-		c.count--
+		c.count -= n
 		lc.SetCapacity(c.count)
 	}
 }
@@ -147,7 +155,7 @@ type Responder struct {
 	actor   Actor
 }
 
-func (r *Responder) React(signal Signal, ec EvaluationContext) bool {
+func (r *Responder) React(signal Signal, ec ActorContext) bool {
 	if !r.trigger.Trigger(signal, ec) {
 		return false
 	}
@@ -220,10 +228,21 @@ func (r *FatReactor) React(signal Signal, ec EvaluationContext) {
 	}
 
 	trigger := false
+	ac := &struct {
+		EvaluationContext
+		*PlainCapacitor
+	}{
+		ec,
+		NewPlainCapacitor(r.capacity.Count()),
+	}
 	defer func() {
 		if trigger {
 			lc := &Lifecycle{}
-			r.capacity.Flush(lc)
+			n := r.capacity.Count() - ac.Capacity()
+			if n < 1 {
+				n = 1
+			}
+			r.capacity.Flush(lc, n)
 			r.cooling.WarmUp(lc)
 			lc.Flush(signal.Current(), r, ec)
 		}
@@ -252,7 +271,7 @@ func (r *FatReactor) React(signal Signal, ec EvaluationContext) {
 		}()
 	}
 	for _, responder := range r.responders {
-		if responder.React(signal, ec) {
+		if responder.React(signal, ac) {
 			trigger = true
 		}
 	}
@@ -270,6 +289,12 @@ func (r *FatReactor) Fork(evaluator Evaluator) any {
 		r.cooling.Fork(),
 		r.capacity.Fork(),
 		responders,
+	}
+}
+
+func (r *FatReactor) Amend(options ...func(*FatReactor)) {
+	for _, option := range options {
+		option(r)
 	}
 }
 
