@@ -225,6 +225,10 @@ func NewBuff(evaluator Evaluator, reactor ForkReactor) *Buff {
 	return &Buff{evaluator, reactor}
 }
 
+func (b *Buff) Reactor() ForkReactor {
+	return b.reactor
+}
+
 func (b *Buff) Fork(evaluator Evaluator) any {
 	if evaluator == nil {
 		return b
@@ -254,13 +258,18 @@ func (b *Buff) Render(target Warrior, action Action, ec EvaluationContext) {
 }
 
 type Purge struct {
-	rng   Rng
-	tag   any
-	count int
+	rng      Rng
+	tag      any
+	count    int
+	reactors []Reactor
 }
 
 func NewPurge(rng Rng, tag any, count int) *Purge {
-	return &Purge{rng, tag, count}
+	return &Purge{rng, tag, count, nil}
+}
+
+func (p *Purge) Reactors() []Reactor {
+	return p.reactors
 }
 
 func (p *Purge) Fork(Evaluator) any {
@@ -281,11 +290,11 @@ func (p *Purge) Render(target Warrior, _ Action, _ EvaluationContext) {
 		buffs = buffs[m:]
 	}
 
-	attrs := make([]any, 1+len(buffs))
-	attrs[0] = slog.String("verb", "purge")
+	tags := make([]any, len(buffs))
 	for i, buff := range buffs {
 		target.Remove(buff)
-		attrs[1+i] = slog.Any("reactor", QueryTagA[Label](buff))
+		tags[i] = QueryTagA[Label](buff)
 	}
-	slog.Debug("render", attrs...)
+	p.reactors = buffs
+	slog.Debug("render", slog.String("verb", "purge"), slog.Any("reactors", tags))
 }

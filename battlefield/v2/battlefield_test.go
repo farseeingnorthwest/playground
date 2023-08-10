@@ -21,7 +21,7 @@ func ExampleBattleField_Run_special_0() {
 		},
 	})))
 
-	rng.SetRng(NewSequence(0.1, 0.5))
+	RngX.SetRng(NewSequence(0.1, 0.5))
 	f := NewBattleField(
 		[]Warrior{
 			NewMyWarrior(
@@ -85,7 +85,7 @@ func ExampleBattleField_Run_special_1() {
 		},
 	})))
 
-	rng.SetRng(NewSequence(0.1, 0.9))
+	RngX.SetRng(NewSequence(0.1, 0.9))
 	f := NewBattleField(
 		[]Warrior{
 			NewMyWarrior(
@@ -163,7 +163,7 @@ func ExampleBattleField_Run_special_1() {
 	// source.position=0 source.side=Right source.reactor=#2 lifecycle.leading=0 lifecycle.cooling="{Current:0 Maximum:0}" lifecycle.capacity=0
 	// verb=buff reactor="Nerf #2" target.side=Left target.position=0 source.reactor=#2
 	// source.position=0 source.side=Left source.reactor="@PostAction({$/<Nerf> >= 2} Purge())" lifecycle.leading=0 lifecycle.cooling="{Current:4 Maximum:4}" lifecycle.capacity=-1
-	// verb=purge reactor="Nerf #1" reactor="Nerf #2"
+	// verb=purge reactors="[Nerf #1 Nerf #2]"
 	// source.position=0 source.side=Left source.reactor="@Launch({2} 420% Damage, +30% Loss, Sleeping)" lifecycle.leading=0 lifecycle.cooling="{Current:5 Maximum:5}" lifecycle.capacity=-1
 	// verb=attack critical=false loss=34 overflow=0 source.side=Left source.position=0 source.reactor="@Launch({2} 420% Damage, +30% Loss, Sleeping)" source.damage=42 target.side=Right target.position=0 target.defense=8 target.health.current=6 target.health.maximum=84
 	// verb=buff reactor="+30% Loss" target.side=Right target.position=0 source.reactor="@Launch({2} 420% Damage, +30% Loss, Sleeping)"
@@ -208,7 +208,7 @@ func ExampleBattleField_Run_special_2() {
 		},
 	})))
 
-	rng.SetRng(NewSequence(0.1, 0.9))
+	RngX.SetRng(NewSequence(0.1, 0.9))
 	f := NewBattleField(
 		[]Warrior{
 			NewMyWarrior(
@@ -271,7 +271,7 @@ func ExampleBattleField_Run_special_3() {
 		},
 	})))
 
-	rng.SetRng(NewSequence(0.5, 0.5, 0.5, 0.5, 0.01, 0.9))
+	RngX.SetRng(NewSequence(0.5, 0.5, 0.5, 0.5, 0.01, 0.9))
 	f := NewBattleField(
 		[]Warrior{
 			NewMyWarrior(

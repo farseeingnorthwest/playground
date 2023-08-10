@@ -1,9 +1,9 @@
 package battlefield
 
 var (
-	rng        = &RngProxy{}
+	RngX       = &RngProxy{}
 	SkillGroup = ExclusionGroup(0)
-	Shuffle    = NewShuffleSelector(rng, Label("Taunt"))
+	Shuffle    = NewShuffleSelector(RngX, Label("Taunt"))
 	Regular    = []Reactor{
 		NewFatReactor(
 			FatTags(SkillGroup, Label("NormalAttack")),
@@ -27,7 +27,7 @@ var (
 					NewVerbTrigger[*Attack](),
 				),
 				NewProbabilityActor(
-					rng,
+					RngX,
 					AxisEvaluator(CriticalOdds),
 					CriticalActor{},
 				),
@@ -195,7 +195,7 @@ var (
 						NewSequenceActor(
 							NewVerbActor(&Attack{}, NewMultiplier(520, AxisEvaluator(Damage))),
 							// 「暈眩」 (1回合)
-							NewProbabilityActor(rng, ConstEvaluator(70), NewVerbActor(
+							NewProbabilityActor(RngX, ConstEvaluator(70), NewVerbActor(
 								NewBuff(nil, NewFatReactor(
 									FatTags(SkillGroup, Priority(10), Label("Dizzy")),
 									FatRespond(
@@ -228,7 +228,7 @@ var (
 						NewSignalTrigger(&PostActionSignal{}),
 					),
 					NewSelectActor(
-						NewVerbActor(NewPurge(rng, "Nerf", 0), nil),
+						NewVerbActor(NewPurge(RngX, "Nerf", 0), nil),
 						CurrentSelector{},
 						NewWaterLevelSelector(Ge, NewBuffCounter("Nerf"), 2),
 					),
