@@ -39,8 +39,8 @@ func (CurrentSelector) Select(_ []Warrior, signal Signal, _ EvaluationContext) [
 type SourceSelector struct {
 }
 
-func (s *SourceSelector) Select(_ []Warrior, signal Signal, _ EvaluationContext) []Warrior {
-	source, _ := signal.(Sourcer).Source()
+func (SourceSelector) Select(_ []Warrior, signal Signal, _ EvaluationContext) []Warrior {
+	source, _ := signal.(ActionSignal).Action().Script().Source()
 	return []Warrior{source.(Warrior)}
 }
 

@@ -652,6 +652,49 @@ var (
 				),
 				FatCooling(NewSignalTrigger(&RoundEndSignal{}), 4),
 			),
+
+			// 提升20%最大生命值(無法被解除)。
+			NewFatReactor(
+				FatTags(Priority(2), Label("@BattleStart({$}, 20% HealthMaximum)")),
+				FatRespond(
+					NewSignalTrigger(&BattleStartSignal{}),
+					NewSelectActor(
+						NewVerbActor(
+							NewBuff(false, nil, NewBuffReactor(
+								HealthMaximum,
+								false,
+								ConstEvaluator(120),
+								FatTags(Label("20% HealthMaximum")))),
+							nil,
+						),
+						CurrentSelector{},
+					),
+				),
+			),
+
+			// 受到爆擊時，使攻擊的敵人減少 15% 攻擊力(1 回合)。
+			NewFatReactor(
+				FatTags(Priority(3), Label("@PostAction({&/C}, -15% Damage)")),
+				FatRespond(
+					NewFatTrigger(
+						&PostActionSignal{},
+						CurrentIsTargetTrigger{},
+						CriticalStrikeTrigger{},
+					),
+					NewSelectActor(
+						NewVerbActor(
+							NewBuff(false, nil, NewBuffReactor(
+								Damage,
+								false,
+								ConstEvaluator(85),
+								FatCapacity(NewSignalTrigger(&RoundEndSignal{}), 1),
+								FatTags(Label("-15% Damage")))),
+							nil,
+						),
+						SourceSelector{},
+					),
+				),
+			),
 		},
 	}
 )

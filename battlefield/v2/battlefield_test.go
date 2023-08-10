@@ -486,7 +486,7 @@ func ExampleBattleField_Run_special_6() {
 		},
 	})))
 
-	RngX.SetRng(NewSequence(0.5))
+	RngX.SetRng(NewSequence(0.01, 0.5))
 	f := NewBattleField(
 		[]Warrior{
 			NewMyWarrior(
@@ -502,41 +502,49 @@ func ExampleBattleField_Run_special_6() {
 				Regular[0],
 				Special[6][0],
 				Special[6][1],
+				Special[6][2],
+				Special[6][3],
 			),
 			NewMyWarrior(
 				MyBaseline{
-					Damage:  40,
-					Defense: 8,
-					Health:  270,
+					Damage:       40,
+					Defense:      8,
+					Health:       270,
+					CriticalOdds: 10,
+					CriticalLoss: 200,
 				},
 				Right,
 				0,
 				Regular[0],
+				Regular[1],
+				Regular[2],
 			),
 		},
 	)
 
 	f.Run()
 	// Output:
+	// verb=buff reactor="20% HealthMaximum" target.side=Left target.position=0 source.reactor="@BattleStart({$}, 20% HealthMaximum)"
 	// source.position=0 source.side=Left source.reactor="@Launch({1} 4 * 350% Damage; {*} +40% Shield)" lifecycle.leading=0 lifecycle.cooling="{Current:4 Maximum:4}" lifecycle.capacity=-1
 	// verb=attack critical=false loss=62 overflow=0 source.side=Left source.position=0 source.reactor="@Launch({1} 4 * 350% Damage; {*} +40% Shield)" source.damage=70 target.side=Right target.position=0 target.defense=8 target.health.current=208 target.health.maximum=270
 	// verb=attack critical=false loss=62 overflow=0 source.side=Left source.position=0 source.reactor="@Launch({1} 4 * 350% Damage; {*} +40% Shield)" source.damage=70 target.side=Right target.position=0 target.defense=8 target.health.current=146 target.health.maximum=270
 	// verb=attack critical=false loss=62 overflow=0 source.side=Left source.position=0 source.reactor="@Launch({1} 4 * 350% Damage; {*} +40% Shield)" source.damage=70 target.side=Right target.position=0 target.defense=8 target.health.current=84 target.health.maximum=270
 	// verb=attack critical=false loss=62 overflow=0 source.side=Left source.position=0 source.reactor="@Launch({1} 4 * 350% Damage; {*} +40% Shield)" source.damage=70 target.side=Right target.position=0 target.defense=8 target.health.current=22 target.health.maximum=270
 	// capacity=99 verb=buff reactor="+40% Shield" target.side=Left target.position=0 source.reactor="@Launch({1} 4 * 350% Damage; {*} +40% Shield)"
-	// source.position=0 source.side=Left source.reactor="+40% Shield" lifecycle.leading=0 lifecycle.cooling="{Current:0 Maximum:0}" lifecycle.capacity=64
-	// verb=attack critical=false loss=0 overflow=0 source.side=Right source.position=0 source.reactor=NormalAttack source.damage=40 target.side=Left target.position=0 target.defense=5 target.health.current=100 target.health.maximum=100
+	// source.position=0 source.side=Left source.reactor="+40% Shield" lifecycle.leading=0 lifecycle.cooling="{Current:0 Maximum:0}" lifecycle.capacity=29
+	// verb=attack critical=true loss=0 overflow=0 source.side=Right source.position=0 source.reactor=NormalAttack source.damage=40 target.side=Left target.position=0 target.defense=5 target.health.current=120 target.health.maximum=120
+	// verb=buff reactor="-15% Damage" target.side=Right target.position=0 source.reactor="@PostAction({&/C}, -15% Damage)"
 	// source.position=0 source.side=Left source.reactor="@Launch({1} 4 * 350% Damage; {*} +40% Shield)" lifecycle.leading=0 lifecycle.cooling="{Current:3 Maximum:4}" lifecycle.capacity=-1
+	// source.position=0 source.side=Right source.reactor="-15% Damage" lifecycle.leading=0 lifecycle.cooling="{Current:0 Maximum:0}" lifecycle.capacity=0
 	// source.position=0 source.side=Left source.reactor="@Launch({~}, 15% Damage*)" lifecycle.leading=0 lifecycle.cooling="{Current:4 Maximum:4}" lifecycle.capacity=-1
 	// verb=buff reactor="15% Damage*" target.side=Left target.position=0 source.reactor="@Launch({~}, 15% Damage*)"
-	// source.position=0 source.side=Left source.reactor="+40% Shield" lifecycle.leading=0 lifecycle.cooling="{Current:0 Maximum:0}" lifecycle.capacity=29
-	// verb=attack critical=false loss=0 overflow=0 source.side=Right source.position=0 source.reactor=NormalAttack source.damage=40 target.side=Left target.position=0 target.defense=5 target.health.current=100 target.health.maximum=100
+	// source.position=0 source.side=Left source.reactor="+40% Shield" lifecycle.leading=0 lifecycle.cooling="{Current:0 Maximum:0}" lifecycle.capacity=0
+	// verb=attack critical=false loss=6 overflow=0 source.side=Right source.position=0 source.reactor=NormalAttack source.damage=40 target.side=Left target.position=0 target.defense=5 target.health.current=114 target.health.maximum=120
 	// source.position=0 source.side=Left source.reactor="@Launch({1} 4 * 350% Damage; {*} +40% Shield)" lifecycle.leading=0 lifecycle.cooling="{Current:2 Maximum:4}" lifecycle.capacity=-1
 	// source.position=0 source.side=Left source.reactor="@Launch({~}, 15% Damage*)" lifecycle.leading=0 lifecycle.cooling="{Current:3 Maximum:4}" lifecycle.capacity=-1
 	// source.position=0 source.side=Left source.reactor="15% Damage*" lifecycle.leading=0 lifecycle.cooling="{Current:0 Maximum:0}" lifecycle.capacity=1
 	// verb=attack critical=false loss=15 overflow=0 source.side=Left source.position=0 source.reactor=NormalAttack source.damage=23 target.side=Right target.position=0 target.defense=8 target.health.current=7 target.health.maximum=270
-	// source.position=0 source.side=Left source.reactor="+40% Shield" lifecycle.leading=0 lifecycle.cooling="{Current:0 Maximum:0}" lifecycle.capacity=0
-	// verb=attack critical=false loss=6 overflow=0 source.side=Right source.position=0 source.reactor=NormalAttack source.damage=40 target.side=Left target.position=0 target.defense=5 target.health.current=94 target.health.maximum=100
+	// verb=attack critical=false loss=35 overflow=0 source.side=Right source.position=0 source.reactor=NormalAttack source.damage=40 target.side=Left target.position=0 target.defense=5 target.health.current=79 target.health.maximum=120
 	// source.position=0 source.side=Left source.reactor="@Launch({1} 4 * 350% Damage; {*} +40% Shield)" lifecycle.leading=0 lifecycle.cooling="{Current:1 Maximum:4}" lifecycle.capacity=-1
 	// source.position=0 source.side=Left source.reactor="@Launch({~}, 15% Damage*)" lifecycle.leading=0 lifecycle.cooling="{Current:2 Maximum:4}" lifecycle.capacity=-1
 	// source.position=0 source.side=Left source.reactor="15% Damage*" lifecycle.leading=0 lifecycle.cooling="{Current:0 Maximum:0}" lifecycle.capacity=0
