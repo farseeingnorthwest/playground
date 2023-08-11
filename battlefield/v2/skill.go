@@ -50,7 +50,84 @@ var (
 		),
 	}
 
-	Special = [][]Reactor{
+	Effect = map[string]*FatReactor{
+		// 沉睡
+		"Sleep": NewFatReactor(
+			FatTags(SkillGroup, Priority(10), Label("Sleep")),
+			FatRespond(
+				NewSignalTrigger(&LaunchSignal{}),
+				NewSequenceActor(),
+			),
+			FatCapacity(
+				NewOrTrigger(
+					NewSignalTrigger(&RoundEndSignal{}),
+					NewFatTrigger(
+						&PostActionSignal{},
+						VerbTrigger[*Attack]{},
+						CurrentIsTargetTrigger{}),
+				),
+				1,
+			),
+		),
+
+		// 暈眩
+		"Stun": NewFatReactor(
+			FatTags(SkillGroup, Priority(10), Label("Stun")),
+			FatRespond(
+				NewSignalTrigger(&LaunchSignal{}),
+				NewSequenceActor(),
+			),
+			FatCapacity(
+				NewSignalTrigger(&RoundEndSignal{}),
+				1,
+			),
+		),
+
+		// 多重屏障
+		"Barrier": NewFatReactor(
+			FatTags(Label("Barrier")),
+			FatRespond(
+				NewSignalTrigger(&PreLossSignal{}),
+				NewLossStopper(NewMultiplier(10, AxisEvaluator(HealthMaximum)), true),
+			),
+			FatCapacity(nil, 1),
+		),
+
+		// 嘲諷
+		"Taunt": NewFatReactor(
+			FatTags(Label("Taunt")),
+			FatCapacity(NewSignalTrigger(&RoundEndSignal{}), 2),
+		),
+
+		// 庇護
+		"Sanctuary": NewFatReactor(
+			FatTags(Label("Sanctuary")),
+			FatRespond(
+				NewSignalTrigger(&PreLossSignal{}),
+				NewLossStopper(NewMultiplier(30, AxisEvaluator(HealthMaximum)), false),
+			),
+		),
+
+		// 護盾
+		"Shield": NewFatReactor(
+			FatTags(Label("Shield")),
+			FatRespond(
+				NewSignalTrigger(&PreLossSignal{}),
+				NewSelectActor(
+					LossResister{},
+					CurrentSelector{},
+				),
+			),
+		),
+
+		// 增益無效
+		"BuffImmune": NewFatReactor(
+			FatTags(Label("BuffImmune")),
+			FatCapacity(NewSignalTrigger(&RoundEndSignal{}), 3),
+		),
+	}
+
+	Special = [][]*FatReactor{
 		// ////////////////////////////////////////////////////////////
 		// [0] 織田
 		{
@@ -151,27 +228,7 @@ var (
 									FatCapacity(NewSignalTrigger(&RoundEndSignal{}), 1))),
 								nil,
 							),
-							// 「沉睡」 (1回合)
-							NewVerbActor(
-								NewBuff(false, nil, NewFatReactor(
-									FatTags(SkillGroup, Priority(10), Label("Sleep")),
-									FatRespond(
-										NewSignalTrigger(&LaunchSignal{}),
-										NewSequenceActor(),
-									),
-									FatCapacity(
-										NewOrTrigger(
-											NewSignalTrigger(&RoundEndSignal{}),
-											NewFatTrigger(
-												&PostActionSignal{},
-												VerbTrigger[*Attack]{},
-												CurrentIsTargetTrigger{}),
-										),
-										1,
-									),
-								)),
-								nil,
-							),
+							NewVerbActor(NewBuff(false, nil, Effect["Sleep"]), nil),
 						),
 						SideSelector(false),
 						Healthy,
@@ -184,25 +241,14 @@ var (
 
 			// 對攻擊力最高的 1 名敵人造成攻擊力 520% 的傷害。並有 70% 機率對目標附加「暈眩」(1 回合)。
 			NewFatReactor(
-				FatTags(SkillGroup, Priority(2), Label("@Launch({1} 520% Damage, P(70%, Dizzy))")),
+				FatTags(SkillGroup, Priority(2), Label("@Launch({1} 520% Damage, P(70%, Stun))")),
 				FatRespond(
 					NewSignalTrigger(&LaunchSignal{}),
 					NewSelectActor(
 						NewSequenceActor(
 							NewVerbActor(&Attack{}, NewMultiplier(520, AxisEvaluator(Damage))),
-							// 「暈眩」 (1回合)
 							NewProbabilityActor(RngX, ConstEvaluator(70), NewVerbActor(
-								NewBuff(false, nil, NewFatReactor(
-									FatTags(SkillGroup, Priority(10), Label("Dizzy")),
-									FatRespond(
-										NewSignalTrigger(&LaunchSignal{}),
-										NewSequenceActor(),
-									),
-									FatCapacity(
-										NewSignalTrigger(&RoundEndSignal{}),
-										1,
-									),
-								)),
+								NewBuff(false, nil, Effect["Stun"]),
 								nil,
 							)),
 						),
@@ -238,16 +284,7 @@ var (
 				FatRespond(
 					NewSignalTrigger(&LaunchSignal{}),
 					NewSelectActor(
-						NewVerbActor(
-							NewBuff(false, nil, NewFatReactor(
-								FatTags(Label("Barrier")),
-								FatRespond(
-									NewSignalTrigger(&PreLossSignal{}),
-									NewLossStopper(NewMultiplier(10, AxisEvaluator(HealthMaximum)), true),
-								),
-								FatCapacity(nil, 1))),
-							nil,
-						),
+						NewVerbActor(NewBuff(false, nil, Effect["Barrier"]), nil),
 						CurrentSelector{},
 					),
 				),
@@ -402,16 +439,7 @@ var (
 				FatRespond(
 					NewSignalTrigger(&LossSignal{}),
 					NewSelectActor(
-						NewVerbActor(
-							NewBuff(false, nil, NewFatReactor(
-								FatTags(Label("Sanctuary")),
-								FatRespond(
-									NewSignalTrigger(&PreLossSignal{}),
-									NewLossStopper(NewMultiplier(30, AxisEvaluator(HealthMaximum)), false),
-								),
-							)),
-							nil,
-						),
+						NewVerbActor(NewBuff(false, nil, Effect["Sanctuary"]), nil),
 						CurrentSelector{},
 						Healthy,
 						NewWaterLevelSelector(Lt, AxisEvaluator(HealthPercent), 50),
@@ -473,12 +501,7 @@ var (
 					NewSignalTrigger(&LaunchSignal{}),
 					NewSelectActor(
 						NewSequenceActor(
-							NewVerbActor(
-								NewBuff(false, nil, NewFatReactor(
-									FatTags(Label("Taunt")),
-									FatCapacity(NewSignalTrigger(&RoundEndSignal{}), 2))),
-								nil,
-							),
+							NewVerbActor(NewBuff(false, nil, Effect["Taunt"]), nil),
 							NewVerbActor(
 								NewBuff(false, nil, NewBuffReactor(
 									Damage,
@@ -513,17 +536,7 @@ var (
 							3,
 							NewVerbActor(&Attack{}, NewMultiplier(550, AxisEvaluator(Damage))),
 							NewProbabilityActor(RngX, ConstEvaluator(50), NewVerbActor(
-								NewBuff(false, nil, NewFatReactor(
-									FatTags(SkillGroup, Priority(10), Label("Stun")),
-									FatRespond(
-										NewSignalTrigger(&LaunchSignal{}),
-										NewSequenceActor(),
-									),
-									FatCapacity(
-										NewSignalTrigger(&RoundEndSignal{}),
-										1,
-									),
-								)),
+								NewBuff(false, nil, Effect["Stun"]),
 								nil,
 							)),
 						),
@@ -634,16 +647,7 @@ var (
 					),
 					NewSelectActor(
 						NewVerbActor(
-							NewBuff(true, NewMultiplier(40, LossEvaluator{}), NewFatReactor(
-								FatTags(Label("+40% Shield")),
-								FatRespond(
-									NewSignalTrigger(&PreLossSignal{}),
-									NewSelectActor(
-										LossResister{},
-										CurrentSelector{},
-									),
-								),
-							)),
+							NewBuff(true, NewMultiplier(40, LossEvaluator{}), Effect["Shield"]),
 							nil,
 						),
 						SideSelector(true),
@@ -695,6 +699,53 @@ var (
 					),
 				),
 			),
+		},
+
+		// ////////////////////////////////////////////////////////////
+		// [7] 王牌
+		{
+			// 對面前的 1 名敵人進行 2 次攻擊，每次造成攻擊力 360% 的傷害。每次攻擊都有 15% 機率對目標附加「暈眩」(1 回合)。
+			NewFatReactor(
+				FatTags(SkillGroup, Priority(1), Label("@Launch({1} 2 * 360% Damage, 15% Stun)")),
+				FatRespond(
+					NewSignalTrigger(&LaunchSignal{}),
+					NewSelectActor(
+						NewRepeatActor(2,
+							NewVerbActor(&Attack{}, NewMultiplier(360, AxisEvaluator(Damage))),
+							NewProbabilityActor(RngX, ConstEvaluator(15), NewVerbActor(
+								NewBuff(false, nil, Effect["Stun"]),
+								nil,
+							)),
+						),
+						CounterPositionSelector{},
+						Healthy,
+					),
+				),
+				FatCooling(NewSignalTrigger(&RoundEndSignal{}), 4),
+			),
+
+			// 對面前的1名敵人造成攻擊力455%的傷害。並對目標附加「增益無效」(3回合)。
+			NewFatReactor(
+				FatTags(SkillGroup, Priority(2), Label("@Launch({1} 455% Damage, BuffImmune")),
+				FatRespond(
+					NewSignalTrigger(&LaunchSignal{}),
+					NewSelectActor(
+						NewSequenceActor(
+							NewVerbActor(&Attack{}, NewMultiplier(455, AxisEvaluator(Damage))),
+							NewVerbActor(NewBuff(false, nil, Effect["BuffImmune"]), nil),
+						),
+						CounterPositionSelector{},
+						Healthy,
+					),
+				),
+				FatCooling(NewSignalTrigger(&RoundEndSignal{}), 3),
+			),
+
+			// 戰鬥開始時，每有一名友軍，全體友軍提升 2% 攻擊力。(無法被解除)
+			// [2][4]
+
+			// 提升 20% 攻擊力(無法被解除)。
+			// [0][4]
 		},
 	}
 )

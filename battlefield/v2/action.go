@@ -250,7 +250,7 @@ type Buff struct {
 }
 
 func NewBuff(capacity bool, evaluator Evaluator, reactor ForkReactor) *Buff {
-	return &Buff{capacity, evaluator, reactor}
+	return &Buff{capacity && evaluator != nil, evaluator, reactor}
 }
 
 func (b *Buff) Reactor() ForkReactor {
@@ -267,16 +267,20 @@ func (b *Buff) Fork(evaluator Evaluator) any {
 
 func (b *Buff) Render(target Warrior, ac ActionContext) {
 	logger := slog.With()
-	reactor := b.reactor
-	if b.evaluator != nil {
-		n := b.evaluator.Evaluate(target, ac)
-		if !b.capacity {
-			reactor = reactor.Fork(ConstEvaluator(n)).(ForkReactor)
-		} else {
-			reactor = reactor.Fork(nil).(ForkReactor)
-			reactor.(*FatReactor).Amend(FatCapacity(nil, n))
-			logger = logger.With(slog.Int("capacity", n))
-		}
+
+	var reactor Reactor
+	e := b.evaluator
+	if e != nil {
+		e = ConstEvaluator(e.Evaluate(target, ac))
+	}
+	if !b.capacity {
+		reactor = b.reactor.Fork(e).(Reactor)
+	} else {
+		reactor = b.reactor.Fork(nil).(ForkReactor)
+
+		c := int(e.(ConstEvaluator))
+		reactor.(*FatReactor).Amend(FatCapacity(nil, c))
+		logger = logger.With(slog.Int("capacity", c))
 	}
 
 	target.Add(reactor)

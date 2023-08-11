@@ -148,7 +148,7 @@ func (s *WaterLevelSelector) Select(inputs []Warrior, _ Signal, ec EvaluationCon
 type CounterPositionSelector struct {
 }
 
-func (s *CounterPositionSelector) Select(inputs []Warrior, signal Signal, _ EvaluationContext) []Warrior {
+func (CounterPositionSelector) Select(inputs []Warrior, signal Signal, _ EvaluationContext) []Warrior {
 	current := signal.Current().(Warrior)
 	for _, w := range inputs {
 		if w != current && w.Component(Position, nil) == current.Component(Position, nil) {

@@ -56,9 +56,13 @@ func NewBuffer(axis Axis, bias bool, evaluator Evaluator) *Buffer {
 	return &Buffer{axis, bias, evaluator}
 }
 
-func (a *Buffer) Act(signal Signal, _ []Warrior, ec ActorContext) bool {
+func (b *Buffer) Destruct() (Axis, bool, Evaluator) {
+	return b.axis, b.bias, b.evaluator
+}
+
+func (b *Buffer) Act(signal Signal, _ []Warrior, ac ActorContext) bool {
 	s := signal.(*EvaluationSignal)
-	if a.axis != s.Axis() {
+	if b.axis != s.Axis() {
 		return false
 	}
 
@@ -67,25 +71,25 @@ func (a *Buffer) Act(signal Signal, _ []Warrior, ec ActorContext) bool {
 		current = warrior
 	}
 
-	if a.bias {
+	if b.bias {
 		s.Amend(func(v float64) float64 {
-			return v + float64(a.evaluator.Evaluate(current, ec))
+			return v + float64(b.evaluator.Evaluate(current, ac))
 		})
 	} else {
 		s.Amend(func(v float64) float64 {
-			return v * float64(a.evaluator.Evaluate(current, ec)) / 100
+			return v * float64(b.evaluator.Evaluate(current, ac)) / 100
 		})
 	}
 
 	return true
 }
 
-func (a *Buffer) Fork(evaluator Evaluator) any {
+func (b *Buffer) Fork(evaluator Evaluator) any {
 	if evaluator == nil {
-		return a
+		return b
 	}
 
-	return &Buffer{a.axis, a.bias, evaluator}
+	return &Buffer{b.axis, b.bias, evaluator}
 }
 
 type VerbActor struct {
@@ -97,15 +101,15 @@ func NewVerbActor(verb Verb, evaluator Evaluator) *VerbActor {
 	return &VerbActor{verb, evaluator}
 }
 
-func (a *VerbActor) Act(signal Signal, targets []Warrior, ec ActorContext) bool {
+func (a *VerbActor) Act(signal Signal, targets []Warrior, ac ActorContext) bool {
 	e := a.evaluator
 	if e != nil {
 		var current Warrior
 		if warrior, ok := signal.Current().(Warrior); ok {
 			current = warrior
 		}
-		e = NewCustomEvaluator(func(warrior Warrior, context EvaluationContext) int {
-			return a.evaluator.Evaluate(current, ec)
+		e = NewCustomEvaluator(func(Warrior, EvaluationContext) int {
+			return a.evaluator.Evaluate(current, ac)
 		})
 	}
 
@@ -130,15 +134,15 @@ func NewSelectActor(actor Actor, selectors ...Selector) *SelectActor {
 	return &SelectActor{actor, selectors}
 }
 
-func (a *SelectActor) Act(signal Signal, warriors []Warrior, ec ActorContext) bool {
+func (a *SelectActor) Act(signal Signal, warriors []Warrior, ac ActorContext) bool {
 	for _, selector := range a.selectors {
-		warriors = selector.Select(warriors, signal, ec)
+		warriors = selector.Select(warriors, signal, ac)
 		if len(warriors) == 0 {
 			return false
 		}
 	}
 
-	a.actor.Act(signal, warriors, ec)
+	a.actor.Act(signal, warriors, ac)
 	return true
 }
 
@@ -169,7 +173,7 @@ func NewActionBuffer(evaluator Evaluator, buffer *Buffer) *ActionBuffer {
 	return &ActionBuffer{evaluator, buffer}
 }
 
-func (b *ActionBuffer) Act(signal Signal, _ []Warrior, ec ActorContext) bool {
+func (b *ActionBuffer) Act(signal Signal, _ []Warrior, ac ActorContext) bool {
 	sig := signal.(ActionSignal)
 	e := b.evaluator
 	if e != nil {
@@ -177,7 +181,7 @@ func (b *ActionBuffer) Act(signal Signal, _ []Warrior, ec ActorContext) bool {
 		if warrior, ok := signal.Current().(Warrior); ok {
 			current = warrior
 		}
-		e = ConstEvaluator(e.Evaluate(current, ec))
+		e = ConstEvaluator(e.Evaluate(current, ac))
 	}
 
 	sig.Action().Add(
@@ -227,9 +231,9 @@ func NewSequenceActor(actors ...Actor) *SequenceActor {
 	return &SequenceActor{actors}
 }
 
-func (a *SequenceActor) Act(signal Signal, warriors []Warrior, ec ActorContext) bool {
+func (a *SequenceActor) Act(signal Signal, warriors []Warrior, ac ActorContext) bool {
 	for _, actor := range a.actors {
-		if !actor.Act(signal, warriors, ec) {
+		if !actor.Act(signal, warriors, ac) {
 			return false
 		}
 	}
@@ -248,11 +252,11 @@ func (a *SequenceActor) Fork(evaluator Evaluator) any {
 
 type LossStopper struct {
 	evaluator Evaluator
-	zero      bool
+	full      bool
 }
 
-func NewLossStopper(evaluator Evaluator, zero bool) *LossStopper {
-	return &LossStopper{evaluator, zero}
+func NewLossStopper(evaluator Evaluator, full bool) *LossStopper {
+	return &LossStopper{evaluator, full}
 }
 
 func (s *LossStopper) Act(signal Signal, _ []Warrior, ec ActorContext) bool {
@@ -262,7 +266,7 @@ func (s *LossStopper) Act(signal Signal, _ []Warrior, ec ActorContext) bool {
 		return false
 	}
 
-	if s.zero {
+	if s.full {
 		sig.SetLoss(0)
 	} else {
 		sig.SetLoss(stopper)
