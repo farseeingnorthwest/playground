@@ -120,8 +120,8 @@ func (s FrontSelector) Select(inputs []Warrior, _ Signal, _ EvaluationContext) (
 		return inputs
 	}
 
-	outputs = make([]Warrior, int(s))
-	copy(outputs, inputs[:int(s)])
+	outputs = make([]Warrior, s)
+	copy(outputs, inputs[:s])
 	return
 }
 

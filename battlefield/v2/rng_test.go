@@ -1,14 +1,12 @@
-package battlefield
+package battlefield_test
 
-type Rng interface {
-	Float64() float64
-}
+import "github.com/farseeingnorthwest/playground/battlefield/v2"
 
 type RngProxy struct {
-	rng Rng
+	rng battlefield.Rng
 }
 
-func (p *RngProxy) SetRng(rng Rng) {
+func (p *RngProxy) SetRng(rng battlefield.Rng) {
 	p.rng = rng
 }
 

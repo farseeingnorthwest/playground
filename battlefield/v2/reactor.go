@@ -201,6 +201,10 @@ func (b *ActionBuffer) Fork(evaluator Evaluator) any {
 	return NewActionBuffer(evaluator, b.buffer)
 }
 
+type Rng interface {
+	Float64() float64
+}
+
 type ProbabilityActor struct {
 	rng       Rng
 	evaluator Evaluator

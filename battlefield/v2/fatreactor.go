@@ -221,11 +221,6 @@ func (r *FatReactor) React(signal Signal, ec EvaluationContext) {
 	r.leading.React(signal, ec, lc)
 	r.cooling.React(signal, ec, lc)
 	r.capacity.React(signal, ec, lc)
-	lc.Flush(signal.Current(), r, ec)
-
-	if !r.leading.Ready() || !r.cooling.Ready() || !r.capacity.Ready() {
-		return
-	}
 
 	trigger := false
 	ac := &struct {
@@ -237,16 +232,20 @@ func (r *FatReactor) React(signal Signal, ec EvaluationContext) {
 	}
 	defer func() {
 		if trigger {
-			lc := &Lifecycle{}
 			n := r.capacity.Count() - ac.Capacity()
 			if n < 1 {
 				n = 1
 			}
 			r.capacity.Flush(lc, n)
 			r.cooling.WarmUp(lc)
-			lc.Flush(signal.Current(), r, ec)
 		}
+
+		lc.Flush(signal.Current(), r, ec)
 	}()
+
+	if !r.leading.Ready() || !r.cooling.Ready() || !r.capacity.Ready() {
+		return
+	}
 
 	if tagger, ok := signal.(Tagger); ok {
 		if g := r.Find(NewTypeMatcher(ExclusionGroup(0))); g != nil {

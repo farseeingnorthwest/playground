@@ -1,10 +1,12 @@
-package battlefield
+package battlefield_test
+
+import . "github.com/farseeingnorthwest/playground/battlefield/v2"
 
 var (
 	RngX       = &RngProxy{}
 	SkillGroup = ExclusionGroup(0)
 	Shuffle    = NewShuffleSelector(RngX, Label("Taunt"))
-	Regular    = []Reactor{
+	Regular    = []*FatReactor{
 		NewFatReactor(
 			FatTags(SkillGroup, Label("NormalAttack")),
 			FatRespond(
@@ -124,6 +126,25 @@ var (
 		"BuffImmune": NewFatReactor(
 			FatTags(Label("BuffImmune")),
 			FatCapacity(NewSignalTrigger(&RoundEndSignal{}), 3),
+		),
+
+		// 控制效果免疫
+		"ControlImmune": NewFatReactor(
+			FatTags(Label("ControlImmune")),
+			FatCapacity(NewSignalTrigger(&RoundEndSignal{}), 2),
+		),
+
+		// 再生
+		"Regeneration": NewFatReactor(
+			FatTags(Label("Regeneration")),
+			FatRespond(
+				NewSignalTrigger(&RoundStartSignal{}),
+				NewSelectActor(
+					NewVerbActor(&Heal{}, NewMultiplier(7, AxisEvaluator(HealthMaximum))),
+					CurrentSelector{},
+				),
+			),
+			FatCapacity(nil, 1),
 		),
 	}
 
@@ -724,7 +745,7 @@ var (
 				FatCooling(NewSignalTrigger(&RoundEndSignal{}), 4),
 			),
 
-			// 對面前的1名敵人造成攻擊力455%的傷害。並對目標附加「增益無效」(3回合)。
+			// 對面前的1名敵人造成攻擊力 455% 的傷害。並對目標附加「增益無效」(3 回合)。
 			NewFatReactor(
 				FatTags(SkillGroup, Priority(2), Label("@Launch({1} 455% Damage, BuffImmune")),
 				FatRespond(
@@ -747,5 +768,184 @@ var (
 			// 提升 20% 攻擊力(無法被解除)。
 			// [0][4]
 		},
+
+		// ////////////////////////////////////////////////////////////
+		// [8] 紅心
+		{
+			// 使全體友軍獲得紅心攻擊力 120% 的「護盾」(1 回合)&「再生」(7%，1 回合)。
+			NewFatReactor(
+				FatTags(SkillGroup, Priority(1), Label("@Launch({*} +120% Shield, 7% Regeneration)")),
+				FatRespond(
+					NewSignalTrigger(&LaunchSignal{}),
+					NewSelectActor(
+						NewSequenceActor(
+							NewVerbActor(
+								NewBuff(true, NewMultiplier(120, AxisEvaluator(Damage)), Effect["Shield"]),
+								nil,
+							),
+							NewVerbActor(NewBuff(false, nil, Effect["Regeneration"]), nil),
+						),
+						SideSelector(true),
+						Healthy,
+					),
+				),
+				FatCooling(NewSignalTrigger(&RoundEndSignal{}), 4),
+			),
+
+			// 對生命值百分比最低的 1 名敵人造成攻擊力 340% 的傷害。再對生命值百分比最低的 1 名友軍治療，恢復總傷害 80% 的生命值。
+			NewFatReactor(
+				FatTags(SkillGroup, Priority(2), Label("@Launch({1!/%} 340% Damage, {~1!/%} 80% Damage+)")),
+				FatRespond(
+					NewSignalTrigger(&LaunchSignal{}),
+					NewSelectActor(
+						NewVerbActor(&Attack{}, NewMultiplier(340, AxisEvaluator(Damage))),
+						SideSelector(false),
+						Healthy,
+						NewSortSelector(HealthPercent, true),
+						FrontSelector(1),
+					),
+					NewSelectActor(
+						NewVerbActor(NewHeal(NewMultiplier(80, LossEvaluator{})), nil),
+						SideSelector(true),
+						Healthy,
+						NewSortSelector(HealthPercent, true),
+						FrontSelector(1),
+					),
+				),
+				FatCooling(NewSignalTrigger(&RoundEndSignal{}), 4),
+			),
+
+			// 行動開始時獲得「控制效果免疫」(2 回合，無法被解除)。
+			NewFatReactor(
+				FatTags(Priority(3), Label("@Launch({$} ControlImmune)")),
+				FatRespond(
+					NewSignalTrigger(&LaunchSignal{}),
+					NewSelectActor(
+						NewVerbActor(NewBuff(false, nil, Effect["ControlImmune"]), nil),
+						CurrentSelector{},
+					),
+				),
+				FatCooling(NewSignalTrigger(&RoundEndSignal{}), 5),
+			),
+
+			// 提升 15% 防禦力(無法被解除)。
+			NewFatReactor(
+				FatTags(Priority(4), Label("@BattleStart({$} +15% Defense)")),
+				FatRespond(
+					NewSignalTrigger(&BattleStartSignal{}),
+					NewSelectActor(
+						NewVerbActor(
+							NewBuff(false, nil, NewBuffReactor(
+								Defense,
+								false,
+								ConstEvaluator(115),
+								FatTags(Label("+15% Defense"))),
+							),
+							nil,
+						),
+						CurrentSelector{},
+					),
+				),
+			),
+		},
+
+		// ////////////////////////////////////////////////////////////
+		// 黑桃
+		{
+			// 對隨機 1 名敵人進行 3 次攻擊，每次造成攻擊力 350% 的傷害。並使目標減少 50% 防禦力(1 回合)。
+			NewFatReactor(
+				FatTags(SkillGroup, Priority(1), Label("@Launch({1} 3 * 350% Damage, -50% Defense)")),
+				FatRespond(
+					NewSignalTrigger(&LaunchSignal{}),
+					NewSelectActor(
+						NewSequenceActor(
+							NewRepeatActor(3, NewVerbActor(&Attack{}, NewMultiplier(350, AxisEvaluator(Damage)))),
+							NewVerbActor(
+								NewBuff(false, nil, NewBuffReactor(
+									Defense,
+									false,
+									ConstEvaluator(50),
+									FatCapacity(NewSignalTrigger(&RoundEndSignal{}), 1),
+									FatTags(Label("-50% Defense")))),
+								nil,
+							),
+						),
+						SideSelector(false),
+						Healthy,
+						Shuffle,
+						FrontSelector(1),
+					),
+				),
+				FatCooling(NewSignalTrigger(&RoundEndSignal{}), 4),
+			),
+
+			// 對生命值百分比最低的敵人進行 3 次攻擊，每次造成攻擊力 380% 的傷害。
+			NewFatReactor(
+				FatTags(SkillGroup, Priority(2), Label("@Launch({1!/%} 3 * 380% Damage)")),
+				FatRespond(
+					NewSignalTrigger(&LaunchSignal{}),
+					NewSelectActor(
+						NewRepeatActor(3, NewVerbActor(&Attack{}, NewMultiplier(380, AxisEvaluator(Damage)))),
+						SideSelector(false),
+						Healthy,
+						NewSortSelector(HealthPercent, true),
+						FrontSelector(1),
+					),
+				),
+				FatCooling(NewSignalTrigger(&RoundEndSignal{}), 4),
+			),
+
+			// 第 4 次行動開始時，解除自己身上的隨機 2 種減益效果。
+			NewFatReactor(
+				FatTags(Priority(3), Label("@Launch[..4]({$} Remove 2 Nerf)")),
+				FatRespond(
+					NewSignalTrigger(&LaunchSignal{}),
+					NewSelectActor(
+						NewVerbActor(NewPurge(RngX, "Nerf", 2), nil),
+						CurrentSelector{},
+					),
+				),
+				FatLeading(NewSignalTrigger(&LaunchSignal{}), 4),
+				FatCapacity(nil, 1),
+			),
+
+			// 提升20%攻擊力(無法被解除)。
+			// [0][4]
+		},
+	}
+
+	Scaffold = []*FatReactor{
+		NewFatReactor(
+			FatTags(SkillGroup, Priority(1), Label("#1")),
+			FatRespond(
+				NewSignalTrigger(&LaunchSignal{}),
+				NewSelectActor(
+					NewVerbActor(
+						NewBuff(false, nil, NewFatReactor(
+							FatTags(Label("Nerf #1"), "Nerf"),
+						)),
+						nil,
+					),
+					SideSelector(false),
+				),
+			),
+			FatCapacity(nil, 1),
+		),
+		NewFatReactor(
+			FatTags(SkillGroup, Priority(2), Label("#2")),
+			FatRespond(
+				NewSignalTrigger(&LaunchSignal{}),
+				NewSelectActor(
+					NewVerbActor(
+						NewBuff(false, nil, NewFatReactor(
+							FatTags(Label("Nerf #2"), "Nerf"),
+						)),
+						nil,
+					),
+					SideSelector(false),
+				),
+			),
+			FatCapacity(nil, 1),
+		),
 	}
 )
