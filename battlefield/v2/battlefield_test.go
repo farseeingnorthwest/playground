@@ -554,6 +554,7 @@ func ExampleBattleField_Run_special_7() {
 				Right,
 				0,
 				Regular[0],
+				Scaffold[2].Fork(nil).(*FatReactor),
 			),
 		},
 	)
@@ -563,6 +564,8 @@ func ExampleBattleField_Run_special_7() {
 	// source.position=0 source.side=Left source.reactor="@Launch({1} 455% Damage, BuffImmune" lifecycle.leading=0 lifecycle.cooling="{Current:3 Maximum:3}" lifecycle.capacity=-1
 	// verb=attack critical=false loss=83 overflow=0 source.side=Left source.position=0 source.reactor="@Launch({1} 455% Damage, BuffImmune" source.damage=91 target.side=Right target.position=0 target.defense=8 target.health.current=187 target.health.maximum=270
 	// verb=buff reactor=BuffImmune target.side=Right target.position=0 source.reactor="@Launch({1} 455% Damage, BuffImmune"
+	// source.position=0 source.side=Right source.reactor=#3 lifecycle.leading=0 lifecycle.cooling="{Current:0 Maximum:0}" lifecycle.capacity=0
+	// immune.side=Right immune.position=0
 	// verb=attack critical=false loss=35 overflow=0 source.side=Right source.position=0 source.reactor=NormalAttack source.damage=40 target.side=Left target.position=0 target.defense=5 target.health.current=65 target.health.maximum=100
 	// source.position=0 source.side=Left source.reactor="@Launch({1} 455% Damage, BuffImmune" lifecycle.leading=0 lifecycle.cooling="{Current:2 Maximum:3}" lifecycle.capacity=-1
 	// source.position=0 source.side=Right source.reactor=BuffImmune lifecycle.leading=0 lifecycle.cooling="{Current:0 Maximum:0}" lifecycle.capacity=2
@@ -606,7 +609,7 @@ func ExampleBattleField_Run_special_8() {
 				MyBaseline{
 					Damage:  20,
 					Defense: 5,
-					Health:  100,
+					Health:  60,
 				},
 				Left,
 				0,
@@ -618,15 +621,14 @@ func ExampleBattleField_Run_special_8() {
 			),
 			NewMyWarrior(
 				MyBaseline{
-					Damage:       40,
-					Defense:      8,
-					Health:       270,
-					CriticalOdds: 10,
-					CriticalLoss: 200,
+					Damage:  40,
+					Defense: 8,
+					Health:  270,
 				},
 				Right,
 				0,
 				Regular[0],
+				Scaffold[0].Fork(nil).(*FatReactor),
 			),
 		},
 	)
@@ -638,8 +640,9 @@ func ExampleBattleField_Run_special_8() {
 	// source.position=0 source.side=Left source.reactor="@Launch({1!/%} 340% Damage, {~1!/%} 80% Damage+)" lifecycle.leading=0 lifecycle.cooling="{Current:4 Maximum:4}" lifecycle.capacity=-1
 	// verb=buff reactor=ControlImmune target.side=Left target.position=0 source.reactor="@Launch({$} ControlImmune)"
 	// verb=attack critical=false loss=60 overflow=0 source.side=Left source.position=0 source.reactor="@Launch({1!/%} 340% Damage, {~1!/%} 80% Damage+)" source.damage=68 target.side=Right target.position=0 target.defense=8 target.health.current=210 target.health.maximum=270
-	// verb=heal rise=48 overflow=48 source.side=Left source.position=0 source.reactor="@Launch({1!/%} 340% Damage, {~1!/%} 80% Damage+)" target.side=Left target.position=0 target.health.current=100 target.health.maximum=100
-	// verb=attack critical=false loss=35 overflow=0 source.side=Right source.position=0 source.reactor=NormalAttack source.damage=40 target.side=Left target.position=0 target.defense=5 target.health.current=65 target.health.maximum=100
+	// verb=heal rise=48 overflow=48 source.side=Left source.position=0 source.reactor="@Launch({1!/%} 340% Damage, {~1!/%} 80% Damage+)" target.side=Left target.position=0 target.health.current=60 target.health.maximum=60
+	// source.position=0 source.side=Right source.reactor=#1 lifecycle.leading=0 lifecycle.cooling="{Current:0 Maximum:0}" lifecycle.capacity=0
+	// immune.side=Left immune.position=0
 	// source.position=0 source.side=Left source.reactor="@Launch({$} ControlImmune)" lifecycle.leading=0 lifecycle.cooling="{Current:4 Maximum:5}" lifecycle.capacity=-1
 	// source.position=0 source.side=Left source.reactor="@Launch({1!/%} 340% Damage, {~1!/%} 80% Damage+)" lifecycle.leading=0 lifecycle.cooling="{Current:3 Maximum:4}" lifecycle.capacity=-1
 	// source.position=0 source.side=Left source.reactor=ControlImmune lifecycle.leading=0 lifecycle.cooling="{Current:0 Maximum:0}" lifecycle.capacity=1
@@ -647,20 +650,20 @@ func ExampleBattleField_Run_special_8() {
 	// capacity=24 verb=buff reactor=Shield target.side=Left target.position=0 source.reactor="@Launch({*} +120% Shield, 7% Regeneration)"
 	// verb=buff reactor=Regeneration target.side=Left target.position=0 source.reactor="@Launch({*} +120% Shield, 7% Regeneration)"
 	// source.position=0 source.side=Left source.reactor=Shield lifecycle.leading=0 lifecycle.cooling="{Current:0 Maximum:0}" lifecycle.capacity=0
-	// verb=attack critical=false loss=11 overflow=0 source.side=Right source.position=0 source.reactor=NormalAttack source.damage=40 target.side=Left target.position=0 target.defense=5 target.health.current=54 target.health.maximum=100
+	// verb=attack critical=false loss=11 overflow=0 source.side=Right source.position=0 source.reactor=NormalAttack source.damage=40 target.side=Left target.position=0 target.defense=5 target.health.current=49 target.health.maximum=60
 	// source.position=0 source.side=Left source.reactor="@Launch({$} ControlImmune)" lifecycle.leading=0 lifecycle.cooling="{Current:3 Maximum:5}" lifecycle.capacity=-1
 	// source.position=0 source.side=Left source.reactor="@Launch({1!/%} 340% Damage, {~1!/%} 80% Damage+)" lifecycle.leading=0 lifecycle.cooling="{Current:2 Maximum:4}" lifecycle.capacity=-1
 	// source.position=0 source.side=Left source.reactor="@Launch({*} +120% Shield, 7% Regeneration)" lifecycle.leading=0 lifecycle.cooling="{Current:3 Maximum:4}" lifecycle.capacity=-1
 	// source.position=0 source.side=Left source.reactor=ControlImmune lifecycle.leading=0 lifecycle.cooling="{Current:0 Maximum:0}" lifecycle.capacity=0
 	// source.position=0 source.side=Left source.reactor=Regeneration lifecycle.leading=0 lifecycle.cooling="{Current:0 Maximum:0}" lifecycle.capacity=0
-	// verb=heal rise=7 overflow=0 source.side=Left source.position=0 source.reactor=Regeneration target.side=Left target.position=0 target.health.current=61 target.health.maximum=100
+	// verb=heal rise=4 overflow=0 source.side=Left source.position=0 source.reactor=Regeneration target.side=Left target.position=0 target.health.current=53 target.health.maximum=60
 	// verb=attack critical=false loss=12 overflow=0 source.side=Left source.position=0 source.reactor=NormalAttack source.damage=20 target.side=Right target.position=0 target.defense=8 target.health.current=198 target.health.maximum=270
-	// verb=attack critical=false loss=35 overflow=0 source.side=Right source.position=0 source.reactor=NormalAttack source.damage=40 target.side=Left target.position=0 target.defense=5 target.health.current=26 target.health.maximum=100
+	// verb=attack critical=false loss=35 overflow=0 source.side=Right source.position=0 source.reactor=NormalAttack source.damage=40 target.side=Left target.position=0 target.defense=5 target.health.current=18 target.health.maximum=60
 	// source.position=0 source.side=Left source.reactor="@Launch({$} ControlImmune)" lifecycle.leading=0 lifecycle.cooling="{Current:2 Maximum:5}" lifecycle.capacity=-1
 	// source.position=0 source.side=Left source.reactor="@Launch({1!/%} 340% Damage, {~1!/%} 80% Damage+)" lifecycle.leading=0 lifecycle.cooling="{Current:1 Maximum:4}" lifecycle.capacity=-1
 	// source.position=0 source.side=Left source.reactor="@Launch({*} +120% Shield, 7% Regeneration)" lifecycle.leading=0 lifecycle.cooling="{Current:2 Maximum:4}" lifecycle.capacity=-1
 	// verb=attack critical=false loss=12 overflow=0 source.side=Left source.position=0 source.reactor=NormalAttack source.damage=20 target.side=Right target.position=0 target.defense=8 target.health.current=186 target.health.maximum=270
-	// verb=attack critical=false loss=35 overflow=9 source.side=Right source.position=0 source.reactor=NormalAttack source.damage=40 target.side=Left target.position=0 target.defense=5 target.health.current=0 target.health.maximum=100
+	// verb=attack critical=false loss=35 overflow=17 source.side=Right source.position=0 source.reactor=NormalAttack source.damage=40 target.side=Left target.position=0 target.defense=5 target.health.current=0 target.health.maximum=60
 }
 
 func ExampleBattleField_Run_special_9() {

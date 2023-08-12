@@ -53,18 +53,21 @@ type Action interface {
 	Script() Script
 	SetScript(Script)
 	Targets() []Warrior
+	ImmuneTargets() map[Warrior]struct{}
+	AddImmuneTarget(Warrior)
 	Verb() Verb
 }
 
 type MyAction struct {
 	*FatPortfolio
-	script  Script
-	targets []Warrior
-	verb    Verb
+	script        Script
+	targets       []Warrior
+	immuneTargets map[Warrior]struct{}
+	verb          Verb
 }
 
 func NewMyAction(targets []Warrior, verb Verb) *MyAction {
-	return &MyAction{NewFatPortfolio(), nil, targets, verb}
+	return &MyAction{NewFatPortfolio(), nil, targets, make(map[Warrior]struct{}), verb}
 }
 
 func (a *MyAction) Script() Script {
@@ -79,6 +82,14 @@ func (a *MyAction) Targets() []Warrior {
 	return a.targets
 }
 
+func (a *MyAction) ImmuneTargets() map[Warrior]struct{} {
+	return a.immuneTargets
+}
+
+func (a *MyAction) AddImmuneTarget(target Warrior) {
+	a.immuneTargets[target] = struct{}{}
+}
+
 func (a *MyAction) Verb() Verb {
 	return a.verb
 }
@@ -87,6 +98,16 @@ func (a *MyAction) Render(b *BattleField) {
 	b.React(NewPreActionSignal(a))
 
 	for _, target := range a.targets {
+		if _, ok := a.immuneTargets[target]; ok {
+			slog.Debug(
+				"render",
+				slog.Group("immune",
+					slog.Any("side", target.(Warrior).Side()),
+					slog.Int("position", target.(Warrior).Position())),
+			)
+			continue
+		}
+
 		a.verb.Render(target, NewMyActionContext(a, b))
 	}
 

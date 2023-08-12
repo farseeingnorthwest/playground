@@ -126,12 +126,28 @@ var (
 		"BuffImmune": NewFatReactor(
 			FatTags(Label("BuffImmune")),
 			FatCapacity(NewSignalTrigger(&RoundEndSignal{}), 3),
+			FatRespond(
+				NewFatTrigger(
+					&PreActionSignal{},
+					CurrentIsTargetTrigger{},
+					NewTagTrigger("Buff"),
+				),
+				NewSelectActor(ImmuneActor{}, CurrentSelector{}),
+			),
 		),
 
 		// 控制效果免疫
 		"ControlImmune": NewFatReactor(
 			FatTags(Label("ControlImmune")),
 			FatCapacity(NewSignalTrigger(&RoundEndSignal{}), 2),
+			FatRespond(
+				NewFatTrigger(
+					&PreActionSignal{},
+					CurrentIsTargetTrigger{},
+					NewTagTrigger("Control"),
+				),
+				NewSelectActor(ImmuneActor{}, CurrentSelector{}),
+			),
 		),
 
 		// 再生
@@ -922,7 +938,7 @@ var (
 				NewSelectActor(
 					NewVerbActor(
 						NewBuff(false, nil, NewFatReactor(
-							FatTags(Label("Nerf #1"), "Nerf"),
+							FatTags(Label("Nerf #1"), "Nerf", "Control"),
 						)),
 						nil,
 					),
@@ -943,6 +959,22 @@ var (
 						nil,
 					),
 					SideSelector(false),
+				),
+			),
+			FatCapacity(nil, 1),
+		),
+		NewFatReactor(
+			FatTags(Priority(3), Label("#3")),
+			FatRespond(
+				NewSignalTrigger(&LaunchSignal{}),
+				NewSelectActor(
+					NewVerbActor(
+						NewBuff(false, nil, NewFatReactor(
+							FatTags(Label("Buff #1"), "Buff"),
+						)),
+						nil,
+					),
+					CurrentSelector{},
 				),
 			),
 			FatCapacity(nil, 1),

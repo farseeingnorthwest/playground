@@ -164,6 +164,22 @@ func (CriticalActor) Fork(_ Evaluator) any {
 	return CriticalActor{}
 }
 
+type ImmuneActor struct {
+}
+
+func (ImmuneActor) Act(signal Signal, warriors []Warrior, _ ActorContext) bool {
+	action := signal.(ActionSignal).Action()
+	for _, w := range warriors {
+		action.AddImmuneTarget(w)
+	}
+
+	return true
+}
+
+func (ImmuneActor) Fork(_ Evaluator) any {
+	return ImmuneActor{}
+}
+
 type ActionBuffer struct {
 	evaluator Evaluator
 	buffer    *Buffer

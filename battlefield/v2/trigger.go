@@ -75,6 +75,27 @@ func (CriticalStrikeTrigger) Trigger(action Action, _ Signal, _ EvaluationContex
 	return ok && a.Critical()
 }
 
+type TagTrigger struct {
+	tag any
+}
+
+func NewTagTrigger(tag any) *TagTrigger {
+	return &TagTrigger{tag}
+}
+
+func (t *TagTrigger) Trigger(action Action, _ Signal, _ EvaluationContext) bool {
+	buff, ok := action.Verb().(*Buff)
+	if !ok {
+		return false
+	}
+	tagger, ok := buff.Reactor().(Tagger)
+	if !ok {
+		return false
+	}
+
+	return tagger.Match(t.tag)
+}
+
 type LossTrigger struct {
 	comparator IntComparator
 	evaluator  Evaluator
