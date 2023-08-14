@@ -304,8 +304,19 @@ func (b *Buff) Render(target Warrior, ac ActionContext) {
 		logger = logger.With(slog.Int("capacity", c))
 	}
 
-	target.Add(reactor)
-	logger.Debug("render",
+	if overflow := target.Add(reactor); overflow != nil {
+		logger.Debug(
+			"overflow",
+			slog.Any("reactor", QueryTagA[Label](reactor)),
+			slog.Group("target",
+				slog.Any("side", target.Side()),
+				slog.Int("position", target.Position()),
+			),
+		)
+		ac.React(NewLifecycleSignal(target, overflow, nil))
+	}
+	logger.Debug(
+		"render",
 		slog.String("verb", "buff"),
 		slog.Any("reactor", QueryTagA[Label](reactor)),
 		slog.Group("target",

@@ -164,6 +164,46 @@ func (CriticalActor) Fork(_ Evaluator) any {
 	return CriticalActor{}
 }
 
+type TheoryActor[T comparable] struct {
+	theory map[T]map[T]int
+}
+
+func NewTheoryActor[T comparable](theory map[T]map[T]int) *TheoryActor[T] {
+	return &TheoryActor[T]{theory}
+}
+
+func (a *TheoryActor[T]) Act(signal Signal, _ []Warrior, ac ActorContext) bool {
+	scripter, _ := ac.(*PlainActorContext).
+		EvaluationContext.(ActionContext).Action().Script().Source()
+	s, ok := QueryTag[T](scripter)
+	if !ok {
+		return false
+	}
+	theory, ok := a.theory[s]
+	if !ok {
+		return false
+	}
+	t, ok := QueryTag[T](signal.Current())
+	if !ok {
+		return false
+	}
+	m, ok := theory[t]
+	if !ok {
+		return false
+	}
+
+	sig := signal.(*EvaluationSignal)
+	sig.Amend(func(v float64) float64 {
+		return v * float64(m) / 100
+	})
+
+	return true
+}
+
+func (a *TheoryActor[T]) Fork(_ Evaluator) any {
+	return a
+}
+
 type ImmuneActor struct {
 }
 
@@ -182,10 +222,10 @@ func (ImmuneActor) Fork(_ Evaluator) any {
 
 type ActionBuffer struct {
 	evaluator Evaluator
-	buffer    *Buffer
+	buffer    Actor
 }
 
-func NewActionBuffer(evaluator Evaluator, buffer *Buffer) *ActionBuffer {
+func NewActionBuffer(evaluator Evaluator, buffer Actor) *ActionBuffer {
 	return &ActionBuffer{evaluator, buffer}
 }
 
@@ -203,7 +243,7 @@ func (b *ActionBuffer) Act(signal Signal, _ []Warrior, ac ActorContext) bool {
 	sig.Action().Add(
 		NewFatReactor(FatRespond(
 			NewSignalTrigger(&EvaluationSignal{}),
-			b.buffer.Fork(e).(*Buffer),
+			b.buffer.Fork(e).(Actor),
 		)),
 	)
 	return true

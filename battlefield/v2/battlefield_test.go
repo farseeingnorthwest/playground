@@ -7,6 +7,75 @@ import (
 	. "github.com/farseeingnorthwest/playground/battlefield/v2"
 )
 
+func ExampleBattleField_Run_theory() {
+	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelDebug,
+		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+			if len(groups) == 0 {
+				switch a.Key {
+				case slog.TimeKey, slog.LevelKey, slog.MessageKey:
+					return slog.Attr{}
+				}
+			}
+
+			return a
+		},
+	})))
+
+	RngX.SetRng(NewSequence(0.5))
+	f := NewBattleField(
+		[]Warrior{
+			NewMyWarrior(
+				MyBaseline{
+					Damage:  24,
+					Defense: 5,
+					Health:  100,
+				},
+				Left,
+				0,
+				WarriorSkills(Regular[0]),
+				WarriorTags(Water),
+			),
+			NewMyWarrior(
+				MyBaseline{
+					Damage:  10,
+					Defense: 4,
+					Health:  40,
+				},
+				Right,
+				0,
+				WarriorSkills(Regular[0]),
+				WarriorTags(Fire),
+			),
+			NewMyWarrior(
+				MyBaseline{
+					Damage:  10,
+					Defense: 4,
+					Health:  40,
+				},
+				Right,
+				1,
+				WarriorSkills(Regular[0]),
+				WarriorTags(Thunder),
+			),
+		},
+		Regular[3],
+	)
+
+	f.Run()
+	// Output:
+	// verb=attack critical=false loss=24 overflow=0 source.side=Left source.position=0 source.reactor=NormalAttack source.damage=24 target.side=Right target.position=0 target.defense=4 target.health.current=16 target.health.maximum=40
+	// verb=attack critical=false loss=4 overflow=0 source.side=Right source.position=0 source.reactor=NormalAttack source.damage=10 target.side=Left target.position=0 target.defense=5 target.health.current=96 target.health.maximum=100
+	// verb=attack critical=false loss=6 overflow=0 source.side=Right source.position=1 source.reactor=NormalAttack source.damage=10 target.side=Left target.position=0 target.defense=5 target.health.current=90 target.health.maximum=100
+	// verb=attack critical=false loss=24 overflow=8 source.side=Left source.position=0 source.reactor=NormalAttack source.damage=24 target.side=Right target.position=0 target.defense=4 target.health.current=0 target.health.maximum=40
+	// verb=attack critical=false loss=6 overflow=0 source.side=Right source.position=1 source.reactor=NormalAttack source.damage=10 target.side=Left target.position=0 target.defense=5 target.health.current=84 target.health.maximum=100
+	// verb=attack critical=false loss=16 overflow=0 source.side=Left source.position=0 source.reactor=NormalAttack source.damage=24 target.side=Right target.position=1 target.defense=4 target.health.current=24 target.health.maximum=40
+	// verb=attack critical=false loss=6 overflow=0 source.side=Right source.position=1 source.reactor=NormalAttack source.damage=10 target.side=Left target.position=0 target.defense=5 target.health.current=78 target.health.maximum=100
+	// verb=attack critical=false loss=16 overflow=0 source.side=Left source.position=0 source.reactor=NormalAttack source.damage=24 target.side=Right target.position=1 target.defense=4 target.health.current=8 target.health.maximum=40
+	// verb=attack critical=false loss=6 overflow=0 source.side=Right source.position=1 source.reactor=NormalAttack source.damage=10 target.side=Left target.position=0 target.defense=5 target.health.current=72 target.health.maximum=100
+	// verb=attack critical=false loss=16 overflow=8 source.side=Left source.position=0 source.reactor=NormalAttack source.damage=24 target.side=Right target.position=1 target.defense=4 target.health.current=0 target.health.maximum=40
+}
+
 func ExampleBattleField_Run_special_0() {
 	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 		Level: slog.LevelDebug,
@@ -35,13 +104,15 @@ func ExampleBattleField_Run_special_0() {
 				},
 				Left,
 				0,
-				Regular[0],
-				Regular[1],
-				Regular[2],
-				Special[0][0],
-				Special[0][1],
-				Special[0][2],
-				Special[0][3],
+				WarriorSkills(
+					Regular[0],
+					Regular[1],
+					Regular[2],
+					Special[0][0],
+					Special[0][1],
+					Special[0][2],
+					Special[0][3],
+				),
 			),
 			NewMyWarrior(
 				MyBaseline{
@@ -51,7 +122,9 @@ func ExampleBattleField_Run_special_0() {
 				},
 				Right,
 				0,
-				Regular[0],
+				WarriorSkills(
+					Regular[0],
+				),
 			),
 		},
 	)
@@ -98,11 +171,13 @@ func ExampleBattleField_Run_special_1() {
 				},
 				Left,
 				0,
-				Regular[0],
-				Special[1][0],
-				Special[1][1],
-				Special[1][2],
-				Special[1][3],
+				WarriorSkills(
+					Regular[0],
+					Special[1][0],
+					Special[1][1],
+					Special[1][2],
+					Special[1][3],
+				),
 			),
 			NewMyWarrior(
 				MyBaseline{
@@ -112,9 +187,11 @@ func ExampleBattleField_Run_special_1() {
 				},
 				Right,
 				0,
-				Regular[0],
-				Scaffold[0].Fork(nil).(*FatReactor),
-				Scaffold[1].Fork(nil).(*FatReactor),
+				WarriorSkills(
+					Regular[0],
+					Scaffold[0].Fork(nil).(*FatReactor),
+					Scaffold[1].Fork(nil).(*FatReactor),
+				),
 			),
 		},
 	)
@@ -186,13 +263,15 @@ func ExampleBattleField_Run_special_2() {
 				},
 				Left,
 				0,
-				Regular[0],
-				Regular[1],
-				Regular[2],
-				Special[2][0],
-				Special[2][1],
-				Special[2][2],
-				Special[2][3],
+				WarriorSkills(
+					Regular[0],
+					Regular[1],
+					Regular[2],
+					Special[2][0],
+					Special[2][1],
+					Special[2][2],
+					Special[2][3],
+				),
 			),
 			NewMyWarrior(
 				MyBaseline{
@@ -202,7 +281,7 @@ func ExampleBattleField_Run_special_2() {
 				},
 				Right,
 				0,
-				Regular[0],
+				WarriorSkills(Regular[0]),
 			),
 		},
 	)
@@ -251,13 +330,15 @@ func ExampleBattleField_Run_special_3() {
 				},
 				Left,
 				0,
-				Regular[0],
-				Regular[1],
-				Regular[2],
-				Special[3][0],
-				Special[3][1],
-				Special[3][2],
-				Special[3][3],
+				WarriorSkills(
+					Regular[0],
+					Regular[1],
+					Regular[2],
+					Special[3][0],
+					Special[3][1],
+					Special[3][2],
+					Special[3][3],
+				),
 			),
 			NewMyWarrior(
 				MyBaseline{
@@ -267,7 +348,7 @@ func ExampleBattleField_Run_special_3() {
 				},
 				Right,
 				0,
-				Regular[0],
+				WarriorSkills(Regular[0]),
 			),
 		},
 	)
@@ -320,11 +401,13 @@ func ExampleBattleField_Run_special_4() {
 				},
 				Left,
 				0,
-				Regular[0],
-				Regular[1],
-				Special[4][0],
-				Special[4][1],
-				Special[4][2],
+				WarriorSkills(
+					Regular[0],
+					Regular[1],
+					Special[4][0],
+					Special[4][1],
+					Special[4][2],
+				),
 			),
 			NewMyWarrior(
 				MyBaseline{
@@ -334,7 +417,7 @@ func ExampleBattleField_Run_special_4() {
 				},
 				Right,
 				0,
-				Regular[0],
+				WarriorSkills(Regular[0]),
 			),
 		},
 	)
@@ -393,11 +476,13 @@ func ExampleBattleField_Run_special_5() {
 				},
 				Left,
 				0,
-				Regular[0],
-				Special[5][0],
-				Special[5][1],
-				Special[5][2],
-				Special[5][3],
+				WarriorSkills(
+					Regular[0],
+					Special[5][0],
+					Special[5][1],
+					Special[5][2],
+					Special[5][3],
+				),
 			),
 			NewMyWarrior(
 				MyBaseline{
@@ -407,7 +492,7 @@ func ExampleBattleField_Run_special_5() {
 				},
 				Right,
 				0,
-				Regular[0],
+				WarriorSkills(Regular[0]),
 			),
 		},
 	)
@@ -461,11 +546,13 @@ func ExampleBattleField_Run_special_6() {
 				},
 				Left,
 				0,
-				Regular[0],
-				Special[6][0],
-				Special[6][1],
-				Special[6][2],
-				Special[6][3],
+				WarriorSkills(
+					Regular[0],
+					Special[6][0],
+					Special[6][1],
+					Special[6][2],
+					Special[6][3],
+				),
 			),
 			NewMyWarrior(
 				MyBaseline{
@@ -477,9 +564,11 @@ func ExampleBattleField_Run_special_6() {
 				},
 				Right,
 				0,
-				Regular[0],
-				Regular[1],
-				Regular[2],
+				WarriorSkills(
+					Regular[0],
+					Regular[1],
+					Regular[2],
+				),
 			),
 		},
 	)
@@ -539,9 +628,11 @@ func ExampleBattleField_Run_special_7() {
 				},
 				Left,
 				0,
-				Regular[0],
-				Special[7][0],
-				Special[7][1],
+				WarriorSkills(
+					Regular[0],
+					Special[7][0],
+					Special[7][1],
+				),
 			),
 			NewMyWarrior(
 				MyBaseline{
@@ -553,8 +644,10 @@ func ExampleBattleField_Run_special_7() {
 				},
 				Right,
 				0,
-				Regular[0],
-				Scaffold[2].Fork(nil).(*FatReactor),
+				WarriorSkills(
+					Regular[0],
+					Scaffold[2].Fork(nil).(*FatReactor),
+				),
 			),
 		},
 	)
@@ -613,11 +706,13 @@ func ExampleBattleField_Run_special_8() {
 				},
 				Left,
 				0,
-				Regular[0],
-				Special[8][0],
-				Special[8][1],
-				Special[8][2],
-				Special[8][3],
+				WarriorSkills(
+					Regular[0],
+					Special[8][0],
+					Special[8][1],
+					Special[8][2],
+					Special[8][3],
+				),
 			),
 			NewMyWarrior(
 				MyBaseline{
@@ -627,8 +722,10 @@ func ExampleBattleField_Run_special_8() {
 				},
 				Right,
 				0,
-				Regular[0],
-				Scaffold[0].Fork(nil).(*FatReactor),
+				WarriorSkills(
+					Regular[0],
+					Scaffold[0].Fork(nil).(*FatReactor),
+				),
 			),
 		},
 	)
@@ -692,10 +789,12 @@ func ExampleBattleField_Run_special_9() {
 				},
 				Left,
 				0,
-				Regular[0],
-				Special[9][0],
-				Special[9][1],
-				Special[9][2],
+				WarriorSkills(
+					Regular[0],
+					Special[9][0],
+					Special[9][1],
+					Special[9][2],
+				),
 			),
 			NewMyWarrior(
 				MyBaseline{
@@ -705,9 +804,11 @@ func ExampleBattleField_Run_special_9() {
 				},
 				Right,
 				0,
-				Regular[0],
-				Scaffold[0].Fork(nil).(*FatReactor),
-				Scaffold[1].Fork(nil).(*FatReactor),
+				WarriorSkills(
+					Regular[0],
+					Scaffold[0].Fork(nil).(*FatReactor),
+					Scaffold[1].Fork(nil).(*FatReactor),
+				),
 			),
 		},
 	)

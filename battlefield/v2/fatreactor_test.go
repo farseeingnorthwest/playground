@@ -2,11 +2,34 @@ package battlefield_test
 
 import . "github.com/farseeingnorthwest/playground/battlefield/v2"
 
+const (
+	Water Element = iota
+	Fire
+	Ice
+	Wind
+	Earth
+	Thunder
+	Dark
+	Light
+)
+
 var (
-	RngX       = &RngProxy{}
-	SkillGroup = ExclusionGroup(0)
-	Shuffle    = NewShuffleSelector(RngX, Label("Taunt"))
-	Regular    = []*FatReactor{
+	RngX          = &RngProxy{}
+	SkillGroup    = ExclusionGroup(0)
+	Shuffle       = NewShuffleSelector(RngX, Label("Taunt"))
+	ElementTheory = NewTheoryActor(
+		map[Element]map[Element]int{
+			Water:   {Fire: 120, Thunder: 80},
+			Fire:    {Ice: 120, Water: 80},
+			Ice:     {Wind: 120, Fire: 80},
+			Wind:    {Earth: 120, Ice: 80},
+			Earth:   {Thunder: 120, Wind: 80},
+			Thunder: {Water: 120, Earth: 80},
+			Dark:    {Light: 120},
+			Light:   {Dark: 120},
+		},
+	)
+	Regular = []*FatReactor{
 		NewFatReactor(
 			FatTags(SkillGroup, Label("NormalAttack")),
 			FatRespond(
@@ -48,6 +71,15 @@ var (
 					AxisEvaluator(CriticalLoss),
 					NewBuffer(Loss, false, nil),
 				),
+			),
+		),
+		NewFatReactor(
+			FatRespond(
+				NewFatTrigger(
+					&PreActionSignal{},
+					NewVerbTrigger[*Attack](),
+				),
+				NewActionBuffer(nil, ElementTheory),
 			),
 		),
 	}
@@ -981,3 +1013,5 @@ var (
 		),
 	}
 )
+
+type Element int

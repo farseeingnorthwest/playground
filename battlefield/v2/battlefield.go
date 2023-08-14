@@ -46,6 +46,9 @@ func (b *BattleField) Run() {
 		copy(warriors, b.warriors)
 		for i := 0; i < len(warriors); i++ {
 			sort.Sort(&ByAxis{Speed, false, b, warriors[i:]})
+			if warriors[i].Health().Current <= 0 {
+				continue
+			}
 
 			sig := NewLaunchSignal(warriors[i])
 			warriors[i].React(sig, b)

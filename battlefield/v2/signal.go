@@ -248,10 +248,10 @@ type LifecycleSignal struct {
 	current   any
 	scripter  any
 	reactor   Reactor
-	lifecycle *Lifecycle
+	lifecycle *Lifecycle // nil if stacking limit overflow
 }
 
-func NewTempoSignal(scripter any, reactor Reactor, lifecycle *Lifecycle) *LifecycleSignal {
+func NewLifecycleSignal(scripter any, reactor Reactor, lifecycle *Lifecycle) *LifecycleSignal {
 	return &LifecycleSignal{nil, scripter, reactor, lifecycle}
 }
 

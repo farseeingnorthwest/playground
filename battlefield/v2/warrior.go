@@ -104,27 +104,44 @@ func (b MyBaseline) Component(axis Axis) int {
 
 type MyWarrior struct {
 	*FatPortfolio
+	TagSet
 	baseline Baseline
 	side     Side
 	position int
 	health   Ratio
 }
 
-func NewMyWarrior(baseline Baseline, side Side, position int, reactors ...Reactor) *MyWarrior {
-	portfolio := NewFatPortfolio()
-	for _, r := range reactors {
-		portfolio.Add(r)
-	}
-
-	return &MyWarrior{
-		FatPortfolio: portfolio,
-		baseline:     baseline,
-		side:         side,
-		position:     position,
+func NewMyWarrior(baseline Baseline, side Side, position int, options ...func(warrior *MyWarrior)) *MyWarrior {
+	w := &MyWarrior{
+		baseline: baseline,
+		side:     side,
+		position: position,
 		health: Ratio{
 			baseline.Component(HealthMaximum),
 			baseline.Component(HealthMaximum),
 		},
+	}
+	for _, option := range options {
+		option(w)
+	}
+
+	return w
+}
+
+func WarriorTags(tags ...any) func(*MyWarrior) {
+	return func(w *MyWarrior) {
+		w.TagSet = NewTagSet(tags...)
+	}
+}
+
+func WarriorSkills(reactors ...Reactor) func(*MyWarrior) {
+	return func(w *MyWarrior) {
+		portfolio := NewFatPortfolio()
+		for _, r := range reactors {
+			portfolio.Add(r)
+		}
+
+		w.FatPortfolio = portfolio
 	}
 }
 

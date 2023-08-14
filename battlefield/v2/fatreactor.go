@@ -33,7 +33,7 @@ func (c *Lifecycle) Flush(current any, reactor Reactor, ec EvaluationContext) {
 				slog.Any("cooling", c.Cooling.Value()),
 				slog.Int("capacity", c.Capacity.UnwrapOr(-1))),
 		)
-		ec.React(NewTempoSignal(current, reactor, c))
+		ec.React(NewLifecycleSignal(current, reactor, c))
 	}
 }
 
@@ -216,6 +216,11 @@ func FatCapacity(trigger Trigger, count int) func(*FatReactor) {
 	}
 }
 
+type PlainActorContext struct {
+	EvaluationContext
+	*PlainCapacitor
+}
+
 func (r *FatReactor) React(signal Signal, ec EvaluationContext) {
 	lc := &Lifecycle{}
 	r.leading.React(signal, ec, lc)
@@ -223,10 +228,7 @@ func (r *FatReactor) React(signal Signal, ec EvaluationContext) {
 	r.capacity.React(signal, ec, lc)
 
 	trigger := false
-	ac := &struct {
-		EvaluationContext
-		*PlainCapacitor
-	}{
+	ac := &PlainActorContext{
 		ec,
 		NewPlainCapacitor(r.capacity.Count()),
 	}
