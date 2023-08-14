@@ -21,6 +21,10 @@ func NewStackingLimit(capacity int) StackingLimit {
 	return StackingLimit{list.New(), capacity}
 }
 
+func (p StackingLimit) Count() int {
+	return p.reactors.Len()
+}
+
 func (p StackingLimit) Capacity() int {
 	return p.capacity
 }

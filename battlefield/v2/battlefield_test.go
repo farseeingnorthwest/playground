@@ -133,13 +133,13 @@ func ExampleBattleField_Run_special_0() {
 	// Output:
 	// verb=buff reactor="+20% Damage" target.side=Left target.position=0 source.reactor="@BattleStart({$} +20% Damage)"
 	// source.position=0 source.side=Left source.reactor="@Launch({*} 480% Damage; {1} 520% Damage)" lifecycle.leading=0 lifecycle.cooling="{Current:4 Maximum:4}" lifecycle.capacity=-1
-	// verb=buff reactor="[15] +2% CriticalOdds" target.side=Left target.position=0 source.reactor="@Launch([15] +2% CriticalOdds)"
+	// stacking=1 verb=buff reactor="[15] +2% CriticalOdds" target.side=Left target.position=0 source.reactor="@Launch([15] +2% CriticalOdds)"
 	// verb=attack critical=true loss=98 overflow=0 source.side=Left source.position=0 source.reactor="@Launch({*} 480% Damage; {1} 520% Damage)" source.damage=57 target.side=Right target.position=0 target.defense=8 target.health.current=102 target.health.maximum=200
 	// verb=attack critical=false loss=54 overflow=0 source.side=Left source.position=0 source.reactor="@Launch({*} 480% Damage; {1} 520% Damage)" source.damage=62 target.side=Right target.position=0 target.defense=8 target.health.current=48 target.health.maximum=200
 	// verb=attack critical=false loss=7 overflow=0 source.side=Right source.position=0 source.reactor=NormalAttack source.damage=12 target.side=Left target.position=0 target.defense=5 target.health.current=93 target.health.maximum=100
 	// source.position=0 source.side=Left source.reactor="@Launch({*} 480% Damage; {1} 520% Damage)" lifecycle.leading=0 lifecycle.cooling="{Current:3 Maximum:4}" lifecycle.capacity=-1
 	// source.position=0 source.side=Left source.reactor="@Launch({1} 3 * 460% Damage)" lifecycle.leading=0 lifecycle.cooling="{Current:5 Maximum:5}" lifecycle.capacity=-1
-	// verb=buff reactor="[15] +2% CriticalOdds" target.side=Left target.position=0 source.reactor="@Launch([15] +2% CriticalOdds)"
+	// stacking=2 verb=buff reactor="[15] +2% CriticalOdds" target.side=Left target.position=0 source.reactor="@Launch([15] +2% CriticalOdds)"
 	// verb=attack critical=false loss=47 overflow=0 source.side=Left source.position=0 source.reactor="@Launch({1} 3 * 460% Damage)" source.damage=55 target.side=Right target.position=0 target.defense=8 target.health.current=1 target.health.maximum=200
 	// verb=attack critical=false loss=47 overflow=46 source.side=Left source.position=0 source.reactor="@Launch({1} 3 * 460% Damage)" source.damage=55 target.side=Right target.position=0 target.defense=8 target.health.current=0 target.health.maximum=200
 	// verb=attack critical=false loss=47 overflow=47 source.side=Left source.position=0 source.reactor="@Launch({1} 3 * 460% Damage)" source.damage=55 target.side=Right target.position=0 target.defense=8 target.health.current=0 target.health.maximum=200
@@ -368,9 +368,86 @@ func ExampleBattleField_Run_special_3() {
 	// verb=attack critical=false loss=30 overflow=0 source.side=Right source.position=0 source.reactor=NormalAttack source.damage=60 target.side=Left target.position=0 target.defense=5 target.health.current=15 target.health.maximum=100
 	// source.position=0 source.side=Left source.reactor="@Launch({3!/%} 250% Damage+)" lifecycle.leading=0 lifecycle.cooling="{Current:2 Maximum:4}" lifecycle.capacity=-1
 	// source.position=0 source.side=Left source.reactor="@Launch({1^/D} 4 * 340% Damage)" lifecycle.leading=0 lifecycle.cooling="{Current:3 Maximum:4}" lifecycle.capacity=-1
-	// verb=buff reactor="+5% Attack*" target.side=Left target.position=0 source.reactor="@PreAction({$} +5% Attack*)"
+	// stacking=1 verb=buff reactor="+5% Attack*" target.side=Left target.position=0 source.reactor="@PreAction({$} +5% Attack*)"
 	// verb=attack critical=true loss=4 overflow=0 source.side=Left source.position=0 source.reactor=NormalAttack source.damage=10 target.side=Right target.position=0 target.defense=8 target.health.current=2 target.health.maximum=110
 	// verb=attack critical=false loss=30 overflow=15 source.side=Right source.position=0 source.reactor=NormalAttack source.damage=60 target.side=Left target.position=0 target.defense=5 target.health.current=0 target.health.maximum=100
+}
+
+func ExampleBattleField_Run_special_3b() {
+	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelDebug,
+		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+			if len(groups) == 0 {
+				switch a.Key {
+				case slog.TimeKey, slog.LevelKey, slog.MessageKey:
+					return slog.Attr{}
+				}
+			}
+
+			return a
+		},
+	})))
+
+	RngX.SetRng(NewSequence(0.01))
+	f := NewBattleField(
+		[]Warrior{
+			NewMyWarrior(
+				MyBaseline{
+					Damage:       20,
+					Defense:      5,
+					CriticalOdds: 10,
+					CriticalLoss: 200,
+					Health:       100,
+				},
+				Left,
+				0,
+				WarriorSkills(
+					Regular[0],
+					Regular[1],
+					Special[3][2],
+				),
+			),
+			NewMyWarrior(
+				MyBaseline{
+					Damage:  22,
+					Defense: 8,
+					Health:  60,
+				},
+				Right,
+				0,
+				WarriorSkills(Regular[0]),
+			),
+		},
+	)
+
+	f.Run()
+	// Output:
+	// stacking=2 verb=buff reactor="+5% Attack*" target.side=Left target.position=0 source.reactor="@PreAction({$} +5% Attack*)"
+	// verb=attack critical=true loss=13 overflow=0 source.side=Left source.position=0 source.reactor=NormalAttack source.damage=21 target.side=Right target.position=0 target.defense=8 target.health.current=47 target.health.maximum=60
+	// verb=attack critical=false loss=17 overflow=0 source.side=Right source.position=0 source.reactor=NormalAttack source.damage=22 target.side=Left target.position=0 target.defense=5 target.health.current=83 target.health.maximum=100
+	// source.position=0 source.side=Left source.reactor="+5% Attack*" lifecycle.leading=0 lifecycle.cooling="{Current:0 Maximum:0}" lifecycle.capacity=2
+	// stacking=3 verb=buff reactor="+5% Attack*" target.side=Left target.position=0 source.reactor="@PreAction({$} +5% Attack*)"
+	// verb=attack critical=true loss=14 overflow=0 source.side=Left source.position=0 source.reactor=NormalAttack source.damage=22 target.side=Right target.position=0 target.defense=8 target.health.current=33 target.health.maximum=60
+	// verb=attack critical=false loss=17 overflow=0 source.side=Right source.position=0 source.reactor=NormalAttack source.damage=22 target.side=Left target.position=0 target.defense=5 target.health.current=66 target.health.maximum=100
+	// source.position=0 source.side=Left source.reactor="+5% Attack*" lifecycle.leading=0 lifecycle.cooling="{Current:0 Maximum:0}" lifecycle.capacity=1
+	// source.position=0 source.side=Left source.reactor="+5% Attack*" lifecycle.leading=0 lifecycle.cooling="{Current:0 Maximum:0}" lifecycle.capacity=2
+	// verb=buff/overflow reactor="+5% Attack*" target.side=Left target.position=0
+	// stacking=3 verb=buff reactor="+5% Attack*" target.side=Left target.position=0 source.reactor="@PreAction({$} +5% Attack*)"
+	// verb=attack critical=true loss=15 overflow=0 source.side=Left source.position=0 source.reactor=NormalAttack source.damage=23 target.side=Right target.position=0 target.defense=8 target.health.current=18 target.health.maximum=60
+	// verb=attack critical=false loss=17 overflow=0 source.side=Right source.position=0 source.reactor=NormalAttack source.damage=22 target.side=Left target.position=0 target.defense=5 target.health.current=49 target.health.maximum=100
+	// source.position=0 source.side=Left source.reactor="+5% Attack*" lifecycle.leading=0 lifecycle.cooling="{Current:0 Maximum:0}" lifecycle.capacity=0
+	// source.position=0 source.side=Left source.reactor="+5% Attack*" lifecycle.leading=0 lifecycle.cooling="{Current:0 Maximum:0}" lifecycle.capacity=1
+	// source.position=0 source.side=Left source.reactor="+5% Attack*" lifecycle.leading=0 lifecycle.cooling="{Current:0 Maximum:0}" lifecycle.capacity=2
+	// verb=buff/overflow reactor="+5% Attack*" target.side=Left target.position=0
+	// stacking=3 verb=buff reactor="+5% Attack*" target.side=Left target.position=0 source.reactor="@PreAction({$} +5% Attack*)"
+	// verb=attack critical=true loss=15 overflow=0 source.side=Left source.position=0 source.reactor=NormalAttack source.damage=23 target.side=Right target.position=0 target.defense=8 target.health.current=3 target.health.maximum=60
+	// verb=attack critical=false loss=17 overflow=0 source.side=Right source.position=0 source.reactor=NormalAttack source.damage=22 target.side=Left target.position=0 target.defense=5 target.health.current=32 target.health.maximum=100
+	// source.position=0 source.side=Left source.reactor="+5% Attack*" lifecycle.leading=0 lifecycle.cooling="{Current:0 Maximum:0}" lifecycle.capacity=0
+	// source.position=0 source.side=Left source.reactor="+5% Attack*" lifecycle.leading=0 lifecycle.cooling="{Current:0 Maximum:0}" lifecycle.capacity=1
+	// source.position=0 source.side=Left source.reactor="+5% Attack*" lifecycle.leading=0 lifecycle.cooling="{Current:0 Maximum:0}" lifecycle.capacity=2
+	// verb=buff/overflow reactor="+5% Attack*" target.side=Left target.position=0
+	// stacking=3 verb=buff reactor="+5% Attack*" target.side=Left target.position=0 source.reactor="@PreAction({$} +5% Attack*)"
+	// verb=attack critical=true loss=15 overflow=12 source.side=Left source.position=0 source.reactor=NormalAttack source.damage=23 target.side=Right target.position=0 target.defense=8 target.health.current=0 target.health.maximum=60
 }
 
 func ExampleBattleField_Run_special_4() {

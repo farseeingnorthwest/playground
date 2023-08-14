@@ -305,8 +305,9 @@ func (b *Buff) Render(target Warrior, ac ActionContext) {
 	}
 
 	if overflow := target.Add(reactor); overflow != nil {
-		logger.Debug(
-			"overflow",
+		slog.Debug(
+			"render",
+			slog.String("verb", "buff/overflow"),
 			slog.Any("reactor", QueryTagA[Label](reactor)),
 			slog.Group("target",
 				slog.Any("side", target.Side()),
@@ -314,6 +315,9 @@ func (b *Buff) Render(target Warrior, ac ActionContext) {
 			),
 		)
 		ac.React(NewLifecycleSignal(target, overflow, nil))
+	}
+	if stacking, ok := QueryTag[StackingLimit](reactor); ok {
+		logger = logger.With("stacking", stacking.Count())
 	}
 	logger.Debug(
 		"render",

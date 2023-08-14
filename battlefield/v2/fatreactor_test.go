@@ -247,8 +247,11 @@ var (
 					NewSignalTrigger(&LaunchSignal{}),
 					NewSelectActor(
 						NewVerbActor(
-							NewBuff(false, nil, NewBuffReactor(CriticalOdds, true, ConstEvaluator(2), FatTags(
-								Label("[15] +2% CriticalOdds")))),
+							NewBuff(false, nil, NewBuffReactor(
+								CriticalOdds,
+								true,
+								ConstEvaluator(2),
+								FatTags(NewStackingLimit(15), Label("[15] +2% CriticalOdds")))),
 							nil,
 						),
 						CurrentSelector{},
@@ -493,7 +496,7 @@ var (
 								Damage,
 								false,
 								ConstEvaluator(105),
-								FatTags(Label("+5% Attack*")),
+								FatTags(NewStackingLimit(3), Label("+5% Attack*")),
 								FatCapacity(NewSignalTrigger(&RoundEndSignal{}), 3))),
 							nil,
 						),
