@@ -54,6 +54,7 @@ type Action interface {
 	SetScript(Script)
 	Targets() []Warrior
 	ImmuneTargets() map[Warrior]struct{}
+	FalseTargets() []Warrior
 	AddImmuneTarget(Warrior)
 	Verb() Verb
 }
