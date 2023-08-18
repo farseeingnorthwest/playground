@@ -96,21 +96,6 @@ func (t *TagTrigger) Trigger(action Action, _ Signal, _ EvaluationContext) bool 
 	return tagger.Match(t.tag)
 }
 
-type LossTrigger struct {
-	comparator IntComparator
-	evaluator  Evaluator
-}
-
-func NewLossTrigger(comparator IntComparator, evaluator Evaluator) *LossTrigger {
-	return &LossTrigger{comparator, evaluator}
-}
-
-func (t *LossTrigger) Trigger(action Action, signal Signal, ec EvaluationContext) bool {
-	sig := signal.(*LossSignal)
-	a, ok := action.Verb().(*Attack)
-	return ok && t.comparator.Compare(a.Loss()[sig.Target()], t.evaluator.Evaluate(signal.Current().(Warrior), ec))
-}
-
 type FatTrigger struct {
 	signalTrigger  SignalTrigger
 	actionTriggers []ActionTrigger

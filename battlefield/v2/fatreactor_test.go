@@ -507,9 +507,9 @@ var (
 
 			// 自身的生命值百分比為 50% 以下時，獲得「庇護」(最大生命值 30%，無法被解除)。
 			NewFatReactor(
-				FatTags(Priority(4), Label("@Loss({$/< 50%} Sanctuary)")),
+				FatTags(Priority(4), Label("@PostAction({$/< 50%} Sanctuary)")),
 				FatRespond(
-					NewSignalTrigger(&LossSignal{}),
+					NewSignalTrigger(&PostActionSignal{}),
 					NewSelectActor(
 						NewVerbActor(NewBuff(false, nil, Effect["Sanctuary"]), nil),
 						CurrentSelector{},
@@ -639,9 +639,9 @@ var (
 
 			// 自身的生命值百分比為 50% 以下時，獲得 20% 被擊減傷。(無法被解除)
 			NewFatReactor(
-				FatTags(Priority(3), Label("@Loss({$/< 50%}, -20% Loss)")),
+				FatTags(Priority(3), Label("@PostAction({$/< 50%}, -20% Loss)")),
 				FatRespond(
-					NewSignalTrigger(&LossSignal{}),
+					NewSignalTrigger(&PostActionSignal{}),
 					NewSelectActor(
 						NewVerbActor(
 							NewBuff(false, nil, NewBuffReactor(

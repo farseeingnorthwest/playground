@@ -128,6 +128,13 @@ func (a *MyAction) Render(b *BattleField) {
 
 	a.falseTargets = a.targets[j:]
 	a.targets = a.targets[:j]
+	if len(a.falseTargets) > 0 || len(a.immuneTargets) > 0 {
+		slog.Debug("render",
+			slog.Int("targets", len(a.targets)),
+			slog.Int("falseTargets", len(a.falseTargets)),
+			slog.Int("immuneTargets", len(a.immuneTargets)),
+		)
+	}
 
 	b.React(NewPostActionSignal(a))
 }
@@ -229,7 +236,6 @@ func (a *Attack) Render(target Warrior, ac ActionContext) bool {
 				slog.Int("maximum", m))),
 	)
 
-	ac.React(NewLossSignal(target, ac.Action()))
 	return true
 }
 
