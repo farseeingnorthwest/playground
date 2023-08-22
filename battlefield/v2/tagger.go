@@ -2,21 +2,9 @@ package battlefield
 
 import "reflect"
 
-type Matcher interface {
-	Match(any) bool
-}
-
-type TypeMatcher struct {
-	typ any
-}
-
-func NewTypeMatcher(proto any) *TypeMatcher {
-	return &TypeMatcher{reflect.TypeOf(proto)}
-}
-
-func (m *TypeMatcher) Match(any any) bool {
-	return m.typ == reflect.TypeOf(any)
-}
+var (
+	_ Tagger = TagSet{}
+)
 
 type Tagger interface {
 	Tags() []any
@@ -68,6 +56,22 @@ func (t TagSet) Save(tag any) {
 	t[tag] = struct{}{}
 }
 
+type Matcher interface {
+	Match(any) bool
+}
+
+type TypeMatcher struct {
+	typ any
+}
+
+func NewTypeMatcher(proto any) *TypeMatcher {
+	return &TypeMatcher{reflect.TypeOf(proto)}
+}
+
+func (m *TypeMatcher) Match(any any) bool {
+	return m.typ == reflect.TypeOf(any)
+}
+
 func QueryTag[T any](a any) (T, bool) {
 	proto := new(T)
 	tagger, ok := a.(Tagger)
@@ -89,12 +93,4 @@ func QueryTagA[T any](a any) any {
 	}
 
 	return nil
-}
-
-func First[A any, B any](a A, _ B) A {
-	return a
-}
-
-func Second[A any, B any](_ A, b B) B {
-	return b
 }

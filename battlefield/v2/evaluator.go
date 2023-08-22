@@ -1,40 +1,23 @@
 package battlefield
 
-const (
-	Lt IntComparator = iota
-	Le
-	Eq
-	Ge
-	Gt
+var (
+	_ Evaluator = ConstEvaluator(0)
+	_ Evaluator = AxisEvaluator(0)
+	_ Evaluator = BuffCounter{}
+	_ Evaluator = LossEvaluator{}
+	_ Evaluator = SelectCounter(nil)
+	_ Evaluator = (*Adder)(nil)
+	_ Evaluator = (*Multiplier)(nil)
+	_ Evaluator = (*CustomEvaluator)(nil)
 )
 
-type IntComparator uint8
-
-func (c IntComparator) Compare(a, b int) bool {
-	switch c {
-	case Lt:
-		return a < b
-	case Le:
-		return a <= b
-	case Eq:
-		return a == b
-	case Ge:
-		return a >= b
-	case Gt:
-		return a > b
-
-	default:
-		panic("bad comparator")
-	}
+type Evaluator interface {
+	Evaluate(Warrior, EvaluationContext) int
 }
 
 type EvaluationContext interface {
 	Warriors() []Warrior
-	React(ForkableSignal)
-}
-
-type Evaluator interface {
-	Evaluate(Warrior, EvaluationContext) int
+	React(RegularSignal)
 }
 
 type ConstEvaluator int
@@ -59,6 +42,29 @@ func NewBuffCounter(tag any) BuffCounter {
 
 func (e BuffCounter) Evaluate(warrior Warrior, _ EvaluationContext) int {
 	return len(warrior.Buffs(e.tag))
+}
+
+type LossEvaluator struct {
+}
+
+func (LossEvaluator) Evaluate(_ Warrior, ec EvaluationContext) int {
+	return ec.(ActionContext).Action().Script().Loss()
+}
+
+type SelectCounter []Selector
+
+func NewSelectCounter(selectors ...Selector) SelectCounter {
+	return selectors
+}
+
+func (e SelectCounter) Evaluate(warrior Warrior, ec EvaluationContext) int {
+	signal := NewFreeSignal(warrior)
+	warriors := ec.Warriors()
+	for _, selector := range e {
+		warriors = selector.Select(warriors, signal, ec)
+	}
+
+	return len(warriors)
 }
 
 type Adder struct {
@@ -87,24 +93,6 @@ func (e *Multiplier) Evaluate(warrior Warrior, ec EvaluationContext) int {
 	return e.multiplier * e.evaluator.Evaluate(warrior, ec) / 100
 }
 
-type SelectCounter struct {
-	selectors []Selector
-}
-
-func NewSelectCounter(selectors ...Selector) *SelectCounter {
-	return &SelectCounter{selectors}
-}
-
-func (e *SelectCounter) Evaluate(warrior Warrior, ec EvaluationContext) int {
-	signal := NewFreeSignal(warrior)
-	warriors := ec.Warriors()
-	for _, selector := range e.selectors {
-		warriors = selector.Select(warriors, signal, ec)
-	}
-
-	return len(warriors)
-}
-
 type CustomEvaluator struct {
 	evaluator func(Warrior, EvaluationContext) int
 }
@@ -115,16 +103,4 @@ func NewCustomEvaluator(evaluator func(Warrior, EvaluationContext) int) *CustomE
 
 func (e *CustomEvaluator) Evaluate(warrior Warrior, ec EvaluationContext) int {
 	return e.evaluator(warrior, ec)
-}
-
-type ActionContext interface {
-	EvaluationContext
-	Action() Action
-}
-
-type LossEvaluator struct {
-}
-
-func (LossEvaluator) Evaluate(_ Warrior, ec EvaluationContext) int {
-	return ec.(ActionContext).Action().Script().Loss()
 }

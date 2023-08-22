@@ -2,51 +2,18 @@ package battlefield
 
 import "container/list"
 
+var (
+	_ Portfolio = (*FatPortfolio)(nil)
+)
+
+type Priority int
+
 type Portfolio interface {
 	Reactor
 
 	Add(Reactor) Reactor
 	Remove(Reactor)
 	Buffs(tags ...any) []Reactor
-}
-
-type Priority int
-
-type StackingLimit struct {
-	reactors *list.List
-	capacity int
-}
-
-func NewStackingLimit(capacity int) StackingLimit {
-	return StackingLimit{list.New(), capacity}
-}
-
-func (p StackingLimit) Count() int {
-	return p.reactors.Len()
-}
-
-func (p StackingLimit) Capacity() int {
-	return p.capacity
-}
-
-func (p StackingLimit) Add(reactor Reactor) (overflow Reactor) {
-	if p.reactors.Len() == p.capacity {
-		e := p.reactors.Front()
-		p.reactors.Remove(e)
-		overflow = e.Value.(Reactor)
-	}
-
-	p.reactors.PushBack(reactor)
-	return
-}
-
-func (p StackingLimit) Remove(reactor Reactor) {
-	for e := p.reactors.Front(); e != nil; e = e.Next() {
-		if e.Value == reactor {
-			p.reactors.Remove(e)
-			return
-		}
-	}
 }
 
 type FatPortfolio struct {
@@ -111,4 +78,41 @@ func (p *FatPortfolio) Buffs(tags ...any) (buffs []Reactor) {
 	}
 
 	return
+}
+
+type StackingLimit struct {
+	reactors *list.List
+	capacity int
+}
+
+func NewStackingLimit(capacity int) StackingLimit {
+	return StackingLimit{list.New(), capacity}
+}
+
+func (l StackingLimit) Count() int {
+	return l.reactors.Len()
+}
+
+func (l StackingLimit) Capacity() int {
+	return l.capacity
+}
+
+func (l StackingLimit) Add(reactor Reactor) (overflow Reactor) {
+	if l.reactors.Len() == l.capacity {
+		e := l.reactors.Front()
+		l.reactors.Remove(e)
+		overflow = e.Value.(Reactor)
+	}
+
+	l.reactors.PushBack(reactor)
+	return
+}
+
+func (l StackingLimit) Remove(reactor Reactor) {
+	for e := l.reactors.Front(); e != nil; e = e.Next() {
+		if e.Value == reactor {
+			l.reactors.Remove(e)
+			return
+		}
+	}
 }

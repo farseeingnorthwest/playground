@@ -2,6 +2,18 @@ package battlefield
 
 import "reflect"
 
+var (
+	_ Trigger       = SignalTrigger{}
+	_ Trigger       = AnyTrigger{}
+	_ Trigger       = (*FatTrigger)(nil)
+	_ ActionTrigger = CurrentIsSourceTrigger{}
+	_ ActionTrigger = CurrentIsTargetTrigger{}
+	_ ActionTrigger = ReactorTrigger{}
+	_ ActionTrigger = VerbTrigger[*Attack]{}
+	_ ActionTrigger = CriticalStrikeTrigger{}
+	_ ActionTrigger = TagTrigger{}
+)
+
 type Trigger interface {
 	Trigger(Signal, EvaluationContext) bool
 }
@@ -10,12 +22,54 @@ type SignalTrigger struct {
 	signal Signal
 }
 
-func NewSignalTrigger(signal Signal) *SignalTrigger {
-	return &SignalTrigger{signal}
+func NewSignalTrigger(signal Signal) SignalTrigger {
+	return SignalTrigger{signal}
 }
 
-func (t *SignalTrigger) Trigger(signal Signal, _ EvaluationContext) bool {
+func (t SignalTrigger) Trigger(signal Signal, _ EvaluationContext) bool {
 	return reflect.TypeOf(t.signal) == reflect.TypeOf(signal)
+}
+
+type AnyTrigger struct {
+	triggers []Trigger
+}
+
+func NewAnyTrigger(triggers ...Trigger) AnyTrigger {
+	return AnyTrigger{triggers}
+}
+
+func (t AnyTrigger) Trigger(signal Signal, ec EvaluationContext) bool {
+	for _, trigger := range t.triggers {
+		if trigger.Trigger(signal, ec) {
+			return true
+		}
+	}
+
+	return false
+}
+
+type FatTrigger struct {
+	signalTrigger  SignalTrigger
+	actionTriggers []ActionTrigger
+}
+
+func NewFatTrigger(signal Signal, triggers ...ActionTrigger) *FatTrigger {
+	return &FatTrigger{SignalTrigger{signal}, triggers}
+}
+
+func (t *FatTrigger) Trigger(signal Signal, ec EvaluationContext) bool {
+	if !t.signalTrigger.Trigger(signal, ec) {
+		return false
+	}
+
+	a := signal.(ActionSignal).Action()
+	for _, trigger := range t.actionTriggers {
+		if !trigger.Trigger(a, signal, ec) {
+			return false
+		}
+	}
+
+	return true
 }
 
 type ActionTrigger interface {
@@ -46,11 +100,11 @@ type ReactorTrigger struct {
 	reactor Reactor
 }
 
-func NewActionReactorTrigger(reactor Reactor) *ReactorTrigger {
-	return &ReactorTrigger{reactor}
+func NewReactorTrigger(reactor Reactor) ReactorTrigger {
+	return ReactorTrigger{reactor}
 }
 
-func (t *ReactorTrigger) Trigger(action Action, _ Signal, _ EvaluationContext) bool {
+func (t ReactorTrigger) Trigger(action Action, _ Signal, _ EvaluationContext) bool {
 	_, r := action.Script().Source()
 	return r == t.reactor
 }
@@ -79,11 +133,11 @@ type TagTrigger struct {
 	tag any
 }
 
-func NewTagTrigger(tag any) *TagTrigger {
-	return &TagTrigger{tag}
+func NewTagTrigger(tag any) TagTrigger {
+	return TagTrigger{tag}
 }
 
-func (t *TagTrigger) Trigger(action Action, _ Signal, _ EvaluationContext) bool {
+func (t TagTrigger) Trigger(action Action, _ Signal, _ EvaluationContext) bool {
 	buff, ok := action.Verb().(*Buff)
 	if !ok {
 		return false
@@ -94,46 +148,4 @@ func (t *TagTrigger) Trigger(action Action, _ Signal, _ EvaluationContext) bool 
 	}
 
 	return tagger.Match(t.tag)
-}
-
-type FatTrigger struct {
-	signalTrigger  SignalTrigger
-	actionTriggers []ActionTrigger
-}
-
-func NewFatTrigger(signal Signal, triggers ...ActionTrigger) *FatTrigger {
-	return &FatTrigger{SignalTrigger{signal}, triggers}
-}
-
-func (t *FatTrigger) Trigger(signal Signal, ec EvaluationContext) bool {
-	if !t.signalTrigger.Trigger(signal, ec) {
-		return false
-	}
-
-	a := signal.(ActionSignal).Action()
-	for _, trigger := range t.actionTriggers {
-		if !trigger.Trigger(a, signal, ec) {
-			return false
-		}
-	}
-
-	return true
-}
-
-type OrTrigger struct {
-	triggers []Trigger
-}
-
-func NewOrTrigger(triggers ...Trigger) *OrTrigger {
-	return &OrTrigger{triggers}
-}
-
-func (t *OrTrigger) Trigger(signal Signal, ec EvaluationContext) bool {
-	for _, trigger := range t.triggers {
-		if trigger.Trigger(signal, ec) {
-			return true
-		}
-	}
-
-	return false
 }

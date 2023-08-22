@@ -18,6 +18,11 @@ const (
 	Speed
 )
 
+var (
+	_ Warrior  = (*MyWarrior)(nil)
+	_ Baseline = MyBaseline{}
+)
+
 type Axis uint8
 type Side bool
 
@@ -43,72 +48,14 @@ type Warrior interface {
 	Component(Axis, EvaluationContext) int
 }
 
-type ByAxis struct {
-	Axis
-	Asc      bool
-	Context  EvaluationContext
-	Warriors []Warrior
-}
-
-func (a *ByAxis) Len() int {
-	return len(a.Warriors)
-}
-
-func (a *ByAxis) Swap(i, j int) {
-	a.Warriors[i], a.Warriors[j] = a.Warriors[j], a.Warriors[i]
-}
-
-func (a *ByAxis) Less(i, j int) bool {
-	if a.Warriors[i].Component(a.Axis, a.Context) != a.Warriors[j].Component(a.Axis, a.Context) {
-		return a.Warriors[i].Component(a.Axis, a.Context) < a.Warriors[j].Component(a.Axis, a.Context) == a.Asc
-	}
-	if a.Warriors[i].Component(Position, nil) != a.Warriors[j].Component(Position, nil) {
-		return a.Warriors[i].Component(Position, nil) < a.Warriors[j].Component(Position, nil)
-	}
-
-	return a.Warriors[i].Side() == Left
-}
-
-type Baseline interface {
-	Component(Axis) int
-}
-
-type MyBaseline struct {
-	Damage       int
-	CriticalOdds int
-	CriticalLoss int
-	Defense      int
-	Health       int
-	Speed        int
-}
-
-func (b MyBaseline) Component(axis Axis) int {
-	switch axis {
-	case Damage:
-		return b.Damage
-	case CriticalOdds:
-		return b.CriticalOdds
-	case CriticalLoss:
-		return b.CriticalLoss
-	case Defense:
-		return b.Defense
-	case HealthMaximum:
-		return b.Health
-	case Speed:
-		return b.Speed
-
-	default:
-		panic("unknown axis")
-	}
-}
-
 type MyWarrior struct {
-	*FatPortfolio
-	TagSet
 	baseline Baseline
 	side     Side
 	position int
 	health   Ratio
+
+	TagSet
+	*FatPortfolio
 }
 
 func NewMyWarrior(baseline Baseline, side Side, position int, options ...func(warrior *MyWarrior)) *MyWarrior {
@@ -182,4 +129,63 @@ func (w *MyWarrior) Component(axis Axis, ec EvaluationContext) int {
 		w.React(signal, ec)
 		return signal.Value()
 	}
+}
+
+type Baseline interface {
+	Component(Axis) int
+}
+
+type MyBaseline struct {
+	Damage       int
+	CriticalOdds int
+	CriticalLoss int
+	Defense      int
+	Health       int
+	Speed        int
+}
+
+func (b MyBaseline) Component(axis Axis) int {
+	switch axis {
+	case Damage:
+		return b.Damage
+	case CriticalOdds:
+		return b.CriticalOdds
+	case CriticalLoss:
+		return b.CriticalLoss
+	case Defense:
+		return b.Defense
+	case HealthMaximum:
+		return b.Health
+	case Speed:
+		return b.Speed
+
+	default:
+		panic("unknown axis")
+	}
+}
+
+type ByAxis struct {
+	Axis
+	Asc      bool
+	Context  EvaluationContext
+	Warriors []Warrior
+}
+
+func (a *ByAxis) Len() int {
+	return len(a.Warriors)
+}
+
+func (a *ByAxis) Swap(i, j int) {
+	a.Warriors[i], a.Warriors[j] = a.Warriors[j], a.Warriors[i]
+}
+
+func (a *ByAxis) Less(i, j int) bool {
+	if a.Warriors[i].Component(a.Axis, a.Context) != a.Warriors[j].Component(a.Axis, a.Context) {
+		return a.Warriors[i].Component(a.Axis, a.Context) < a.Warriors[j].Component(a.Axis, a.Context) == a.Asc
+	}
+	if a.Warriors[i].Component(Position, nil) != a.Warriors[j].Component(Position, nil) {
+		return a.Warriors[i].Component(Position, nil) < a.Warriors[j].Component(Position, nil)
+	}
+
+	return a.Warriors[i].Side() == Left
 }

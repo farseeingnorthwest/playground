@@ -93,7 +93,7 @@ var (
 				NewSequenceActor(),
 			),
 			FatCapacity(
-				NewOrTrigger(
+				NewAnyTrigger(
 					NewSignalTrigger(&RoundEndSignal{}),
 					NewFatTrigger(
 						&PostActionSignal{},
@@ -337,7 +337,7 @@ var (
 			NewFatReactor(
 				FatTags(Priority(2), Label("@PostAction({$/<Nerf> >= 2} Purge())")),
 				FatRespond(
-					NewOrTrigger(
+					NewAnyTrigger(
 						NewSignalTrigger(&RoundStartSignal{}),
 						NewSignalTrigger(&PostActionSignal{}),
 					),
@@ -487,7 +487,7 @@ var (
 						&PreActionSignal{},
 						CurrentIsSourceTrigger{},
 						NewVerbTrigger[*Attack](),
-						NewActionReactorTrigger(Regular[0]),
+						NewReactorTrigger(Regular[0]),
 						CriticalStrikeTrigger{},
 					),
 					NewSelectActor(

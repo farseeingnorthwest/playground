@@ -1,4 +1,4 @@
-package battlefield
+package functional
 
 type Option[T any] struct {
 	value T

@@ -1,6 +1,20 @@
 package battlefield
 
-import "log/slog"
+import (
+	"log/slog"
+
+	"github.com/farseeingnorthwest/playground/battlefield/v2/functional"
+)
+
+var (
+	_ Script        = (*script)(nil)
+	_ Action        = (*action)(nil)
+	_ Verb          = (*Attack)(nil)
+	_ Verb          = (*Heal)(nil)
+	_ Verb          = (*Buff)(nil)
+	_ Verb          = (*Purge)(nil)
+	_ ActionContext = (*actionContext)(nil)
+)
 
 type Script interface {
 	Renderer
@@ -9,26 +23,26 @@ type Script interface {
 	Loss() int
 }
 
-type MyScript struct {
+type script struct {
 	scripter any
 	reactor  Reactor
 	actions  []Action
 }
 
-func NewMyScript(scripter any, reactor Reactor) *MyScript {
-	return &MyScript{scripter, reactor, nil}
+func newScript(scripter any, reactor Reactor) *script {
+	return &script{scripter, reactor, nil}
 }
 
-func (s *MyScript) Source() (any, Reactor) {
+func (s *script) Source() (any, Reactor) {
 	return s.scripter, s.reactor
 }
 
-func (s *MyScript) Add(action Action) {
+func (s *script) Add(action Action) {
 	s.actions = append(s.actions, action)
 	action.SetScript(s)
 }
 
-func (s *MyScript) Loss() int {
+func (s *script) Loss() int {
 	loss := 0
 	for _, action := range s.actions {
 		if a, ok := action.Verb().(*Attack); ok {
@@ -41,69 +55,70 @@ func (s *MyScript) Loss() int {
 	return loss
 }
 
-func (s *MyScript) Render(b *BattleField) {
+func (s *script) Render(b *BattleField) {
 	for _, action := range s.actions {
 		action.Render(b)
 	}
 }
 
 type Action interface {
-	Portfolio
-	Renderer
 	Script() Script
 	SetScript(Script)
 	Targets() []Warrior
-	ImmuneTargets() map[Warrior]struct{}
 	FalseTargets() []Warrior
+	ImmuneTargets() map[Warrior]struct{}
 	AddImmuneTarget(Warrior)
 	Verb() Verb
+	Portfolio
+	Renderer
 }
 
-type MyAction struct {
+type action struct {
 	*FatPortfolio
 	script        Script
 	targets       []Warrior
-	immuneTargets map[Warrior]struct{}
 	falseTargets  []Warrior
+	immuneTargets map[Warrior]struct{}
 	verb          Verb
 }
 
-func NewMyAction(targets []Warrior, verb Verb) *MyAction {
-	return &MyAction{NewFatPortfolio(), nil, targets, make(map[Warrior]struct{}), nil, verb}
+func newAction(targets []Warrior, verb Verb) *action {
+	return &action{NewFatPortfolio(), nil, targets, nil, make(map[Warrior]struct{}), verb}
 }
 
-func (a *MyAction) Script() Script {
+func (a *action) Script() Script {
 	return a.script
 }
 
-func (a *MyAction) SetScript(script Script) {
+func (a *action) SetScript(script Script) {
 	a.script = script
 }
 
-func (a *MyAction) Targets() []Warrior {
+func (a *action) Targets() []Warrior {
 	return a.targets
 }
 
-func (a *MyAction) ImmuneTargets() map[Warrior]struct{} {
+func (a *action) ImmuneTargets() map[Warrior]struct{} {
 	return a.immuneTargets
 }
 
-func (a *MyAction) AddImmuneTarget(target Warrior) {
+func (a *action) AddImmuneTarget(target Warrior) {
 	a.immuneTargets[target] = struct{}{}
 }
 
-func (a *MyAction) FalseTargets() []Warrior {
+func (a *action) FalseTargets() []Warrior {
 	return a.falseTargets
 }
 
-func (a *MyAction) Verb() Verb {
+func (a *action) Verb() Verb {
 	return a.verb
 }
 
-func (a *MyAction) Render(b *BattleField) {
+func (a *action) Render(b *BattleField) {
 	b.React(NewPreActionSignal(a))
 
 	i, j := 0, len(a.targets)
+	var deaths []Warrior
 	for i < j {
 		target := a.targets[i]
 		if _, ok := a.immuneTargets[target]; ok {
@@ -117,7 +132,11 @@ func (a *MyAction) Render(b *BattleField) {
 			continue
 		}
 
-		if a.verb.Render(target, NewMyActionContext(a, b)) {
+		if a.verb.Render(target, newActionContext(a, b)) {
+			if target.Health().Current <= 0 {
+				deaths = append(deaths, target)
+			}
+
 			i++
 			continue
 		}
@@ -136,20 +155,7 @@ func (a *MyAction) Render(b *BattleField) {
 		)
 	}
 
-	b.React(NewPostActionSignal(a))
-}
-
-type MyActionContext struct {
-	EvaluationContext
-	action Action
-}
-
-func NewMyActionContext(action Action, ac EvaluationContext) *MyActionContext {
-	return &MyActionContext{ac, action}
-}
-
-func (ac *MyActionContext) Action() Action {
-	return ac.action
+	b.React(NewPostActionSignal(a, deaths))
 }
 
 type Verb interface {
@@ -337,7 +343,7 @@ func (b *Buff) Render(target Warrior, ac ActionContext) bool {
 		reactor = b.reactor.Fork(nil).(ForkReactor)
 
 		c := int(e.(ConstEvaluator))
-		reactor.(*FatReactor).Amend(FatCapacity(nil, c))
+		reactor.(*FatReactor).Update(FatCapacity(nil, c))
 		logger = logger.With(slog.Int("capacity", c))
 	}
 
@@ -365,7 +371,7 @@ func (b *Buff) Render(target Warrior, ac ActionContext) bool {
 			slog.Int("position", target.Position()),
 		),
 		slog.Group("source",
-			slog.Any("reactor", QueryTagA[Label](Second(ac.Action().Script().Source())))),
+			slog.Any("reactor", QueryTagA[Label](functional.Second(ac.Action().Script().Source())))),
 	)
 	return true
 }
@@ -415,4 +421,22 @@ func (p *Purge) Render(target Warrior, ac ActionContext) bool {
 	p.reactors = buffs
 	slog.Debug("render", slog.String("verb", "purge"), slog.Any("reactors", tags))
 	return true
+}
+
+type ActionContext interface {
+	EvaluationContext
+	Action() Action
+}
+
+type actionContext struct {
+	EvaluationContext
+	action Action
+}
+
+func newActionContext(action Action, ac EvaluationContext) *actionContext {
+	return &actionContext{ac, action}
+}
+
+func (c *actionContext) Action() Action {
+	return c.action
 }

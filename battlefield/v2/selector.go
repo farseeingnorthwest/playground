@@ -3,7 +3,16 @@ package battlefield
 import "sort"
 
 var (
-	Healthy = &WaterLevelSelector{Gt, AxisEvaluator(Health), 0}
+	Healthy          = &WaterLevelSelector{Gt, AxisEvaluator(Health), 0}
+	_       Selector = AbsoluteSideSelector(false)
+	_       Selector = SideSelector(false)
+	_       Selector = CurrentSelector{}
+	_       Selector = SourceSelector{}
+	_       Selector = SortSelector{}
+	_       Selector = ShuffleSelector{}
+	_       Selector = FrontSelector(0)
+	_       Selector = CounterPositionSelector{}
+	_       Selector = WaterLevelSelector{}
 )
 
 type Selector interface {
@@ -49,11 +58,11 @@ type SortSelector struct {
 	asc  bool
 }
 
-func NewSortSelector(axis Axis, asc bool) *SortSelector {
-	return &SortSelector{axis, asc}
+func NewSortSelector(axis Axis, asc bool) SortSelector {
+	return SortSelector{axis, asc}
 }
 
-func (s *SortSelector) Select(inputs []Warrior, _ Signal, ec EvaluationContext) (outputs []Warrior) {
+func (s SortSelector) Select(inputs []Warrior, _ Signal, ec EvaluationContext) (outputs []Warrior) {
 	outputs = make([]Warrior, len(inputs))
 	copy(outputs, inputs)
 
@@ -66,11 +75,11 @@ type ShuffleSelector struct {
 	preference any
 }
 
-func NewShuffleSelector(rng Rng, preference any) *ShuffleSelector {
-	return &ShuffleSelector{rng, preference}
+func NewShuffleSelector(rng Rng, preference any) ShuffleSelector {
+	return ShuffleSelector{rng, preference}
 }
 
-func (s *ShuffleSelector) Select(inputs []Warrior, _ Signal, _ EvaluationContext) (outputs []Warrior) {
+func (s ShuffleSelector) Select(inputs []Warrior, _ Signal, _ EvaluationContext) (outputs []Warrior) {
 	if len(inputs) < 2 {
 		return inputs
 	}
@@ -125,26 +134,6 @@ func (s FrontSelector) Select(inputs []Warrior, _ Signal, _ EvaluationContext) (
 	return
 }
 
-type WaterLevelSelector struct {
-	comparator IntComparator
-	evaluator  Evaluator
-	value      int
-}
-
-func NewWaterLevelSelector(comparator IntComparator, evaluator Evaluator, value int) *WaterLevelSelector {
-	return &WaterLevelSelector{comparator, evaluator, value}
-}
-
-func (s *WaterLevelSelector) Select(inputs []Warrior, _ Signal, ec EvaluationContext) (outputs []Warrior) {
-	for _, w := range inputs {
-		if s.comparator.Compare(s.evaluator.Evaluate(w, ec), s.value) {
-			outputs = append(outputs, w)
-		}
-	}
-
-	return
-}
-
 type CounterPositionSelector struct {
 }
 
@@ -157,4 +146,24 @@ func (CounterPositionSelector) Select(inputs []Warrior, signal Signal, _ Evaluat
 	}
 
 	return nil
+}
+
+type WaterLevelSelector struct {
+	comparator IntComparator
+	evaluator  Evaluator
+	value      int
+}
+
+func NewWaterLevelSelector(comparator IntComparator, evaluator Evaluator, value int) WaterLevelSelector {
+	return WaterLevelSelector{comparator, evaluator, value}
+}
+
+func (s WaterLevelSelector) Select(inputs []Warrior, _ Signal, ec EvaluationContext) (outputs []Warrior) {
+	for _, w := range inputs {
+		if s.comparator.Compare(s.evaluator.Evaluate(w, ec), s.value) {
+			outputs = append(outputs, w)
+		}
+	}
+
+	return
 }
