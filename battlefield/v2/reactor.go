@@ -1,5 +1,7 @@
 package battlefield
 
+import "encoding/json"
+
 var (
 	_ Actor = Buffer{}
 	_ Actor = VerbActor{}
@@ -16,6 +18,14 @@ var (
 )
 
 type Label string
+
+func (l Label) MarshalJSON() ([]byte, error) {
+	return json.Marshal(label{string(l)})
+}
+
+type label struct {
+	Label string `json:"label"`
+}
 
 type Reactor interface {
 	React(Signal, EvaluationContext)
@@ -114,21 +124,35 @@ func (a VerbActor) Fork(evaluator Evaluator) any {
 	return NewVerbActor(a.verb, evaluator)
 }
 
+func (a VerbActor) MarshalJSON() ([]byte, error) {
+	return json.Marshal(va{
+		a.verb,
+		a.evaluator,
+	})
+}
+
+type va struct {
+	Verb      Verb      `json:"verb"`
+	Evaluator Evaluator `json:"evaluator"`
+}
+
 type SelectActor struct {
-	actor     Actor
-	selectors []Selector
+	actor    Actor
+	selector Selector
 }
 
 func NewSelectActor(actor Actor, selectors ...Selector) SelectActor {
-	return SelectActor{actor, selectors}
+	if len(selectors) == 1 {
+		return SelectActor{actor, selectors[0]}
+	}
+
+	return SelectActor{actor, PipelineSelector(selectors)}
 }
 
 func (a SelectActor) Act(signal Signal, warriors []Warrior, ac ActorContext) bool {
-	for _, selector := range a.selectors {
-		warriors = selector.Select(warriors, signal, ac)
-		if len(warriors) == 0 {
-			return false
-		}
+	warriors = a.selector.Select(warriors, signal, ac)
+	if len(warriors) == 0 {
+		return false
 	}
 
 	a.actor.Act(signal, warriors, ac)
@@ -136,7 +160,19 @@ func (a SelectActor) Act(signal Signal, warriors []Warrior, ac ActorContext) boo
 }
 
 func (a SelectActor) Fork(evaluator Evaluator) any {
-	return NewSelectActor(a.actor.Fork(evaluator).(Actor), a.selectors...)
+	return NewSelectActor(a.actor.Fork(evaluator).(Actor), a.selector)
+}
+
+func (a SelectActor) MarshalJSON() ([]byte, error) {
+	return json.Marshal(sa{
+		a.selector,
+		a.actor,
+	})
+}
+
+type sa struct {
+	Selector Selector `json:"for"`
+	Actor    Actor    `json:"do"`
 }
 
 type Rng interface {
@@ -165,16 +201,26 @@ func (a ProbabilityActor) Fork(evaluator Evaluator) any {
 	return NewProbabilityActor(a.rng, a.evaluator, a.actor.Fork(evaluator).(Actor))
 }
 
-type SequenceActor struct {
-	actors []Actor
+func (a ProbabilityActor) MarshalJSON() ([]byte, error) {
+	return json.Marshal(pa{
+		a.evaluator,
+		a.actor,
+	})
 }
 
+type pa struct {
+	Evaluator Evaluator `json:"probability"`
+	Actor     Actor     `json:"do"`
+}
+
+type SequenceActor []Actor
+
 func NewSequenceActor(actors ...Actor) SequenceActor {
-	return SequenceActor{actors}
+	return SequenceActor(actors)
 }
 
 func (a SequenceActor) Act(signal Signal, warriors []Warrior, ac ActorContext) bool {
-	for _, actor := range a.actors {
+	for _, actor := range a {
 		if !actor.Act(signal, warriors, ac) {
 			return false
 		}
@@ -184,12 +230,16 @@ func (a SequenceActor) Act(signal Signal, warriors []Warrior, ac ActorContext) b
 }
 
 func (a SequenceActor) Fork(evaluator Evaluator) any {
-	actors := make([]Actor, len(a.actors))
-	for i, actor := range a.actors {
+	actors := make([]Actor, len(a))
+	for i, actor := range a {
 		actors[i] = actor.Fork(evaluator).(Actor)
 	}
 
 	return NewSequenceActor(actors...)
+}
+
+func (a SequenceActor) MarshalJSON() ([]byte, error) {
+	return json.Marshal([]Actor(a))
 }
 
 type RepeatActor struct {
@@ -227,6 +277,10 @@ func (CriticalActor) Act(signal Signal, _ []Warrior, _ ActorContext) bool {
 
 func (CriticalActor) Fork(_ Evaluator) any {
 	return CriticalActor{}
+}
+
+func (CriticalActor) MarshalJSON() ([]byte, error) {
+	return json.Marshal("critical_strike")
 }
 
 type ImmuneActor struct {

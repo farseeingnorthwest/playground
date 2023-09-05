@@ -1,6 +1,11 @@
 package battlefield_test
 
-import . "github.com/farseeingnorthwest/playground/battlefield/v2"
+import (
+	"encoding/json"
+	"os"
+
+	. "github.com/farseeingnorthwest/playground/battlefield/v2"
+)
 
 const (
 	Water Element = iota
@@ -1018,3 +1023,100 @@ var (
 )
 
 type Element int
+
+func ExampleFatReactor_MarshalJSON_regular0() {
+	encoder := json.NewEncoder(os.Stdout)
+	encoder.SetIndent("", "  ")
+	Must(encoder.Encode(Regular[0]))
+	// Output:
+	// {
+	//   "tags": [
+	//     {
+	//       "exclusion_group": 0
+	//     },
+	//     {
+	//       "label": "NormalAttack"
+	//     }
+	//   ],
+	//   "cases": [
+	//     {
+	//       "when": {
+	//         "signal": "launch"
+	//       },
+	//       "then": [
+	//         {
+	//           "for": [
+	//             {
+	//               "side": false
+	//             },
+	//             {
+	//               "comparator": "\u003e",
+	//               "evaluator": {
+	//                 "axis": "health"
+	//               },
+	//               "value": 0
+	//             },
+	//             {
+	//               "shuffle": {
+	//                 "label": "Taunt"
+	//               }
+	//             },
+	//             {
+	//               "front": 1
+	//             }
+	//           ],
+	//           "do": {
+	//             "verb": {
+	//               "attack": false
+	//             },
+	//             "evaluator": {
+	//               "axis": "damage"
+	//             }
+	//           }
+	//         }
+	//       ]
+	//     }
+	//   ]
+	// }
+}
+
+func ExampleFatReactor_MarshalJSON_regular1() {
+	encoder := json.NewEncoder(os.Stdout)
+	encoder.SetIndent("", "  ")
+	Must(encoder.Encode(Regular[1]))
+	// Output:
+	// {
+	//   "tags": [
+	//     {
+	//       "priority": 1000
+	//     }
+	//   ],
+	//   "cases": [
+	//     {
+	//       "when": {
+	//         "signal": "pre_action",
+	//         "if": [
+	//           "current_is_source",
+	//           {
+	//             "verb": "attack"
+	//           }
+	//         ]
+	//       },
+	//       "then": [
+	//         {
+	//           "probability": {
+	//             "axis": "critical_odds"
+	//           },
+	//           "do": "critical_strike"
+	//         }
+	//       ]
+	//     }
+	//   ]
+	// }
+}
+
+func Must(err error) {
+	if err != nil {
+		panic(err)
+	}
+}

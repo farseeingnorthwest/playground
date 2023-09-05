@@ -1,10 +1,20 @@
 package battlefield
 
+import "encoding/json"
+
 var (
 	_ ForkReactor = (*FatReactor)(nil)
 )
 
 type ExclusionGroup uint8
+
+func (g ExclusionGroup) MarshalJSON() ([]byte, error) {
+	return json.Marshal(xg{uint8(g)})
+}
+
+type xg struct {
+	ExclusionGroup uint8 `json:"exclusion_group"`
+}
 
 type FatReactor struct {
 	TagSet
@@ -143,6 +153,24 @@ func (r *FatReactor) Fork(evaluator Evaluator) any {
 	}
 }
 
+func (r *FatReactor) MarshalJSON() ([]byte, error) {
+	return json.Marshal(fr{
+		r.TagSet,
+		r.leading,
+		r.cooling,
+		r.capacity,
+		r.responders,
+	})
+}
+
+type fr struct {
+	Tags       TagSet       `json:"tags"`
+	Leading    *Leading     `json:"leading,omitempty"`
+	Cooling    *Cooling     `json:"cooling,omitempty"`
+	Capacity   *Capacity    `json:"capacity,omitempty"`
+	Responders []*Responder `json:"cases,omitempty"`
+}
+
 type Leading struct {
 	trigger Trigger
 	count   int
@@ -169,6 +197,13 @@ func (l *Leading) Fork() *Leading {
 	}
 
 	return &Leading{l.trigger, l.count}
+}
+
+func (l *Leading) MarshalJSON() ([]byte, error) {
+	return json.Marshal(lc{
+		l.trigger,
+		l.count,
+	})
 }
 
 type Cooling struct {
@@ -207,6 +242,13 @@ func (c *Cooling) Fork() *Cooling {
 	}
 
 	return &Cooling{c.trigger, c.count, 0}
+}
+
+func (c *Cooling) MarshalJSON() ([]byte, error) {
+	return json.Marshal(lc{
+		c.trigger,
+		c.count,
+	})
 }
 
 type Capacity struct {
@@ -256,6 +298,18 @@ func (c *Capacity) Fork() *Capacity {
 	return &Capacity{c.trigger, c.count}
 }
 
+func (c *Capacity) MarshalJSON() ([]byte, error) {
+	return json.Marshal(lc{
+		c.trigger,
+		c.count,
+	})
+}
+
+type lc struct {
+	Trigger `json:"when"`
+	Count   int `json:"count"`
+}
+
 type Responder struct {
 	trigger Trigger
 	actor   Actor
@@ -271,4 +325,16 @@ func (r *Responder) React(signal Signal, ec ActorContext) bool {
 
 func (r *Responder) Fork(evaluator Evaluator) any {
 	return &Responder{r.trigger, r.actor.Fork(evaluator).(Actor)}
+}
+
+func (r *Responder) MarshalJSON() ([]byte, error) {
+	return json.Marshal(rs{
+		r.trigger,
+		r.actor,
+	})
+}
+
+type rs struct {
+	Trigger `json:"when"`
+	Actor   Actor `json:"then"`
 }

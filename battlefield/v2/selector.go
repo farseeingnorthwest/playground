@@ -1,6 +1,9 @@
 package battlefield
 
-import "sort"
+import (
+	"encoding/json"
+	"sort"
+)
 
 var (
 	Healthy          = &WaterLevelSelector{Gt, AxisEvaluator(Health), 0}
@@ -13,6 +16,7 @@ var (
 	_       Selector = FrontSelector(0)
 	_       Selector = CounterPositionSelector{}
 	_       Selector = WaterLevelSelector{}
+	_       Selector = PipelineSelector{}
 )
 
 type Selector interface {
@@ -36,6 +40,14 @@ type SideSelector bool
 func (s SideSelector) Select(inputs []Warrior, signal Signal, ec EvaluationContext) []Warrior {
 	side := Side(bool(s) == bool(signal.Current().(Warrior).Side()))
 	return AbsoluteSideSelector(side).Select(inputs, signal, ec)
+}
+
+func (s SideSelector) MarshalJSON() ([]byte, error) {
+	return json.Marshal(sid{bool(s)})
+}
+
+type sid struct {
+	Side bool `json:"side"`
 }
 
 type CurrentSelector struct {
@@ -96,6 +108,14 @@ func (s ShuffleSelector) Select(inputs []Warrior, _ Signal, _ EvaluationContext)
 	return
 }
 
+func (s ShuffleSelector) MarshalJSON() ([]byte, error) {
+	return json.Marshal(shf{s.preference})
+}
+
+type shf struct {
+	Prefer any `json:"shuffle"`
+}
+
 type shuffle struct {
 	preference any
 	randoms    []int
@@ -134,6 +154,14 @@ func (s FrontSelector) Select(inputs []Warrior, _ Signal, _ EvaluationContext) (
 	return
 }
 
+func (s FrontSelector) MarshalJSON() ([]byte, error) {
+	return json.Marshal(fro{int(s)})
+}
+
+type fro struct {
+	Front int `json:"front"`
+}
+
 type CounterPositionSelector struct {
 }
 
@@ -166,4 +194,29 @@ func (s WaterLevelSelector) Select(inputs []Warrior, _ Signal, ec EvaluationCont
 	}
 
 	return
+}
+
+func (s WaterLevelSelector) MarshalJSON() ([]byte, error) {
+	return json.Marshal(wtl{s.comparator.String(), s.evaluator, s.value})
+}
+
+type wtl struct {
+	Comparator string    `json:"comparator"`
+	Evaluator  Evaluator `json:"evaluator"`
+	Value      int       `json:"value"`
+}
+
+type PipelineSelector []Selector
+
+func (s PipelineSelector) Select(inputs []Warrior, signal Signal, ec EvaluationContext) (outputs []Warrior) {
+	outputs = inputs
+	for _, selector := range s {
+		outputs = selector.Select(outputs, signal, ec)
+	}
+
+	return
+}
+
+func (s PipelineSelector) MarshalJSON() ([]byte, error) {
+	return json.Marshal([]Selector(s))
 }

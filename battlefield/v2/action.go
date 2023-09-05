@@ -1,6 +1,7 @@
 package battlefield
 
 import (
+	"encoding/json"
 	"log/slog"
 
 	"github.com/farseeingnorthwest/playground/battlefield/v2/functional"
@@ -159,6 +160,7 @@ func (a *action) Render(b *BattleField) {
 }
 
 type Verb interface {
+	Name() string
 	Render(target Warrior, ac ActionContext) bool
 	Forker
 }
@@ -171,6 +173,10 @@ type Attack struct {
 
 func NewAttack(evaluator Evaluator, critical bool) *Attack {
 	return &Attack{evaluator, critical, make(map[Warrior]int)}
+}
+
+func (*Attack) Name() string {
+	return "attack"
 }
 
 func (a *Attack) Critical() bool {
@@ -245,6 +251,15 @@ func (a *Attack) Render(target Warrior, ac ActionContext) bool {
 	return true
 }
 
+func (a *Attack) MarshalJSON() ([]byte, error) {
+	return json.Marshal(attack{a.critical, a.evaluator})
+}
+
+type attack struct {
+	Critical  bool      `json:"attack"`
+	Evaluator Evaluator `json:"evaluator,omitempty"`
+}
+
 type Heal struct {
 	evaluator Evaluator
 	rise      map[Warrior]int
@@ -252,6 +267,10 @@ type Heal struct {
 
 func NewHeal(evaluator Evaluator) *Heal {
 	return &Heal{evaluator, make(map[Warrior]int)}
+}
+
+func (*Heal) Name() string {
+	return "heal"
 }
 
 func (h *Heal) Rise() map[Warrior]int {
@@ -312,6 +331,10 @@ type Buff struct {
 
 func NewBuff(capacity bool, evaluator Evaluator, reactor ForkReactor) *Buff {
 	return &Buff{capacity && evaluator != nil, evaluator, reactor}
+}
+
+func (*Buff) Name() string {
+	return "buff"
 }
 
 func (b *Buff) Reactor() ForkReactor {
@@ -385,6 +408,10 @@ type Purge struct {
 
 func NewPurge(rng Rng, tag any, count int) *Purge {
 	return &Purge{rng, tag, count, nil}
+}
+
+func (*Purge) Name() string {
+	return "purge"
 }
 
 func (p *Purge) Reactors() []Reactor {

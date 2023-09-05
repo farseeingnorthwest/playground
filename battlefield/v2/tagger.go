@@ -1,6 +1,9 @@
 package battlefield
 
-import "reflect"
+import (
+	"encoding/json"
+	"reflect"
+)
 
 var (
 	_ Tagger = TagSet{}
@@ -54,6 +57,10 @@ func (t TagSet) Find(matcher Matcher) any {
 
 func (t TagSet) Save(tag any) {
 	t[tag] = struct{}{}
+}
+
+func (t TagSet) MarshalJSON() ([]byte, error) {
+	return json.Marshal(t.Tags())
 }
 
 type Matcher interface {

@@ -15,6 +15,7 @@ var (
 
 type Signal interface {
 	Current() any
+	Name() string
 }
 
 type FreeSignal struct {
@@ -27,6 +28,10 @@ func NewFreeSignal(current any) *FreeSignal {
 
 func (s *FreeSignal) Current() any {
 	return s.current
+}
+
+func (s *FreeSignal) Name() string {
+	return "free"
 }
 
 type EvaluationSignal struct {
@@ -55,6 +60,10 @@ func (s *EvaluationSignal) Amend(f func(float64) float64) {
 	s.value = f(s.value)
 }
 
+func (s *EvaluationSignal) Name() string {
+	return "eval"
+}
+
 type PreLossSignal struct {
 	current Warrior
 	loss    int
@@ -76,6 +85,10 @@ func (s *PreLossSignal) SetLoss(loss int) {
 	s.loss = loss
 }
 
+func (s *PreLossSignal) Name() string {
+	return "pre_loss"
+}
+
 type LocalSignal interface {
 	Signal
 	Scripter
@@ -93,6 +106,10 @@ func NewLaunchSignal(current Warrior) *LaunchSignal {
 
 func (s *LaunchSignal) Current() any {
 	return s.current
+}
+
+func (s *LaunchSignal) Name() string {
+	return "launch"
 }
 
 type RegularSignal interface {
@@ -122,6 +139,10 @@ func (s *BattleStartSignal) SetCurrent(current any) Signal {
 	return &BattleStartSignal{current, scripter{}}
 }
 
+func (s *BattleStartSignal) Name() string {
+	return "battle_start"
+}
+
 type RoundStartSignal struct {
 	current any
 	scripter
@@ -139,6 +160,10 @@ func (s *RoundStartSignal) SetCurrent(current any) Signal {
 	return &RoundStartSignal{current, scripter{}}
 }
 
+func (s *RoundStartSignal) Name() string {
+	return "round_start"
+}
+
 type RoundEndSignal struct {
 	current any
 	scripter
@@ -154,6 +179,10 @@ func (s *RoundEndSignal) Current() any {
 
 func (s *RoundEndSignal) SetCurrent(current any) Signal {
 	return &RoundEndSignal{current, scripter{}}
+}
+
+func (s *RoundEndSignal) Name() string {
+	return "round_end"
 }
 
 type ActionSignal interface {
@@ -183,6 +212,11 @@ func (s *PreActionSignal) SetCurrent(current any) Signal {
 	return &PreActionSignal{current, s.action, scripter{}}
 }
 
+func (s *PreActionSignal) Name() string {
+	return "pre_action"
+
+}
+
 type PostActionSignal struct {
 	current any
 	action  Action
@@ -210,6 +244,10 @@ func (s *PostActionSignal) SetCurrent(current any) Signal {
 	return &PostActionSignal{current, s.action, s.deaths, scripter{}}
 }
 
+func (s *PostActionSignal) Name() string {
+	return "post_action"
+}
+
 type LifecycleSignal struct {
 	current   any
 	scripter  any
@@ -235,4 +273,8 @@ func (s *LifecycleSignal) Source() (any, Reactor) {
 
 func (s *LifecycleSignal) Lifecycle() *Lifecycle {
 	return s.lifecycle
+}
+
+func (s *LifecycleSignal) Name() string {
+	return "lifecycle"
 }

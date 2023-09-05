@@ -1,12 +1,23 @@
 package battlefield
 
-import "container/list"
+import (
+	"container/list"
+	"encoding/json"
+)
 
 var (
 	_ Portfolio = (*FatPortfolio)(nil)
 )
 
 type Priority int
+
+func (p Priority) MarshalJSON() ([]byte, error) {
+	return json.Marshal(pr{int(p)})
+}
+
+type pr struct {
+	Priority int `json:"priority"`
+}
 
 type Portfolio interface {
 	Reactor

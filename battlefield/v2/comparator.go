@@ -8,6 +8,14 @@ const (
 	Gt
 )
 
+var comparators = map[IntComparator]string{
+	Lt: "<",
+	Le: "<=",
+	Eq: "=",
+	Ge: ">=",
+	Gt: ">",
+}
+
 type IntComparator uint8
 
 func (c IntComparator) Compare(a, b int) bool {
@@ -26,4 +34,8 @@ func (c IntComparator) Compare(a, b int) bool {
 	default:
 		panic("bad comparator")
 	}
+}
+
+func (c IntComparator) String() string {
+	return comparators[c]
 }

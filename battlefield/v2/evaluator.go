@@ -1,5 +1,7 @@
 package battlefield
 
+import "encoding/json"
+
 var (
 	_ Evaluator = ConstEvaluator(0)
 	_ Evaluator = AxisEvaluator(0)
@@ -30,6 +32,14 @@ type AxisEvaluator Axis
 
 func (e AxisEvaluator) Evaluate(warrior Warrior, ec EvaluationContext) int {
 	return warrior.Component(Axis(e), ec)
+}
+
+func (e AxisEvaluator) MarshalJSON() ([]byte, error) {
+	return json.Marshal(aev{Axis(e).String()})
+}
+
+type aev struct {
+	Axis string `json:"axis"`
 }
 
 type BuffCounter struct {

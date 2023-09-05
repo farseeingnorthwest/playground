@@ -1,6 +1,9 @@
 package battlefield
 
-import "reflect"
+import (
+	"encoding/json"
+	"reflect"
+)
 
 var (
 	_ Trigger       = SignalTrigger{}
@@ -28,6 +31,14 @@ func NewSignalTrigger(signal Signal) SignalTrigger {
 
 func (t SignalTrigger) Trigger(signal Signal, _ EvaluationContext) bool {
 	return reflect.TypeOf(t.signal) == reflect.TypeOf(signal)
+}
+
+func (t SignalTrigger) MarshalJSON() ([]byte, error) {
+	return json.Marshal(stg{t.signal.Name()})
+}
+
+type stg struct {
+	Signal string `json:"signal"`
 }
 
 type AnyTrigger struct {
@@ -72,6 +83,15 @@ func (t *FatTrigger) Trigger(signal Signal, ec EvaluationContext) bool {
 	return true
 }
 
+func (t *FatTrigger) MarshalJSON() ([]byte, error) {
+	return json.Marshal(ftg{t.signalTrigger.signal.Name(), t.actionTriggers})
+}
+
+type ftg struct {
+	Signal string          `json:"signal"`
+	If     []ActionTrigger `json:"if"`
+}
+
 type ActionTrigger interface {
 	Trigger(Action, Signal, EvaluationContext) bool
 }
@@ -84,6 +104,10 @@ func (CurrentIsSourceTrigger) Trigger(action Action, signal Signal, _ Evaluation
 	return a == signal.Current()
 }
 
+func (CurrentIsSourceTrigger) MarshalJSON() ([]byte, error) {
+	return json.Marshal("current_is_source")
+}
+
 type CurrentIsTargetTrigger struct {
 }
 
@@ -94,6 +118,10 @@ func (CurrentIsTargetTrigger) Trigger(action Action, signal Signal, _ Evaluation
 		}
 	}
 	return false
+}
+
+func (CurrentIsTargetTrigger) MarshalJSON() ([]byte, error) {
+	return json.Marshal("current_is_target")
 }
 
 type ReactorTrigger struct {
@@ -119,6 +147,16 @@ func NewVerbTrigger[T Verb]() VerbTrigger[T] {
 func (VerbTrigger[T]) Trigger(action Action, _ Signal, _ EvaluationContext) bool {
 	_, ok := action.Verb().(T)
 	return ok
+}
+
+func (VerbTrigger[T]) MarshalJSON() ([]byte, error) {
+	var tgr T
+
+	return json.Marshal(vtg{tgr.Name()})
+}
+
+type vtg struct {
+	Verb string `json:"verb"`
 }
 
 type CriticalStrikeTrigger struct {
