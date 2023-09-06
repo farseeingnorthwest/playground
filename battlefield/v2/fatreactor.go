@@ -164,7 +164,7 @@ func (r *FatReactor) MarshalJSON() ([]byte, error) {
 }
 
 type fr struct {
-	Tags       TagSet       `json:"tags"`
+	Tags       TagSet       `json:"tags,omitempty"`
 	Leading    *Leading     `json:"leading,omitempty"`
 	Cooling    *Cooling     `json:"cooling,omitempty"`
 	Capacity   *Capacity    `json:"capacity,omitempty"`

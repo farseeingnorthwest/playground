@@ -2,7 +2,10 @@ package battlefield_test
 
 import (
 	"encoding/json"
-	"os"
+	"fmt"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
 
 	. "github.com/farseeingnorthwest/playground/battlefield/v2"
 )
@@ -22,6 +25,7 @@ var (
 	RngX          = &RngProxy{}
 	SkillGroup    = ExclusionGroup(0)
 	Shuffle       = NewShuffleSelector(RngX, Label("Taunt"))
+	ElementNames  = []string{"Water", "Fire", "Ice", "Wind", "Earth", "Thunder", "Dark", "Light"}
 	ElementTheory = NewTheoryActor(
 		map[Element]map[Element]int{
 			Water:   {Fire: 120, Thunder: 80},
@@ -1022,101 +1026,207 @@ var (
 	}
 )
 
-type Element int
+type Element uint8
 
-func ExampleFatReactor_MarshalJSON_regular0() {
-	encoder := json.NewEncoder(os.Stdout)
-	encoder.SetIndent("", "  ")
-	Must(encoder.Encode(Regular[0]))
-	// Output:
-	// {
-	//   "tags": [
-	//     {
-	//       "exclusion_group": 0
-	//     },
-	//     {
-	//       "label": "NormalAttack"
-	//     }
-	//   ],
-	//   "cases": [
-	//     {
-	//       "when": {
-	//         "signal": "launch"
-	//       },
-	//       "then": [
-	//         {
-	//           "for": [
-	//             {
-	//               "side": false
-	//             },
-	//             {
-	//               "comparator": "\u003e",
-	//               "evaluator": {
-	//                 "axis": "health"
-	//               },
-	//               "value": 0
-	//             },
-	//             {
-	//               "shuffle": {
-	//                 "label": "Taunt"
-	//               }
-	//             },
-	//             {
-	//               "front": 1
-	//             }
-	//           ],
-	//           "do": {
-	//             "verb": {
-	//               "attack": false
-	//             },
-	//             "evaluator": {
-	//               "axis": "damage"
-	//             }
-	//           }
-	//         }
-	//       ]
-	//     }
-	//   ]
-	// }
+func (e Element) String() string {
+	return ElementNames[e]
 }
 
-func ExampleFatReactor_MarshalJSON_regular1() {
-	encoder := json.NewEncoder(os.Stdout)
-	encoder.SetIndent("", "  ")
-	Must(encoder.Encode(Regular[1]))
-	// Output:
-	// {
-	//   "tags": [
-	//     {
-	//       "priority": 1000
-	//     }
-	//   ],
-	//   "cases": [
-	//     {
-	//       "when": {
-	//         "signal": "pre_action",
-	//         "if": [
-	//           "current_is_source",
-	//           {
-	//             "verb": "attack"
-	//           }
-	//         ]
-	//       },
-	//       "then": [
-	//         {
-	//           "probability": {
-	//             "axis": "critical_odds"
-	//           },
-	//           "do": "critical_strike"
-	//         }
-	//       ]
-	//     }
-	//   ]
-	// }
+func TestFatReactor_MarshalJSON(t *testing.T) {
+	for i, tt := range []struct {
+		reactor *FatReactor
+		want    string
+	}{
+		{
+			Regular[0],
+			`
+{
+  "tags": [
+    {
+      "exclusion_group": 0
+    },
+    {
+      "label": "NormalAttack"
+    }
+  ],
+  "cases": [
+    {
+      "when": {
+	"signal": "launch"
+      },
+      "then": [
+	{
+	  "for": [
+	    {
+	      "side": false
+	    },
+	    {
+	      "comparator": "\u003e",
+	      "evaluator": {
+		"axis": "health"
+	      },
+	      "value": 0
+	    },
+	    {
+	      "shuffle": {
+		"label": "Taunt"
+	      }
+	    },
+	    {
+	      "front": 1
+	    }
+	  ],
+	  "do": {
+	    "verb": {
+	      "attack": false
+	    },
+	    "evaluator": {
+	      "axis": "damage"
+	    }
+	  }
+	}
+      ]
+    }
+  ]
 }
+`,
+		},
+		{
+			Regular[1],
+			`
+{
+  "tags": [
+    {
+      "priority": 1000
+    }
+  ],
+  "cases": [
+    {
+      "when": {
+	"signal": "pre_action",
+	"if": [
+	  "current_is_source",
+	  {
+	    "verb": "attack"
+	  }
+	]
+      },
+      "then": [
+	{
+	  "probability": {
+	    "axis": "critical_odds"
+	  },
+	  "do": "critical_strike"
+	}
+      ]
+    }
+  ]
+}
+`,
+		},
+		{
+			Regular[2],
+			`
+{
+  "tags": [
+    {
+      "priority": 999
+    }
+  ],
+  "cases": [
+    {
+      "when": {
+	"signal": "pre_action",
+	"if": [
+	  "current_is_source",
+	  {
+	    "verb": "attack"
+	  },
+	  "critical_strike"
+	]
+      },
+      "then": [
+	{
+	  "buff": "action",
+          "buffer": {
+	    "axis": "loss"
+	  },
+	  "evaluator": {
+	    "axis": "critical_loss"
+	  }
+	}
+      ]
+    }
+  ]
+}
+`,
+		},
+		{
+			Regular[3],
+			`
+{
+  "cases": [
+    {
+      "when": {
+	"signal": "pre_action",
+        "if": [
+          {
+            "verb": "attack"
+          }
+        ]
+      },
+      "then": [
+        {
+          "buff": "action",
+          "buffer": {
+            "theory": {
+              "Water": {
+                "Fire": 120,
+                "Thunder": 80
+              },
+              "Fire": {
+                "Ice": 120,
+                "Water": 80
+              },
+              "Ice": {
+                "Wind": 120,
+                "Fire": 80
+              },
+              "Wind": {
+                "Earth": 120,
+ 	        "Ice": 80
+              },
+ 	      "Earth": {
+ 	        "Thunder": 120,
+ 	        "Wind": 80
+ 	      },
+ 	      "Thunder": {
+ 	        "Water": 120,
+ 	        "Earth": 80
+ 	      },
+ 	      "Light": {
+ 	        "Dark": 120
+ 	      },
+ 	      "Dark": {
+ 	        "Light": 120
+ 	      }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
+`,
+		},
+	} {
+		t.Run(fmt.Sprintf("#%d", i), func(t *testing.T) {
+			bytes, err := json.Marshal(tt.reactor)
+			if err != nil {
+				t.Fatal(err)
+			}
 
-func Must(err error) {
-	if err != nil {
-		panic(err)
+			assert.JSONEq(t, tt.want, string(bytes))
+		})
 	}
 }

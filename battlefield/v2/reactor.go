@@ -1,6 +1,9 @@
 package battlefield
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"fmt"
+)
 
 var (
 	_ Actor = Buffer{}
@@ -13,7 +16,7 @@ var (
 	_ Actor = ImmuneActor{}
 	_ Actor = LossStopper{}
 	_ Actor = LossResister{}
-	_ Actor = TheoryActor[any]{}
+	_ Actor = TheoryActor[Side]{}
 	_ Actor = (*ActionBuffer)(nil)
 )
 
@@ -89,6 +92,20 @@ func (b Buffer) Fork(evaluator Evaluator) any {
 	}
 
 	return NewBuffer(b.axis, b.bias, evaluator)
+}
+
+func (b Buffer) MarshalJSON() ([]byte, error) {
+	return json.Marshal(bfr{
+		b.axis.String(),
+		b.bias,
+		b.evaluator,
+	})
+}
+
+type bfr struct {
+	Axis      string    `json:"axis"`
+	Bias      bool      `json:"bias,omitempty"`
+	Evaluator Evaluator `json:"evaluator,omitempty"`
 }
 
 type VerbActor struct {
@@ -265,6 +282,8 @@ func (a RepeatActor) Fork(evaluator Evaluator) any {
 	return NewRepeatActor(a.count, a.actor.Fork(evaluator).(Actor))
 }
 
+// CriticalActor set the `critical' flag and should be triggered on
+// `PreAttackSignal' with high priority.
 type CriticalActor struct {
 }
 
@@ -347,11 +366,17 @@ func (LossResister) Fork(_ Evaluator) any {
 	return LossResister{}
 }
 
-type TheoryActor[T comparable] struct {
+type TheoryActor[T interface {
+	comparable
+	fmt.Stringer
+}] struct {
 	theory map[T]map[T]int
 }
 
-func NewTheoryActor[T comparable](theory map[T]map[T]int) TheoryActor[T] {
+func NewTheoryActor[T interface {
+	comparable
+	fmt.Stringer
+}](theory map[T]map[T]int) TheoryActor[T] {
 	return TheoryActor[T]{theory}
 }
 
@@ -387,6 +412,24 @@ func (a TheoryActor[T]) Fork(_ Evaluator) any {
 	return a
 }
 
+func (a TheoryActor[T]) MarshalJSON() ([]byte, error) {
+	theory := make(map[string]map[string]int)
+	for k, v := range a.theory {
+		theory[k.String()] = make(map[string]int)
+		for kk, vv := range v {
+			theory[k.String()][kk.String()] = vv
+		}
+	}
+
+	return json.Marshal(thr{theory})
+}
+
+type thr struct {
+	Theory map[string]map[string]int `json:"theory"`
+}
+
+// ActionBuffer is a special actor that buffs the action, mostly used
+// to amplify the damage.
 type ActionBuffer struct {
 	evaluator Evaluator
 	buffer    Actor
@@ -422,6 +465,20 @@ func (b ActionBuffer) Fork(evaluator Evaluator) any {
 	}
 
 	return NewActionBuffer(evaluator, b.buffer)
+}
+
+func (b ActionBuffer) MarshalJSON() ([]byte, error) {
+	return json.Marshal(bf{
+		"action",
+		b.buffer,
+		b.evaluator,
+	})
+}
+
+type bf struct {
+	Buff      string    `json:"buff"`
+	Buffer    Actor     `json:"buffer"`
+	Evaluator Evaluator `json:"evaluator,omitempty"`
 }
 
 type ActorContext interface {

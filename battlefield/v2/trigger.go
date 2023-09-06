@@ -167,6 +167,10 @@ func (CriticalStrikeTrigger) Trigger(action Action, _ Signal, _ EvaluationContex
 	return ok && a.Critical()
 }
 
+func (CriticalStrikeTrigger) MarshalJSON() ([]byte, error) {
+	return json.Marshal("critical_strike")
+}
+
 type TagTrigger struct {
 	tag any
 }

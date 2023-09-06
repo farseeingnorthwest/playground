@@ -3,6 +3,7 @@ package battlefield
 import (
 	"encoding/json"
 	"reflect"
+	"sort"
 )
 
 var (
@@ -60,7 +61,24 @@ func (t TagSet) Save(tag any) {
 }
 
 func (t TagSet) MarshalJSON() ([]byte, error) {
-	return json.Marshal(t.Tags())
+	tags := t.Tags()
+	sort.Sort(byType(tags))
+
+	return json.Marshal(tags)
+}
+
+type byType []any
+
+func (b byType) Len() int {
+	return len(b)
+}
+
+func (b byType) Less(i, j int) bool {
+	return reflect.TypeOf(b[i]).Name() < reflect.TypeOf(b[j]).Name()
+}
+
+func (b byType) Swap(i, j int) {
+	b[i], b[j] = b[j], b[i]
 }
 
 type Matcher interface {

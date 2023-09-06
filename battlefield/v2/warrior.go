@@ -19,26 +19,26 @@ const (
 )
 
 var (
-	_      Warrior  = (*MyWarrior)(nil)
-	_      Baseline = MyBaseline{}
-	axises          = map[Axis]string{
-		Damage:        "damage",
-		CriticalOdds:  "critical_odds",
-		CriticalLoss:  "critical_loss",
-		Defense:       "defense",
-		Loss:          "loss",
-		Health:        "health",
-		HealthPercent: "health_percent",
-		HealthMaximum: "health_maximum",
-		Position:      "position",
-		Speed:         "speed",
+	_         Warrior  = (*MyWarrior)(nil)
+	_         Baseline = MyBaseline{}
+	AxisNames          = []string{
+		"damage",
+		"critical_odds",
+		"critical_loss",
+		"defense",
+		"loss",
+		"health",
+		"health_percent",
+		"health_maximum",
+		"position",
+		"speed",
 	}
 )
 
 type Axis uint8
 
 func (a Axis) String() string {
-	return axises[a]
+	return AxisNames[a]
 }
 
 type Side bool
