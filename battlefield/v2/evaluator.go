@@ -28,6 +28,12 @@ func (e ConstEvaluator) Evaluate(Warrior, EvaluationContext) int {
 	return int(e)
 }
 
+func (e ConstEvaluator) MarshalJSON() ([]byte, error) {
+	return json.Marshal(map[string]int{
+		"const": int(e),
+	})
+}
+
 type AxisEvaluator Axis
 
 func (e AxisEvaluator) Evaluate(warrior Warrior, ec EvaluationContext) int {
@@ -35,11 +41,7 @@ func (e AxisEvaluator) Evaluate(warrior Warrior, ec EvaluationContext) int {
 }
 
 func (e AxisEvaluator) MarshalJSON() ([]byte, error) {
-	return json.Marshal(aev{Axis(e).String()})
-}
-
-type aev struct {
-	Axis string `json:"axis"`
+	return json.Marshal(map[string]string{"axis": Axis(e).String()})
 }
 
 type BuffCounter struct {
@@ -54,11 +56,21 @@ func (e BuffCounter) Evaluate(warrior Warrior, _ EvaluationContext) int {
 	return len(warrior.Buffs(e.tag))
 }
 
+func (e BuffCounter) MarshalJSON() ([]byte, error) {
+	return json.Marshal(map[string]any{
+		"count_buffs": e.tag,
+	})
+}
+
 type LossEvaluator struct {
 }
 
 func (LossEvaluator) Evaluate(_ Warrior, ec EvaluationContext) int {
 	return ec.(ActionContext).Action().Script().Loss()
+}
+
+func (LossEvaluator) MarshalJSON() ([]byte, error) {
+	return json.Marshal("loss")
 }
 
 type SelectCounter []Selector
@@ -77,6 +89,12 @@ func (e SelectCounter) Evaluate(warrior Warrior, ec EvaluationContext) int {
 	return len(warriors)
 }
 
+func (e SelectCounter) MarshalJSON() ([]byte, error) {
+	return json.Marshal(map[string]any{
+		"count": ([]Selector)(e),
+	})
+}
+
 type Adder struct {
 	adder     int
 	evaluator Evaluator
@@ -90,6 +108,13 @@ func (e *Adder) Evaluate(warrior Warrior, ec EvaluationContext) int {
 	return e.adder + e.evaluator.Evaluate(warrior, ec)
 }
 
+func (e *Adder) MarshalJSON() ([]byte, error) {
+	return json.Marshal(map[string]any{
+		"add":       e.adder,
+		"evaluator": e.evaluator,
+	})
+}
+
 type Multiplier struct {
 	multiplier int
 	evaluator  Evaluator
@@ -101,6 +126,13 @@ func NewMultiplier(multiplier int, evaluator Evaluator) *Multiplier {
 
 func (e *Multiplier) Evaluate(warrior Warrior, ec EvaluationContext) int {
 	return e.multiplier * e.evaluator.Evaluate(warrior, ec) / 100
+}
+
+func (e *Multiplier) MarshalJSON() ([]byte, error) {
+	return json.Marshal(map[string]any{
+		"mul":       e.multiplier,
+		"evaluator": e.evaluator,
+	})
 }
 
 type CustomEvaluator struct {

@@ -12,11 +12,7 @@ var (
 type Priority int
 
 func (p Priority) MarshalJSON() ([]byte, error) {
-	return json.Marshal(pr{int(p)})
-}
-
-type pr struct {
-	Priority int `json:"priority"`
+	return json.Marshal(map[string]int{"priority": int(p)})
 }
 
 type Portfolio interface {
@@ -126,4 +122,10 @@ func (l StackingLimit) Remove(reactor Reactor) {
 			return
 		}
 	}
+}
+
+func (l StackingLimit) MarshalJSON() ([]byte, error) {
+	return json.Marshal(map[string]int{
+		"stacking": l.capacity,
+	})
 }

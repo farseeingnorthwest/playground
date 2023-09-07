@@ -9,11 +9,9 @@ var (
 type ExclusionGroup uint8
 
 func (g ExclusionGroup) MarshalJSON() ([]byte, error) {
-	return json.Marshal(xg{uint8(g)})
-}
-
-type xg struct {
-	ExclusionGroup uint8 `json:"exclusion_group"`
+	return json.Marshal(map[string]uint8{
+		"exclusion_group": uint8(g),
+	})
 }
 
 type FatReactor struct {
@@ -201,8 +199,8 @@ func (l *Leading) Fork() *Leading {
 
 func (l *Leading) MarshalJSON() ([]byte, error) {
 	return json.Marshal(lc{
-		l.trigger,
 		l.count,
+		l.trigger,
 	})
 }
 
@@ -246,8 +244,8 @@ func (c *Cooling) Fork() *Cooling {
 
 func (c *Cooling) MarshalJSON() ([]byte, error) {
 	return json.Marshal(lc{
-		c.trigger,
 		c.count,
+		c.trigger,
 	})
 }
 
@@ -300,14 +298,14 @@ func (c *Capacity) Fork() *Capacity {
 
 func (c *Capacity) MarshalJSON() ([]byte, error) {
 	return json.Marshal(lc{
-		c.trigger,
 		c.count,
+		c.trigger,
 	})
 }
 
 type lc struct {
-	Trigger `json:"when"`
 	Count   int `json:"count"`
+	Trigger `json:"when,omitempty"`
 }
 
 type Responder struct {
@@ -336,5 +334,5 @@ func (r *Responder) MarshalJSON() ([]byte, error) {
 
 type rs struct {
 	Trigger `json:"when"`
-	Actor   Actor `json:"then"`
+	Actor   `json:"then"`
 }

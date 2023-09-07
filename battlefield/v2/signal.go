@@ -61,7 +61,7 @@ func (s *EvaluationSignal) Amend(f func(float64) float64) {
 }
 
 func (s *EvaluationSignal) Name() string {
-	return "eval"
+	return "evaluation"
 }
 
 type PreLossSignal struct {

@@ -23,11 +23,7 @@ var (
 type Label string
 
 func (l Label) MarshalJSON() ([]byte, error) {
-	return json.Marshal(label{string(l)})
-}
-
-type label struct {
-	Label string `json:"label"`
+	return json.Marshal(map[string]string{"label": string(l)})
 }
 
 type Reactor interface {
@@ -95,17 +91,15 @@ func (b Buffer) Fork(evaluator Evaluator) any {
 }
 
 func (b Buffer) MarshalJSON() ([]byte, error) {
-	return json.Marshal(bfr{
+	return json.Marshal(struct {
+		Axis      string    `json:"axis"`
+		Bias      bool      `json:"bias,omitempty"`
+		Evaluator Evaluator `json:"evaluator,omitempty"`
+	}{
 		b.axis.String(),
 		b.bias,
 		b.evaluator,
 	})
-}
-
-type bfr struct {
-	Axis      string    `json:"axis"`
-	Bias      bool      `json:"bias,omitempty"`
-	Evaluator Evaluator `json:"evaluator,omitempty"`
 }
 
 type VerbActor struct {
@@ -142,15 +136,13 @@ func (a VerbActor) Fork(evaluator Evaluator) any {
 }
 
 func (a VerbActor) MarshalJSON() ([]byte, error) {
-	return json.Marshal(va{
+	return json.Marshal(struct {
+		Verb      Verb      `json:"verb"`
+		Evaluator Evaluator `json:"evaluator,omitempty"`
+	}{
 		a.verb,
 		a.evaluator,
 	})
-}
-
-type va struct {
-	Verb      Verb      `json:"verb"`
-	Evaluator Evaluator `json:"evaluator"`
 }
 
 type SelectActor struct {
@@ -181,15 +173,10 @@ func (a SelectActor) Fork(evaluator Evaluator) any {
 }
 
 func (a SelectActor) MarshalJSON() ([]byte, error) {
-	return json.Marshal(sa{
-		a.selector,
-		a.actor,
+	return json.Marshal(map[string]any{
+		"for": a.selector,
+		"do":  a.actor,
 	})
-}
-
-type sa struct {
-	Selector Selector `json:"for"`
-	Actor    Actor    `json:"do"`
 }
 
 type Rng interface {
@@ -219,15 +206,10 @@ func (a ProbabilityActor) Fork(evaluator Evaluator) any {
 }
 
 func (a ProbabilityActor) MarshalJSON() ([]byte, error) {
-	return json.Marshal(pa{
-		a.evaluator,
-		a.actor,
+	return json.Marshal(map[string]any{
+		"probability": a.evaluator,
+		"do":          a.actor,
 	})
-}
-
-type pa struct {
-	Evaluator Evaluator `json:"probability"`
-	Actor     Actor     `json:"do"`
 }
 
 type SequenceActor []Actor
@@ -256,6 +238,10 @@ func (a SequenceActor) Fork(evaluator Evaluator) any {
 }
 
 func (a SequenceActor) MarshalJSON() ([]byte, error) {
+	if a == nil {
+		return json.Marshal([]Actor{})
+	}
+
 	return json.Marshal([]Actor(a))
 }
 
@@ -280,6 +266,13 @@ func (a RepeatActor) Act(signal Signal, warriors []Warrior, ec ActorContext) boo
 
 func (a RepeatActor) Fork(evaluator Evaluator) any {
 	return NewRepeatActor(a.count, a.actor.Fork(evaluator).(Actor))
+}
+
+func (a RepeatActor) MarshalJSON() ([]byte, error) {
+	return json.Marshal(map[string]any{
+		"repeat": a.count,
+		"do":     a.actor,
+	})
 }
 
 // CriticalActor set the `critical' flag and should be triggered on
@@ -318,6 +311,10 @@ func (ImmuneActor) Fork(_ Evaluator) any {
 	return ImmuneActor{}
 }
 
+func (ImmuneActor) MarshalJSON() ([]byte, error) {
+	return json.Marshal("immune")
+}
+
 type LossStopper struct {
 	evaluator Evaluator
 	full      bool
@@ -350,6 +347,13 @@ func (s LossStopper) Fork(evaluator Evaluator) any {
 	return NewLossStopper(evaluator, false)
 }
 
+func (s LossStopper) MarshalJSON() ([]byte, error) {
+	return json.Marshal(map[string]any{
+		"stop_loss": s.full,
+		"evaluator": s.evaluator,
+	})
+}
+
 type LossResister struct {
 }
 
@@ -366,17 +370,22 @@ func (LossResister) Fork(_ Evaluator) any {
 	return LossResister{}
 }
 
-type TheoryActor[T interface {
-	comparable
-	fmt.Stringer
-}] struct {
-	theory map[T]map[T]int
+func (LossResister) MarshalJSON() ([]byte, error) {
+	return json.Marshal("resist_loss")
 }
 
-func NewTheoryActor[T interface {
+type feature interface {
 	comparable
 	fmt.Stringer
-}](theory map[T]map[T]int) TheoryActor[T] {
+}
+
+type theory[T comparable] map[T]map[T]int
+
+type TheoryActor[T feature] struct {
+	theory theory[T]
+}
+
+func NewTheoryActor[T feature](theory map[T]map[T]int) TheoryActor[T] {
 	return TheoryActor[T]{theory}
 }
 
@@ -413,19 +422,17 @@ func (a TheoryActor[T]) Fork(_ Evaluator) any {
 }
 
 func (a TheoryActor[T]) MarshalJSON() ([]byte, error) {
-	theory := make(map[string]map[string]int)
+	t := make(theory[string])
 	for k, v := range a.theory {
-		theory[k.String()] = make(map[string]int)
+		t[k.String()] = make(map[string]int)
 		for kk, vv := range v {
-			theory[k.String()][kk.String()] = vv
+			t[k.String()][kk.String()] = vv
 		}
 	}
 
-	return json.Marshal(thr{theory})
-}
-
-type thr struct {
-	Theory map[string]map[string]int `json:"theory"`
+	return json.Marshal(map[string]theory[string]{
+		"theory": t,
+	})
 }
 
 // ActionBuffer is a special actor that buffs the action, mostly used
@@ -468,17 +475,15 @@ func (b ActionBuffer) Fork(evaluator Evaluator) any {
 }
 
 func (b ActionBuffer) MarshalJSON() ([]byte, error) {
-	return json.Marshal(bf{
+	return json.Marshal(struct {
+		Buff      string    `json:"buff"`
+		Buffer    Actor     `json:"buffer"`
+		Evaluator Evaluator `json:"evaluator,omitempty"`
+	}{
 		"action",
 		b.buffer,
 		b.evaluator,
 	})
-}
-
-type bf struct {
-	Buff      string    `json:"buff"`
-	Buffer    Actor     `json:"buffer"`
-	Evaluator Evaluator `json:"evaluator,omitempty"`
 }
 
 type ActorContext interface {

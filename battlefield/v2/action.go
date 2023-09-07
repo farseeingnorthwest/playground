@@ -252,12 +252,12 @@ func (a *Attack) Render(target Warrior, ac ActionContext) bool {
 }
 
 func (a *Attack) MarshalJSON() ([]byte, error) {
-	return json.Marshal(attack{a.critical, a.evaluator})
+	return json.Marshal(attack{a.evaluator, a.critical})
 }
 
 type attack struct {
-	Critical  bool      `json:"attack"`
-	Evaluator Evaluator `json:"evaluator,omitempty"`
+	Evaluator Evaluator `json:"attack"`
+	Critical  bool      `json:"critical,omitempty"`
 }
 
 type Heal struct {
@@ -321,6 +321,14 @@ func (h *Heal) Render(target Warrior, ac ActionContext) bool {
 				slog.Int("maximum", m))),
 	)
 	return true
+}
+
+func (h *Heal) MarshalJSON() ([]byte, error) {
+	return json.Marshal(heal{h.evaluator})
+}
+
+type heal struct {
+	Evaluator Evaluator `json:"heal"`
 }
 
 type Buff struct {
@@ -399,6 +407,16 @@ func (b *Buff) Render(target Warrior, ac ActionContext) bool {
 	return true
 }
 
+func (b *Buff) MarshalJSON() ([]byte, error) {
+	return json.Marshal(buff{b.reactor, b.evaluator, b.capacity})
+}
+
+type buff struct {
+	Reactor   Reactor   `json:"buff"`
+	Evaluator Evaluator `json:"evaluator,omitempty"`
+	Capacity  bool      `json:"capacity,omitempty"`
+}
+
 type Purge struct {
 	rng      Rng
 	tag      any
@@ -422,7 +440,7 @@ func (p *Purge) Fork(Evaluator) any {
 	return p
 }
 
-func (p *Purge) Render(target Warrior, ac ActionContext) bool {
+func (p *Purge) Render(target Warrior, _ ActionContext) bool {
 	if target.Health().Current <= 0 {
 		return false
 	}
@@ -448,6 +466,15 @@ func (p *Purge) Render(target Warrior, ac ActionContext) bool {
 	p.reactors = buffs
 	slog.Debug("render", slog.String("verb", "purge"), slog.Any("reactors", tags))
 	return true
+}
+
+func (p *Purge) MarshalJSON() ([]byte, error) {
+	return json.Marshal(purge{p.tag, p.count})
+}
+
+type purge struct {
+	Tag   any `json:"purge"`
+	Count int `json:"count,omitempty"`
 }
 
 type ActionContext interface {

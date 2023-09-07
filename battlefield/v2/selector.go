@@ -35,6 +35,12 @@ func (s AbsoluteSideSelector) Select(inputs []Warrior, _ Signal, _ EvaluationCon
 	return
 }
 
+func (s AbsoluteSideSelector) MarshalJSON() ([]byte, error) {
+	return json.Marshal(map[string]string{
+		"side": Side(s).String(),
+	})
+}
+
 type SideSelector bool
 
 func (s SideSelector) Select(inputs []Warrior, signal Signal, ec EvaluationContext) []Warrior {
@@ -43,11 +49,9 @@ func (s SideSelector) Select(inputs []Warrior, signal Signal, ec EvaluationConte
 }
 
 func (s SideSelector) MarshalJSON() ([]byte, error) {
-	return json.Marshal(sid{bool(s)})
-}
-
-type sid struct {
-	Side bool `json:"side"`
+	return json.Marshal(map[string]bool{
+		"side": bool(s),
+	})
 }
 
 type CurrentSelector struct {
@@ -57,12 +61,20 @@ func (CurrentSelector) Select(_ []Warrior, signal Signal, _ EvaluationContext) [
 	return []Warrior{signal.Current().(Warrior)}
 }
 
+func (CurrentSelector) MarshalJSON() ([]byte, error) {
+	return json.Marshal("current")
+}
+
 type SourceSelector struct {
 }
 
 func (SourceSelector) Select(_ []Warrior, signal Signal, _ EvaluationContext) []Warrior {
 	source, _ := signal.(ActionSignal).Action().Script().Source()
 	return []Warrior{source.(Warrior)}
+}
+
+func (SourceSelector) MarshalJSON() ([]byte, error) {
+	return json.Marshal("source")
 }
 
 type SortSelector struct {
@@ -80,6 +92,13 @@ func (s SortSelector) Select(inputs []Warrior, _ Signal, ec EvaluationContext) (
 
 	sort.Sort(&ByAxis{s.axis, s.asc, ec, outputs})
 	return
+}
+
+func (s SortSelector) MarshalJSON() ([]byte, error) {
+	return json.Marshal(map[string]any{
+		"sort": s.axis.String(),
+		"asc":  s.asc,
+	})
 }
 
 type ShuffleSelector struct {
@@ -109,11 +128,9 @@ func (s ShuffleSelector) Select(inputs []Warrior, _ Signal, _ EvaluationContext)
 }
 
 func (s ShuffleSelector) MarshalJSON() ([]byte, error) {
-	return json.Marshal(shf{s.preference})
-}
-
-type shf struct {
-	Prefer any `json:"shuffle"`
+	return json.Marshal(map[string]any{
+		"shuffle": s.preference,
+	})
 }
 
 type shuffle struct {
@@ -155,11 +172,9 @@ func (s FrontSelector) Select(inputs []Warrior, _ Signal, _ EvaluationContext) (
 }
 
 func (s FrontSelector) MarshalJSON() ([]byte, error) {
-	return json.Marshal(fro{int(s)})
-}
-
-type fro struct {
-	Front int `json:"front"`
+	return json.Marshal(map[string]int{
+		"front": int(s),
+	})
 }
 
 type CounterPositionSelector struct {
@@ -174,6 +189,10 @@ func (CounterPositionSelector) Select(inputs []Warrior, signal Signal, _ Evaluat
 	}
 
 	return nil
+}
+
+func (CounterPositionSelector) MarshalJSON() ([]byte, error) {
+	return json.Marshal("counter_position")
 }
 
 type WaterLevelSelector struct {
@@ -197,13 +216,11 @@ func (s WaterLevelSelector) Select(inputs []Warrior, _ Signal, ec EvaluationCont
 }
 
 func (s WaterLevelSelector) MarshalJSON() ([]byte, error) {
-	return json.Marshal(wtl{s.comparator.String(), s.evaluator, s.value})
-}
-
-type wtl struct {
-	Comparator string    `json:"comparator"`
-	Evaluator  Evaluator `json:"evaluator"`
-	Value      int       `json:"value"`
+	return json.Marshal(map[string]any{
+		"comparator": s.comparator.String(),
+		"evaluator":  s.evaluator,
+		"value":      s.value,
+	})
 }
 
 type PipelineSelector []Selector

@@ -99,7 +99,6 @@ var (
 			FatTags(SkillGroup, Priority(10), Label("Sleep")),
 			FatRespond(
 				NewSignalTrigger(&LaunchSignal{}),
-				NewSequenceActor(),
 			),
 			FatCapacity(
 				NewAnyTrigger(
@@ -496,7 +495,7 @@ var (
 						&PreActionSignal{},
 						CurrentIsSourceTrigger{},
 						NewVerbTrigger[*Attack](),
-						NewReactorTrigger(Regular[0]),
+						NewReactorTrigger(Label("NormalAttack")),
 						CriticalStrikeTrigger{},
 					),
 					NewSelectActor(
@@ -1078,7 +1077,7 @@ func TestFatReactor_MarshalJSON(t *testing.T) {
 	  ],
 	  "do": {
 	    "verb": {
-	      "attack": false
+	      "attack": null
 	    },
 	    "evaluator": {
 	      "axis": "damage"
@@ -1213,6 +1212,400 @@ func TestFatReactor_MarshalJSON(t *testing.T) {
             }
           }
         }
+      ]
+    }
+  ]
+}
+`,
+		},
+		{
+			Effect["Sleep"],
+			`
+{
+  "tags": [
+    {
+      "exclusion_group": 0
+    },
+    {
+      "label": "Sleep"
+    },
+    {
+       "priority": 10
+    }
+  ],
+  "cases": [
+    {
+      "when": {
+        "signal": "launch"
+      },
+      "then": []
+    }
+  ],
+  "capacity": {
+    "count": 1,
+    "when": [
+      {
+        "signal": "round_end"
+      },
+      {
+        "signal": "post_action",
+        "if": [
+          {
+            "verb": "attack"
+ 	  },
+          "current_is_target"
+        ]
+      }
+    ]
+  }
+}
+`,
+		},
+		{
+			Effect["Barrier"],
+			`
+{
+  "tags": [
+    {
+      "label": "Barrier"
+    }
+  ],
+  "cases": [
+    {
+      "when": {
+	"signal": "pre_loss"
+      },
+      "then": [
+	{
+	  "stop_loss": true,
+	  "evaluator": {
+	    "mul": 10,
+	    "evaluator": {
+	      "axis": "health_maximum"
+	    }
+	  }
+	}
+      ]
+    }
+  ],
+  "capacity": {
+    "count": 1
+  }
+}
+`,
+		},
+		{
+			Effect["Shield"],
+			`
+{
+  "tags": [
+    {
+      "label": "Shield"
+    }
+  ],
+  "cases": [
+    {
+      "when": {
+        "signal": "pre_loss"
+      },
+      "then": [
+	{
+	  "for": "current",
+	  "do": "resist_loss"
+	}
+      ]
+    }
+  ]
+}
+`,
+		},
+		{
+			Effect["BuffImmune"],
+			`
+{
+  "tags": [
+    {
+      "label": "BuffImmune"
+    }
+  ],
+  "cases": [
+    {
+      "when": {
+        "signal": "pre_action",
+        "if": [
+          "current_is_target",
+          {
+            "tag": "Buff"
+          }
+        ]
+      },
+      "then": [
+        {
+          "for": "current",
+          "do": "immune"
+        }
+      ]
+    }
+  ],
+  "capacity": {
+    "count": 3,
+    "when": {
+      "signal": "round_end"
+    }
+  }
+}
+`,
+		},
+		{
+			Effect["Regeneration"],
+			`
+{
+  "tags": [
+    {
+      "label": "Regeneration"
+    }
+  ],
+  "cases": [
+    {
+      "when": {
+        "signal": "round_start"
+      },
+      "then": [
+        {
+          "for": "current",
+          "do": {
+            "verb": {
+              "heal": null
+            },
+            "evaluator": {
+              "mul": 7,
+              "evaluator": {
+                "axis": "health_maximum"
+              }
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "capacity": {
+    "count": 1
+  }
+}
+`,
+		},
+		{
+			Special[0][0],
+			`
+{
+  "tags": [
+    {
+      "exclusion_group": 0
+    },
+    {
+      "label": "@Launch({1} 3 * 460% Damage)"
+    },
+    {
+      "priority": 1
+    }
+  ],
+  "cases": [
+    {
+      "when": {
+        "signal": "launch"
+      },
+      "then": [
+        {
+          "for": [
+            {
+              "side": false
+            },
+  	    {
+              "comparator": "\u003e",
+	      "evaluator": {
+ 	        "axis": "health"
+              },
+              "value": 0
+            },
+            {
+              "shuffle": {
+                "label": "Taunt"
+              }
+            },
+            {
+              "front": 1
+            }
+          ],
+          "do": {
+            "repeat": 3,
+ 	    "do": [
+	      {
+		"verb": {
+		  "attack": null
+		},
+		"evaluator": {
+		  "mul": 460,
+		  "evaluator": {
+		    "axis": "damage"
+		  }
+		}
+	      }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "cooling": {
+    "count": 5,
+    "when": {
+      "signal": "round_end"
+    }
+  }
+}
+`,
+		},
+		{
+			Special[0][1],
+			`
+{
+  "tags": [
+    {
+      "exclusion_group": 0
+    },
+    {
+      "label": "@Launch({*} 480% Damage; {1} 520% Damage)"
+    },
+    {
+      "priority": 2
+    }
+  ],
+  "cases": [
+    {
+      "when": {
+        "signal": "launch"
+      },
+      "then": [
+        {
+          "for": [
+            {
+              "side": false
+            },
+            {
+              "comparator": "\u003e",
+              "evaluator": {
+                "axis": "health"
+ 	      },
+ 	      "value": 0
+            }
+          ],
+          "do": {
+	    "verb": {
+	      "attack": null
+	    },
+	    "evaluator": {
+	      "mul": 480,
+	      "evaluator": {
+		"axis": "damage"
+	      }
+	    }
+	  }
+        },
+        {
+          "for": [
+            {
+              "side": false
+            },
+            {
+              "comparator": "\u003e",
+              "evaluator": {
+                "axis": "health"
+ 	      },
+ 	      "value": 0
+            },
+            {
+              "sort": "health_percent",
+              "asc": true
+            },
+            {
+              "front": 1
+            }
+          ],
+	  "do": {
+	    "verb": {
+	      "attack": null
+	    },
+	    "evaluator": {
+	      "mul": 520,
+	      "evaluator": {
+		"axis": "damage"
+	      }
+	    }
+	  }
+        }
+      ]
+    }
+  ],
+  "cooling": {
+    "count": 4,
+    "when": {
+      "signal": "round_end"
+    }
+  }
+}
+`,
+		},
+		{
+			Special[0][2],
+			`
+{
+  "tags": [
+    {
+      "label": "@Launch([15] +2% CriticalOdds)"
+    },
+    {
+      "priority": 3
+    }
+  ],
+  "cases": [
+    {
+      "when": {
+        "signal": "launch"
+      },
+      "then": [
+        {
+	  "for": "current",
+	  "do": {
+	    "verb": {
+	      "buff": {
+		"tags": [
+		  {
+		    "label": "[15] +2% CriticalOdds"
+		  },
+		  {
+		    "stacking": 15
+		  }
+		],
+		"cases": [
+		  {
+		    "when": {
+		      "signal": "evaluation"
+		    },
+		    "then": [
+		      {
+			"axis": "critical_odds",
+			"bias": true,
+			"evaluator": {
+			  "const": 2
+			}
+		      }
+		    ]
+		  }
+		]
+	      }
+	    }
+	  }
+	}
       ]
     }
   ]

@@ -11,7 +11,6 @@ var (
 	_ Trigger       = (*FatTrigger)(nil)
 	_ ActionTrigger = CurrentIsSourceTrigger{}
 	_ ActionTrigger = CurrentIsTargetTrigger{}
-	_ ActionTrigger = ReactorTrigger{}
 	_ ActionTrigger = VerbTrigger[*Attack]{}
 	_ ActionTrigger = CriticalStrikeTrigger{}
 	_ ActionTrigger = TagTrigger{}
@@ -34,11 +33,9 @@ func (t SignalTrigger) Trigger(signal Signal, _ EvaluationContext) bool {
 }
 
 func (t SignalTrigger) MarshalJSON() ([]byte, error) {
-	return json.Marshal(stg{t.signal.Name()})
-}
-
-type stg struct {
-	Signal string `json:"signal"`
+	return json.Marshal(map[string]string{
+		"signal": t.signal.Name(),
+	})
 }
 
 type AnyTrigger struct {
@@ -57,6 +54,10 @@ func (t AnyTrigger) Trigger(signal Signal, ec EvaluationContext) bool {
 	}
 
 	return false
+}
+
+func (t AnyTrigger) MarshalJSON() ([]byte, error) {
+	return json.Marshal(t.triggers)
 }
 
 type FatTrigger struct {
@@ -84,12 +85,10 @@ func (t *FatTrigger) Trigger(signal Signal, ec EvaluationContext) bool {
 }
 
 func (t *FatTrigger) MarshalJSON() ([]byte, error) {
-	return json.Marshal(ftg{t.signalTrigger.signal.Name(), t.actionTriggers})
-}
-
-type ftg struct {
-	Signal string          `json:"signal"`
-	If     []ActionTrigger `json:"if"`
+	return json.Marshal(map[string]any{
+		"signal": t.signalTrigger.signal.Name(),
+		"if":     t.actionTriggers,
+	})
 }
 
 type ActionTrigger interface {
@@ -125,16 +124,27 @@ func (CurrentIsTargetTrigger) MarshalJSON() ([]byte, error) {
 }
 
 type ReactorTrigger struct {
-	reactor Reactor
+	tag any
 }
 
-func NewReactorTrigger(reactor Reactor) ReactorTrigger {
-	return ReactorTrigger{reactor}
+func NewReactorTrigger(tag any) ReactorTrigger {
+	return ReactorTrigger{tag}
 }
 
 func (t ReactorTrigger) Trigger(action Action, _ Signal, _ EvaluationContext) bool {
 	_, r := action.Script().Source()
-	return r == t.reactor
+	tagger, ok := r.(Tagger)
+	if !ok {
+		return false
+	}
+
+	return tagger.Match(t.tag)
+}
+
+func (t ReactorTrigger) MarshalJSON() ([]byte, error) {
+	return json.Marshal(map[string]any{
+		"source": t.tag,
+	})
 }
 
 type VerbTrigger[T Verb] struct {
@@ -150,13 +160,11 @@ func (VerbTrigger[T]) Trigger(action Action, _ Signal, _ EvaluationContext) bool
 }
 
 func (VerbTrigger[T]) MarshalJSON() ([]byte, error) {
-	var tgr T
+	var verb T
 
-	return json.Marshal(vtg{tgr.Name()})
-}
-
-type vtg struct {
-	Verb string `json:"verb"`
+	return json.Marshal(map[string]string{
+		"verb": verb.Name(),
+	})
 }
 
 type CriticalStrikeTrigger struct {
@@ -190,4 +198,10 @@ func (t TagTrigger) Trigger(action Action, _ Signal, _ EvaluationContext) bool {
 	}
 
 	return tagger.Match(t.tag)
+}
+
+func (t TagTrigger) MarshalJSON() ([]byte, error) {
+	return json.Marshal(map[string]any{
+		"tag": t.tag,
+	})
 }
