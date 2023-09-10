@@ -6,14 +6,6 @@ var (
 	_ ForkReactor = (*FatReactor)(nil)
 )
 
-type ExclusionGroup uint8
-
-func (g ExclusionGroup) MarshalJSON() ([]byte, error) {
-	return json.Marshal(map[string]uint8{
-		"exclusion_group": uint8(g),
-	})
-}
-
 type FatReactor struct {
 	TagSet
 	leading    *Leading

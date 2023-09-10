@@ -173,7 +173,7 @@ func (s FrontSelector) Select(inputs []Warrior, _ Signal, _ EvaluationContext) (
 
 func (s FrontSelector) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]int{
-		"front": int(s),
+		"take": int(s),
 	})
 }
 
@@ -217,7 +217,7 @@ func (s WaterLevelSelector) Select(inputs []Warrior, _ Signal, ec EvaluationCont
 
 func (s WaterLevelSelector) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]any{
-		"comparator": s.comparator.String(),
+		"take_while": s.comparator.String(),
 		"evaluator":  s.evaluator,
 		"value":      s.value,
 	})

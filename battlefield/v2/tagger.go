@@ -2,12 +2,14 @@ package battlefield
 
 import (
 	"encoding/json"
+	"errors"
 	"reflect"
 	"sort"
 )
 
 var (
-	_ Tagger = TagSet{}
+	_         Tagger = TagSet{}
+	ErrBadTag        = errors.New("bad tag")
 )
 
 type Tagger interface {
@@ -118,4 +120,62 @@ func QueryTagA[T any](a any) any {
 	}
 
 	return nil
+}
+
+type Label string
+
+func (l Label) MarshalJSON() ([]byte, error) {
+	return json.Marshal(map[string]string{"label": string(l)})
+}
+
+type Priority int
+
+func (p Priority) MarshalJSON() ([]byte, error) {
+	return json.Marshal(map[string]int{"priority": int(p)})
+}
+
+type ExclusionGroup uint8
+
+func (g ExclusionGroup) MarshalJSON() ([]byte, error) {
+	return json.Marshal(map[string]uint8{
+		"group": uint8(g),
+	})
+}
+
+func UnmarshalTag(data []byte) (any, error) {
+	var tag map[string]any
+	if err := json.Unmarshal(data, &tag); err != nil {
+		return nil, err
+	}
+
+	if label, ok := tag["label"]; ok {
+		if label, ok := label.(string); ok {
+			return Label(label), nil
+		}
+
+		return nil, ErrBadTag
+	}
+	if priority, ok := tag["priority"]; ok {
+		if priority, ok := priority.(int); ok {
+			return Priority(priority), nil
+		}
+
+		return nil, ErrBadTag
+	}
+	if exclusionGroup, ok := tag["group"]; ok {
+		if exclusionGroup, ok := exclusionGroup.(uint8); ok {
+			return ExclusionGroup(exclusionGroup), nil
+		}
+
+		return nil, ErrBadTag
+	}
+	if stackingLimit, ok := tag["stacking"]; ok {
+		if stackingLimit, ok := stackingLimit.(int); ok {
+			return NewStackingLimit(stackingLimit), nil
+		}
+
+		return nil, ErrBadTag
+	}
+
+	return nil, ErrBadTag
 }

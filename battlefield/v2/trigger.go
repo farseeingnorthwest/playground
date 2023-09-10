@@ -11,6 +11,7 @@ var (
 	_ Trigger       = (*FatTrigger)(nil)
 	_ ActionTrigger = CurrentIsSourceTrigger{}
 	_ ActionTrigger = CurrentIsTargetTrigger{}
+	_ ActionTrigger = ReactorTrigger{}
 	_ ActionTrigger = VerbTrigger[*Attack]{}
 	_ ActionTrigger = CriticalStrikeTrigger{}
 	_ ActionTrigger = TagTrigger{}

@@ -58,7 +58,7 @@ func (e BuffCounter) Evaluate(warrior Warrior, _ EvaluationContext) int {
 
 func (e BuffCounter) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]any{
-		"count_buffs": e.tag,
+		"count": e.tag,
 	})
 }
 
@@ -91,7 +91,7 @@ func (e SelectCounter) Evaluate(warrior Warrior, ec EvaluationContext) int {
 
 func (e SelectCounter) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]any{
-		"count": ([]Selector)(e),
+		"count_if": ([]Selector)(e),
 	})
 }
 

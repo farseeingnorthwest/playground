@@ -20,12 +20,6 @@ var (
 	_ Actor = (*ActionBuffer)(nil)
 )
 
-type Label string
-
-func (l Label) MarshalJSON() ([]byte, error) {
-	return json.Marshal(map[string]string{"label": string(l)})
-}
-
 type Reactor interface {
 	React(Signal, EvaluationContext)
 }
@@ -92,7 +86,7 @@ func (b Buffer) Fork(evaluator Evaluator) any {
 
 func (b Buffer) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
-		Axis      string    `json:"axis"`
+		Axis      string    `json:"buff"`
 		Bias      bool      `json:"bias,omitempty"`
 		Evaluator Evaluator `json:"evaluator,omitempty"`
 	}{
@@ -476,11 +470,9 @@ func (b ActionBuffer) Fork(evaluator Evaluator) any {
 
 func (b ActionBuffer) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
-		Buff      string    `json:"buff"`
-		Buffer    Actor     `json:"buffer"`
+		Buffer    Actor     `json:"buff_a"`
 		Evaluator Evaluator `json:"evaluator,omitempty"`
 	}{
-		"action",
 		b.buffer,
 		b.evaluator,
 	})

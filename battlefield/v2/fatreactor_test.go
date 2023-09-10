@@ -1042,7 +1042,7 @@ func TestFatReactor_MarshalJSON(t *testing.T) {
 {
   "tags": [
     {
-      "exclusion_group": 0
+      "group": 0
     },
     {
       "label": "NormalAttack"
@@ -1060,7 +1060,7 @@ func TestFatReactor_MarshalJSON(t *testing.T) {
 	      "side": false
 	    },
 	    {
-	      "comparator": "\u003e",
+	      "take_while": "\u003e",
 	      "evaluator": {
 		"axis": "health"
 	      },
@@ -1072,7 +1072,7 @@ func TestFatReactor_MarshalJSON(t *testing.T) {
 	      }
 	    },
 	    {
-	      "front": 1
+	      "take": 1
 	    }
 	  ],
 	  "do": {
@@ -1146,9 +1146,8 @@ func TestFatReactor_MarshalJSON(t *testing.T) {
       },
       "then": [
 	{
-	  "buff": "action",
-          "buffer": {
-	    "axis": "loss"
+          "buff_a": {
+	    "buff": "loss"
 	  },
 	  "evaluator": {
 	    "axis": "critical_loss"
@@ -1176,8 +1175,7 @@ func TestFatReactor_MarshalJSON(t *testing.T) {
       },
       "then": [
         {
-          "buff": "action",
-          "buffer": {
+          "buff_a": {
             "theory": {
               "Water": {
                 "Fire": 120,
@@ -1224,7 +1222,7 @@ func TestFatReactor_MarshalJSON(t *testing.T) {
 {
   "tags": [
     {
-      "exclusion_group": 0
+      "group": 0
     },
     {
       "label": "Sleep"
@@ -1400,7 +1398,7 @@ func TestFatReactor_MarshalJSON(t *testing.T) {
 {
   "tags": [
     {
-      "exclusion_group": 0
+      "group": 0
     },
     {
       "label": "@Launch({1} 3 * 460% Damage)"
@@ -1421,7 +1419,7 @@ func TestFatReactor_MarshalJSON(t *testing.T) {
               "side": false
             },
   	    {
-              "comparator": "\u003e",
+              "take_while": "\u003e",
 	      "evaluator": {
  	        "axis": "health"
               },
@@ -1433,7 +1431,7 @@ func TestFatReactor_MarshalJSON(t *testing.T) {
               }
             },
             {
-              "front": 1
+              "take": 1
             }
           ],
           "do": {
@@ -1471,7 +1469,7 @@ func TestFatReactor_MarshalJSON(t *testing.T) {
 {
   "tags": [
     {
-      "exclusion_group": 0
+      "group": 0
     },
     {
       "label": "@Launch({*} 480% Damage; {1} 520% Damage)"
@@ -1492,7 +1490,7 @@ func TestFatReactor_MarshalJSON(t *testing.T) {
               "side": false
             },
             {
-              "comparator": "\u003e",
+              "take_while": "\u003e",
               "evaluator": {
                 "axis": "health"
  	      },
@@ -1517,7 +1515,7 @@ func TestFatReactor_MarshalJSON(t *testing.T) {
               "side": false
             },
             {
-              "comparator": "\u003e",
+              "take_while": "\u003e",
               "evaluator": {
                 "axis": "health"
  	      },
@@ -1528,7 +1526,7 @@ func TestFatReactor_MarshalJSON(t *testing.T) {
               "asc": true
             },
             {
-              "front": 1
+              "take": 1
             }
           ],
 	  "do": {
@@ -1593,7 +1591,7 @@ func TestFatReactor_MarshalJSON(t *testing.T) {
 		    },
 		    "then": [
 		      {
-			"axis": "critical_odds",
+			"buff": "critical_odds",
 			"bias": true,
 			"evaluator": {
 			  "const": 2

@@ -9,12 +9,6 @@ var (
 	_ Portfolio = (*FatPortfolio)(nil)
 )
 
-type Priority int
-
-func (p Priority) MarshalJSON() ([]byte, error) {
-	return json.Marshal(map[string]int{"priority": int(p)})
-}
-
 type Portfolio interface {
 	Reactor
 
