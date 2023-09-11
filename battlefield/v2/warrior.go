@@ -1,5 +1,7 @@
 package battlefield
 
+import "errors"
+
 const (
 	Left  Side = false
 	Right      = true
@@ -33,12 +35,25 @@ var (
 		"position",
 		"speed",
 	}
+
+	ErrBadAxis = errors.New("bad axis")
 )
 
 type Axis uint8
 
 func (a Axis) String() string {
 	return AxisNames[a]
+}
+
+func (a *Axis) UnmarshalText(text []byte) error {
+	for i, name := range AxisNames {
+		if string(text) == name {
+			*a = Axis(i)
+			return nil
+		}
+	}
+
+	return ErrBadAxis
 }
 
 type Side bool

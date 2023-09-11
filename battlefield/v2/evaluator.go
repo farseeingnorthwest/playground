@@ -1,6 +1,11 @@
 package battlefield
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"errors"
+
+	"github.com/farseeingnorthwest/playground/battlefield/v2/functional"
+)
 
 var (
 	_ Evaluator = ConstEvaluator(0)
@@ -11,6 +16,8 @@ var (
 	_ Evaluator = (*Adder)(nil)
 	_ Evaluator = (*Multiplier)(nil)
 	_ Evaluator = (*CustomEvaluator)(nil)
+
+	ErrBadEvaluator = errors.New("bad evaluator")
 )
 
 type Evaluator interface {
@@ -73,7 +80,7 @@ func (LossEvaluator) MarshalJSON() ([]byte, error) {
 	return json.Marshal("loss")
 }
 
-type SelectCounter []Selector
+type SelectCounter PipelineSelector
 
 func NewSelectCounter(selectors ...Selector) SelectCounter {
 	return selectors
@@ -145,4 +152,104 @@ func NewCustomEvaluator(evaluator func(Warrior, EvaluationContext) int) *CustomE
 
 func (e *CustomEvaluator) Evaluate(warrior Warrior, ec EvaluationContext) int {
 	return e.evaluator(warrior, ec)
+}
+
+type EvaluatorFile struct {
+	Evaluator Evaluator
+}
+
+func (f *EvaluatorFile) UnmarshalJSON(bytes []byte) error {
+	var s string
+	if err := json.Unmarshal(bytes, &s); err != nil {
+		var e *json.UnmarshalTypeError
+		if !errors.As(err, &e) {
+			return err
+		}
+	} else if s == "" {
+		return nil
+	} else {
+		if e, ok := map[string]Evaluator{
+			"loss": LossEvaluator{},
+		}[s]; ok {
+			f.Evaluator = e
+			return nil
+		}
+
+		return ErrBadEvaluator
+	}
+
+	var m map[string]json.RawMessage
+	if err := json.Unmarshal(bytes, &m); err != nil {
+		return err
+	}
+
+	if c, ok := m["const"]; ok {
+		var n int
+		if err := json.Unmarshal(c, &n); err != nil {
+			return err
+		}
+
+		f.Evaluator = ConstEvaluator(n)
+		return nil
+	}
+
+	if a, ok := m["axis"]; ok {
+		var axis Axis
+		if err := json.Unmarshal(a, &axis); err != nil {
+			return err
+		}
+
+		f.Evaluator = AxisEvaluator(axis)
+		return nil
+	}
+
+	if count, ok := m["count"]; ok {
+		var t TagFile
+		if err := json.Unmarshal(count, &t); err != nil {
+			return err
+		}
+
+		f.Evaluator = NewBuffCounter(t.Tag)
+		return nil
+	}
+
+	if countIf, ok := m["count_if"]; ok {
+		var fs []SelectorFile
+		if err := json.Unmarshal(countIf, &fs); err != nil {
+			return err
+		}
+
+		f.Evaluator = NewSelectCounter(functional.Map(func(f SelectorFile) Selector {
+			return f.Selector
+		})(fs)...)
+		return nil
+	}
+
+	if _, ok := m["add"]; ok {
+		var s struct {
+			Add       int
+			Evaluator EvaluatorFile
+		}
+		if err := json.Unmarshal(bytes, &s); err != nil {
+			return err
+		}
+
+		f.Evaluator = NewAdder(s.Add, s.Evaluator.Evaluator)
+		return nil
+	}
+
+	if _, ok := m["mul"]; ok {
+		var s struct {
+			Mul       int
+			Evaluator EvaluatorFile
+		}
+		if err := json.Unmarshal(bytes, &s); err != nil {
+			return err
+		}
+
+		f.Evaluator = NewMultiplier(s.Mul, s.Evaluator.Evaluator)
+		return nil
+	}
+
+	return ErrBadEvaluator
 }

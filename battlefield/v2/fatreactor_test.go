@@ -2,10 +2,12 @@ package battlefield_test
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"reflect"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/google/go-cmp/cmp"
 
 	. "github.com/farseeingnorthwest/playground/battlefield/v2"
 )
@@ -22,6 +24,8 @@ const (
 )
 
 var (
+	ErrBadElement = errors.New("bad element")
+
 	RngX          = &RngProxy{}
 	SkillGroup    = ExclusionGroup(0)
 	Shuffle       = NewShuffleSelector(RngX, Label("Taunt"))
@@ -44,7 +48,7 @@ var (
 			FatRespond(
 				NewSignalTrigger(&LaunchSignal{}),
 				NewSelectActor(
-					NewVerbActor(&Attack{}, AxisEvaluator(Damage)),
+					NewVerbActor(NewAttack(nil, false), AxisEvaluator(Damage)),
 					SideSelector(false),
 					Healthy,
 					Shuffle,
@@ -196,7 +200,7 @@ var (
 			FatRespond(
 				NewSignalTrigger(&RoundStartSignal{}),
 				NewSelectActor(
-					NewVerbActor(&Heal{}, NewMultiplier(7, AxisEvaluator(HealthMaximum))),
+					NewVerbActor(NewHeal(nil), NewMultiplier(7, AxisEvaluator(HealthMaximum))),
 					CurrentSelector{},
 				),
 			),
@@ -216,7 +220,7 @@ var (
 					NewSelectActor(
 						NewRepeatActor(
 							3,
-							NewVerbActor(&Attack{}, NewMultiplier(460, AxisEvaluator(Damage))),
+							NewVerbActor(NewAttack(nil, false), NewMultiplier(460, AxisEvaluator(Damage))),
 						),
 						SideSelector(false),
 						Healthy,
@@ -233,12 +237,12 @@ var (
 				FatRespond(
 					NewSignalTrigger(&LaunchSignal{}),
 					NewSelectActor(
-						NewVerbActor(&Attack{}, NewMultiplier(480, AxisEvaluator(Damage))),
+						NewVerbActor(NewAttack(nil, false), NewMultiplier(480, AxisEvaluator(Damage))),
 						SideSelector(false),
 						Healthy,
 					),
 					NewSelectActor(
-						NewVerbActor(&Attack{}, NewMultiplier(520, AxisEvaluator(Damage))),
+						NewVerbActor(NewAttack(nil, false), NewMultiplier(520, AxisEvaluator(Damage))),
 						SideSelector(false),
 						Healthy,
 						NewSortSelector(HealthPercent, true),
@@ -259,7 +263,8 @@ var (
 								CriticalOdds,
 								true,
 								ConstEvaluator(2),
-								FatTags(NewStackingLimit(15), Label("[15] +2% CriticalOdds")))),
+								FatTags(NewStackingLimit(15), Label("[15] +2% CriticalOdds")),
+							)),
 							nil,
 						),
 						CurrentSelector{},
@@ -297,7 +302,7 @@ var (
 					NewSignalTrigger(&LaunchSignal{}),
 					NewSelectActor(
 						NewSequenceActor(
-							NewVerbActor(&Attack{}, NewMultiplier(420, AxisEvaluator(Damage))),
+							NewVerbActor(NewAttack(nil, false), NewMultiplier(420, AxisEvaluator(Damage))),
 							NewVerbActor(
 								// 30% 被擊增傷 (1回合)
 								NewBuff(false, nil, NewBuffReactor(
@@ -326,7 +331,7 @@ var (
 					NewSignalTrigger(&LaunchSignal{}),
 					NewSelectActor(
 						NewSequenceActor(
-							NewVerbActor(&Attack{}, NewMultiplier(520, AxisEvaluator(Damage))),
+							NewVerbActor(NewAttack(nil, false), NewMultiplier(520, AxisEvaluator(Damage))),
 							NewProbabilityActor(RngX, ConstEvaluator(70), NewVerbActor(
 								NewBuff(false, nil, Effect["Stun"]),
 								nil,
@@ -460,7 +465,7 @@ var (
 					NewSelectActor(
 						NewRepeatActor(
 							4,
-							NewVerbActor(&Attack{}, NewMultiplier(340, AxisEvaluator(Damage))),
+							NewVerbActor(NewAttack(nil, false), NewMultiplier(340, AxisEvaluator(Damage))),
 						),
 						SideSelector(false),
 						Healthy,
@@ -538,7 +543,7 @@ var (
 				FatRespond(
 					NewSignalTrigger(&LaunchSignal{}),
 					NewSelectActor(
-						NewVerbActor(&Attack{}, NewMultiplier(300, AxisEvaluator(Damage))),
+						NewVerbActor(NewAttack(nil, false), NewMultiplier(300, AxisEvaluator(Damage))),
 						SideSelector(false),
 						Healthy,
 					),
@@ -553,7 +558,7 @@ var (
 					NewSignalTrigger(&LaunchSignal{}),
 					NewSelectActor(
 						NewSequenceActor(
-							NewVerbActor(&Attack{}, NewMultiplier(560, AxisEvaluator(Damage))),
+							NewVerbActor(NewAttack(nil, false), NewMultiplier(560, AxisEvaluator(Damage))),
 							NewVerbActor(
 								NewBuff(false, nil, NewBuffReactor(
 									Damage,
@@ -614,7 +619,7 @@ var (
 					NewSelectActor(
 						NewRepeatActor(
 							3,
-							NewVerbActor(&Attack{}, NewMultiplier(550, AxisEvaluator(Damage))),
+							NewVerbActor(NewAttack(nil, false), NewMultiplier(550, AxisEvaluator(Damage))),
 							NewProbabilityActor(RngX, ConstEvaluator(50), NewVerbActor(
 								NewBuff(false, nil, Effect["Stun"]),
 								nil,
@@ -635,7 +640,7 @@ var (
 				FatRespond(
 					NewSignalTrigger(&LaunchSignal{}),
 					NewSelectActor(
-						NewVerbActor(&Attack{}, NewMultiplier(510, AxisEvaluator(Damage))),
+						NewVerbActor(NewAttack(nil, false), NewMultiplier(510, AxisEvaluator(Damage))),
 						SideSelector(false),
 						Healthy,
 						Shuffle,
@@ -719,7 +724,7 @@ var (
 				FatRespond(
 					NewSignalTrigger(&LaunchSignal{}),
 					NewSelectActor(
-						NewRepeatActor(4, NewVerbActor(&Attack{}, NewMultiplier(350, AxisEvaluator(Damage)))),
+						NewRepeatActor(4, NewVerbActor(NewAttack(nil, false), NewMultiplier(350, AxisEvaluator(Damage)))),
 						SideSelector(false),
 						Healthy,
 						Shuffle,
@@ -791,13 +796,13 @@ var (
 					NewSignalTrigger(&LaunchSignal{}),
 					NewSelectActor(
 						NewRepeatActor(2,
-							NewVerbActor(&Attack{}, NewMultiplier(360, AxisEvaluator(Damage))),
+							NewVerbActor(NewAttack(nil, false), NewMultiplier(360, AxisEvaluator(Damage))),
 							NewProbabilityActor(RngX, ConstEvaluator(15), NewVerbActor(
 								NewBuff(false, nil, Effect["Stun"]),
 								nil,
 							)),
 						),
-						CounterPositionSelector{},
+						NewCounterPositionSelector(0),
 						Healthy,
 					),
 				),
@@ -811,10 +816,10 @@ var (
 					NewSignalTrigger(&LaunchSignal{}),
 					NewSelectActor(
 						NewSequenceActor(
-							NewVerbActor(&Attack{}, NewMultiplier(455, AxisEvaluator(Damage))),
+							NewVerbActor(NewAttack(nil, false), NewMultiplier(455, AxisEvaluator(Damage))),
 							NewVerbActor(NewBuff(false, nil, Effect["BuffImmune"]), nil),
 						),
-						CounterPositionSelector{},
+						NewCounterPositionSelector(0),
 						Healthy,
 					),
 				),
@@ -857,7 +862,7 @@ var (
 				FatRespond(
 					NewSignalTrigger(&LaunchSignal{}),
 					NewSelectActor(
-						NewVerbActor(&Attack{}, NewMultiplier(340, AxisEvaluator(Damage))),
+						NewVerbActor(NewAttack(nil, false), NewMultiplier(340, AxisEvaluator(Damage))),
 						SideSelector(false),
 						Healthy,
 						NewSortSelector(HealthPercent, true),
@@ -918,7 +923,7 @@ var (
 					NewSignalTrigger(&LaunchSignal{}),
 					NewSelectActor(
 						NewSequenceActor(
-							NewRepeatActor(3, NewVerbActor(&Attack{}, NewMultiplier(350, AxisEvaluator(Damage)))),
+							NewRepeatActor(3, NewVerbActor(NewAttack(nil, false), NewMultiplier(350, AxisEvaluator(Damage)))),
 							NewVerbActor(
 								NewBuff(false, nil, NewBuffReactor(
 									Defense,
@@ -944,7 +949,7 @@ var (
 				FatRespond(
 					NewSignalTrigger(&LaunchSignal{}),
 					NewSelectActor(
-						NewRepeatActor(3, NewVerbActor(&Attack{}, NewMultiplier(380, AxisEvaluator(Damage)))),
+						NewRepeatActor(3, NewVerbActor(NewAttack(nil, false), NewMultiplier(380, AxisEvaluator(Damage)))),
 						SideSelector(false),
 						Healthy,
 						NewSortSelector(HealthPercent, true),
@@ -1031,593 +1036,88 @@ func (e Element) String() string {
 	return ElementNames[e]
 }
 
-func TestFatReactor_MarshalJSON(t *testing.T) {
-	for i, tt := range []struct {
-		reactor *FatReactor
-		want    string
-	}{
-		{
-			Regular[0],
-			`
-{
-  "tags": [
-    {
-      "group": 0
-    },
-    {
-      "label": "NormalAttack"
-    }
-  ],
-  "cases": [
-    {
-      "when": {
-	"signal": "launch"
-      },
-      "then": [
-	{
-	  "for": [
-	    {
-	      "side": false
-	    },
-	    {
-	      "take_while": "\u003e",
-	      "evaluator": {
-		"axis": "health"
-	      },
-	      "value": 0
-	    },
-	    {
-	      "shuffle": {
-		"label": "Taunt"
-	      }
-	    },
-	    {
-	      "take": 1
-	    }
-	  ],
-	  "do": {
-	    "verb": {
-	      "attack": null
-	    },
-	    "evaluator": {
-	      "axis": "damage"
-	    }
-	  }
-	}
-      ]
-    }
-  ]
-}
-`,
-		},
-		{
-			Regular[1],
-			`
-{
-  "tags": [
-    {
-      "priority": 1000
-    }
-  ],
-  "cases": [
-    {
-      "when": {
-	"signal": "pre_action",
-	"if": [
-	  "current_is_source",
-	  {
-	    "verb": "attack"
-	  }
-	]
-      },
-      "then": [
-	{
-	  "probability": {
-	    "axis": "critical_odds"
-	  },
-	  "do": "critical_strike"
-	}
-      ]
-    }
-  ]
-}
-`,
-		},
-		{
-			Regular[2],
-			`
-{
-  "tags": [
-    {
-      "priority": 999
-    }
-  ],
-  "cases": [
-    {
-      "when": {
-	"signal": "pre_action",
-	"if": [
-	  "current_is_source",
-	  {
-	    "verb": "attack"
-	  },
-	  "critical_strike"
-	]
-      },
-      "then": [
-	{
-          "buff_a": {
-	    "buff": "loss"
-	  },
-	  "evaluator": {
-	    "axis": "critical_loss"
-	  }
-	}
-      ]
-    }
-  ]
-}
-`,
-		},
-		{
-			Regular[3],
-			`
-{
-  "cases": [
-    {
-      "when": {
-	"signal": "pre_action",
-        "if": [
-          {
-            "verb": "attack"
-          }
-        ]
-      },
-      "then": [
-        {
-          "buff_a": {
-            "theory": {
-              "Water": {
-                "Fire": 120,
-                "Thunder": 80
-              },
-              "Fire": {
-                "Ice": 120,
-                "Water": 80
-              },
-              "Ice": {
-                "Wind": 120,
-                "Fire": 80
-              },
-              "Wind": {
-                "Earth": 120,
- 	        "Ice": 80
-              },
- 	      "Earth": {
- 	        "Thunder": 120,
- 	        "Wind": 80
- 	      },
- 	      "Thunder": {
- 	        "Water": 120,
- 	        "Earth": 80
- 	      },
- 	      "Light": {
- 	        "Dark": 120
- 	      },
- 	      "Dark": {
- 	        "Light": 120
- 	      }
-            }
-          }
-        }
-      ]
-    }
-  ]
-}
-`,
-		},
-		{
-			Effect["Sleep"],
-			`
-{
-  "tags": [
-    {
-      "group": 0
-    },
-    {
-      "label": "Sleep"
-    },
-    {
-       "priority": 10
-    }
-  ],
-  "cases": [
-    {
-      "when": {
-        "signal": "launch"
-      },
-      "then": []
-    }
-  ],
-  "capacity": {
-    "count": 1,
-    "when": [
-      {
-        "signal": "round_end"
-      },
-      {
-        "signal": "post_action",
-        "if": [
-          {
-            "verb": "attack"
- 	  },
-          "current_is_target"
-        ]
-      }
-    ]
-  }
-}
-`,
-		},
-		{
-			Effect["Barrier"],
-			`
-{
-  "tags": [
-    {
-      "label": "Barrier"
-    }
-  ],
-  "cases": [
-    {
-      "when": {
-	"signal": "pre_loss"
-      },
-      "then": [
-	{
-	  "stop_loss": true,
-	  "evaluator": {
-	    "mul": 10,
-	    "evaluator": {
-	      "axis": "health_maximum"
-	    }
-	  }
-	}
-      ]
-    }
-  ],
-  "capacity": {
-    "count": 1
-  }
-}
-`,
-		},
-		{
-			Effect["Shield"],
-			`
-{
-  "tags": [
-    {
-      "label": "Shield"
-    }
-  ],
-  "cases": [
-    {
-      "when": {
-        "signal": "pre_loss"
-      },
-      "then": [
-	{
-	  "for": "current",
-	  "do": "resist_loss"
-	}
-      ]
-    }
-  ]
-}
-`,
-		},
-		{
-			Effect["BuffImmune"],
-			`
-{
-  "tags": [
-    {
-      "label": "BuffImmune"
-    }
-  ],
-  "cases": [
-    {
-      "when": {
-        "signal": "pre_action",
-        "if": [
-          "current_is_target",
-          {
-            "tag": "Buff"
-          }
-        ]
-      },
-      "then": [
-        {
-          "for": "current",
-          "do": "immune"
-        }
-      ]
-    }
-  ],
-  "capacity": {
-    "count": 3,
-    "when": {
-      "signal": "round_end"
-    }
-  }
-}
-`,
-		},
-		{
-			Effect["Regeneration"],
-			`
-{
-  "tags": [
-    {
-      "label": "Regeneration"
-    }
-  ],
-  "cases": [
-    {
-      "when": {
-        "signal": "round_start"
-      },
-      "then": [
-        {
-          "for": "current",
-          "do": {
-            "verb": {
-              "heal": null
-            },
-            "evaluator": {
-              "mul": 7,
-              "evaluator": {
-                "axis": "health_maximum"
-              }
-            }
-          }
-        }
-      ]
-    }
-  ],
-  "capacity": {
-    "count": 1
-  }
-}
-`,
-		},
-		{
-			Special[0][0],
-			`
-{
-  "tags": [
-    {
-      "group": 0
-    },
-    {
-      "label": "@Launch({1} 3 * 460% Damage)"
-    },
-    {
-      "priority": 1
-    }
-  ],
-  "cases": [
-    {
-      "when": {
-        "signal": "launch"
-      },
-      "then": [
-        {
-          "for": [
-            {
-              "side": false
-            },
-  	    {
-              "take_while": "\u003e",
-	      "evaluator": {
- 	        "axis": "health"
-              },
-              "value": 0
-            },
-            {
-              "shuffle": {
-                "label": "Taunt"
-              }
-            },
-            {
-              "take": 1
-            }
-          ],
-          "do": {
-            "repeat": 3,
- 	    "do": [
-	      {
-		"verb": {
-		  "attack": null
-		},
-		"evaluator": {
-		  "mul": 460,
-		  "evaluator": {
-		    "axis": "damage"
-		  }
+func (e *Element) UnmarshalText(text []byte) error {
+	for i, name := range ElementNames {
+		if string(text) == name {
+			*e = Element(i)
+			return nil
 		}
-	      }
-            ]
-          }
-        }
-      ]
-    }
-  ],
-  "cooling": {
-    "count": 5,
-    "when": {
-      "signal": "round_end"
-    }
-  }
-}
-`,
-		},
-		{
-			Special[0][1],
-			`
-{
-  "tags": [
-    {
-      "group": 0
-    },
-    {
-      "label": "@Launch({*} 480% Damage; {1} 520% Damage)"
-    },
-    {
-      "priority": 2
-    }
-  ],
-  "cases": [
-    {
-      "when": {
-        "signal": "launch"
-      },
-      "then": [
-        {
-          "for": [
-            {
-              "side": false
-            },
-            {
-              "take_while": "\u003e",
-              "evaluator": {
-                "axis": "health"
- 	      },
- 	      "value": 0
-            }
-          ],
-          "do": {
-	    "verb": {
-	      "attack": null
-	    },
-	    "evaluator": {
-	      "mul": 480,
-	      "evaluator": {
-		"axis": "damage"
-	      }
-	    }
-	  }
-        },
-        {
-          "for": [
-            {
-              "side": false
-            },
-            {
-              "take_while": "\u003e",
-              "evaluator": {
-                "axis": "health"
- 	      },
- 	      "value": 0
-            },
-            {
-              "sort": "health_percent",
-              "asc": true
-            },
-            {
-              "take": 1
-            }
-          ],
-	  "do": {
-	    "verb": {
-	      "attack": null
-	    },
-	    "evaluator": {
-	      "mul": 520,
-	      "evaluator": {
-		"axis": "damage"
-	      }
-	    }
-	  }
-        }
-      ]
-    }
-  ],
-  "cooling": {
-    "count": 4,
-    "when": {
-      "signal": "round_end"
-    }
-  }
-}
-`,
-		},
-		{
-			Special[0][2],
-			`
-{
-  "tags": [
-    {
-      "label": "@Launch([15] +2% CriticalOdds)"
-    },
-    {
-      "priority": 3
-    }
-  ],
-  "cases": [
-    {
-      "when": {
-        "signal": "launch"
-      },
-      "then": [
-        {
-	  "for": "current",
-	  "do": {
-	    "verb": {
-	      "buff": {
-		"tags": [
-		  {
-		    "label": "[15] +2% CriticalOdds"
-		  },
-		  {
-		    "stacking": 15
-		  }
-		],
-		"cases": [
-		  {
-		    "when": {
-		      "signal": "evaluation"
-		    },
-		    "then": [
-		      {
-			"buff": "critical_odds",
-			"bias": true,
-			"evaluator": {
-			  "const": 2
-			}
-		      }
-		    ]
-		  }
-		]
-	      }
-	    }
-	  }
 	}
-      ]
-    }
-  ]
+
+	return ErrBadElement
 }
-`,
-		},
-	} {
-		t.Run(fmt.Sprintf("#%d", i), func(t *testing.T) {
-			bytes, err := json.Marshal(tt.reactor)
+
+func TestFatReactor_UnmarshalJSON(t *testing.T) {
+	var rng Rng
+	rng, DefaultRng = DefaultRng, RngX
+	defer (func() {
+		DefaultRng = rng
+	})()
+
+	regress := func(v any) func(*testing.T) {
+		return func(t *testing.T) {
+			data, err := json.Marshal(v)
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			assert.JSONEq(t, tt.want, string(bytes))
-		})
+			var f FatReactorFile[Element]
+			if err := json.Unmarshal(data, &f); err != nil {
+				t.Fatal(err)
+			}
+
+			opts := cmp.Options{
+				cmp.Comparer(func(x, y TagSet) bool {
+					if len(x) != len(y) {
+						return false
+					}
+
+					var m, n int
+					for k := range x {
+						if _, ok := y[k]; ok {
+							continue
+						}
+						if l, ok := k.(StackingLimit); ok {
+							m = l.Capacity()
+							n = -1
+							continue
+						}
+
+						return false
+					}
+					if n != -1 {
+						return true
+					}
+
+					for k := range y {
+						if l, ok := k.(StackingLimit); ok {
+							n = l.Capacity()
+							break
+						}
+					}
+					return m == n
+				}),
+				cmp.Exporter(func(t reflect.Type) bool {
+					return true
+				}),
+			}
+			if !cmp.Equal(v, f.FatReactor, opts...) {
+				t.Error(cmp.Diff(v, f.FatReactor, opts...))
+			}
+		}
+	}
+
+	for i, v := range Regular {
+		t.Run(fmt.Sprintf("regular #%d", i), regress(v))
+	}
+
+	for k, v := range Effect {
+		t.Run(k, regress(v))
+	}
+
+	for i, v := range Special {
+		for j, vv := range v {
+			t.Run(fmt.Sprintf("special #%d-%d", i, j), regress(vv))
+		}
 	}
 }

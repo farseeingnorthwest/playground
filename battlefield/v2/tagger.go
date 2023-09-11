@@ -8,8 +8,9 @@ import (
 )
 
 var (
-	_         Tagger = TagSet{}
-	ErrBadTag        = errors.New("bad tag")
+	_ Tagger = TagSet{}
+
+	ErrBadTag = errors.New("bad tag")
 )
 
 type Tagger interface {
@@ -142,40 +143,48 @@ func (g ExclusionGroup) MarshalJSON() ([]byte, error) {
 	})
 }
 
-func UnmarshalTag(data []byte) (any, error) {
+type TagFile struct {
+	Tag any
+}
+
+func (f *TagFile) UnmarshalJSON(data []byte) error {
+	var s string
+	if err := json.Unmarshal(data, &s); err != nil {
+		var e *json.UnmarshalTypeError
+		if !errors.As(err, &e) {
+			return err
+		}
+	} else {
+		f.Tag = s
+		return nil
+	}
+
 	var tag map[string]any
 	if err := json.Unmarshal(data, &tag); err != nil {
-		return nil, err
+		return err
 	}
 
 	if label, ok := tag["label"]; ok {
 		if label, ok := label.(string); ok {
-			return Label(label), nil
+			f.Tag = Label(label)
+			return nil
 		}
-
-		return nil, ErrBadTag
-	}
-	if priority, ok := tag["priority"]; ok {
-		if priority, ok := priority.(int); ok {
-			return Priority(priority), nil
+	} else if priority, ok := tag["priority"]; ok {
+		if priority, ok := priority.(float64); ok {
+			f.Tag = Priority(priority)
+			return nil
 		}
-
-		return nil, ErrBadTag
-	}
-	if exclusionGroup, ok := tag["group"]; ok {
-		if exclusionGroup, ok := exclusionGroup.(uint8); ok {
-			return ExclusionGroup(exclusionGroup), nil
+	} else if exclusionGroup, ok := tag["group"]; ok {
+		if exclusionGroup, ok := exclusionGroup.(float64); ok {
+			f.Tag = ExclusionGroup(exclusionGroup)
+			return nil
 		}
-
-		return nil, ErrBadTag
-	}
-	if stackingLimit, ok := tag["stacking"]; ok {
-		if stackingLimit, ok := stackingLimit.(int); ok {
-			return NewStackingLimit(stackingLimit), nil
+	} else if stackingLimit, ok := tag["stacking"]; ok {
+		if stackingLimit, ok := stackingLimit.(float64); ok {
+			f.Tag = NewStackingLimit(int(stackingLimit))
+			return nil
 		}
-
-		return nil, ErrBadTag
 	}
 
-	return nil, ErrBadTag
+	return ErrBadTag
 }

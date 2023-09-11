@@ -2,7 +2,10 @@ package battlefield
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+
+	"github.com/farseeingnorthwest/playground/battlefield/v2/functional"
 )
 
 var (
@@ -18,6 +21,8 @@ var (
 	_ Actor = LossResister{}
 	_ Actor = TheoryActor[Side]{}
 	_ Actor = (*ActionBuffer)(nil)
+
+	ErrBadActor = errors.New("bad actor")
 )
 
 type Reactor interface {
@@ -173,10 +178,6 @@ func (a SelectActor) MarshalJSON() ([]byte, error) {
 	})
 }
 
-type Rng interface {
-	Float64() float64
-}
-
 type ProbabilityActor struct {
 	rng       Rng
 	evaluator Evaluator
@@ -209,6 +210,15 @@ func (a ProbabilityActor) MarshalJSON() ([]byte, error) {
 type SequenceActor []Actor
 
 func NewSequenceActor(actors ...Actor) SequenceActor {
+	switch len(actors) {
+	case 0:
+		return nil
+	case 1:
+		if actor, ok := actors[0].(SequenceActor); ok {
+			return actor
+		}
+	}
+
 	return SequenceActor(actors)
 }
 
@@ -507,4 +517,152 @@ func (c *capacitor) Capacity() int {
 
 func (c *capacitor) Flush(n int) {
 	c.capacity -= n
+}
+
+type ActorFile[T feature] struct {
+	Actor Actor
+}
+
+func (f *ActorFile[T]) UnmarshalJSON(data []byte) error {
+	var s string
+	if err := json.Unmarshal(data, &s); err != nil {
+		var e *json.UnmarshalTypeError
+		if !errors.As(err, &e) {
+			return err
+		}
+	} else {
+		if actor, ok := map[string]Actor{
+			"critical_strike": CriticalActor{},
+			"immune":          ImmuneActor{},
+			"resist_loss":     LossResister{},
+		}[s]; ok {
+			f.Actor = actor
+			return nil
+		}
+
+		return ErrBadActor
+	}
+
+	var m map[string]json.RawMessage
+	if err := json.Unmarshal(data, &m); err != nil {
+		var e *json.UnmarshalTypeError
+		if !errors.As(err, &e) {
+			return err
+		}
+
+		var fs []ActorFile[T]
+		if err := json.Unmarshal(data, &fs); err != nil {
+			return err
+		}
+
+		f.Actor = NewSequenceActor(functional.Map(func(f ActorFile[T]) Actor {
+			return f.Actor
+		})(fs)...)
+		return nil
+	}
+
+	if _, ok := m["buff"]; ok {
+		var b struct {
+			Axis      Axis `json:"buff"`
+			Bias      bool
+			Evaluator EvaluatorFile
+		}
+		if err := json.Unmarshal(data, &b); err != nil {
+			return err
+		}
+
+		f.Actor = NewBuffer(b.Axis, b.Bias, b.Evaluator.Evaluator)
+		return nil
+	}
+
+	if _, ok := m["verb"]; ok {
+		var v struct {
+			Verb      VerbFile[T]
+			Evaluator EvaluatorFile
+		}
+		if err := json.Unmarshal(data, &v); err != nil {
+			return err
+		}
+
+		f.Actor = NewVerbActor(v.Verb.Verb, v.Evaluator.Evaluator)
+		return nil
+	}
+
+	if _, ok := m["stop_loss"]; ok {
+		var s struct {
+			Full      bool `json:"stop_loss"`
+			Evaluator EvaluatorFile
+		}
+		if err := json.Unmarshal(data, &s); err != nil {
+			return err
+		}
+
+		f.Actor = NewLossStopper(s.Evaluator.Evaluator, s.Full)
+		return nil
+	}
+
+	if thr, ok := m["theory"]; ok {
+		var t theory[T]
+		if err := json.Unmarshal(thr, &t); err != nil {
+			return err
+		}
+
+		f.Actor = NewTheoryActor(t)
+		return nil
+	}
+
+	if _, ok := m["buff_a"]; ok {
+		var b struct {
+			Buffer    ActorFile[T] `json:"buff_a"`
+			Evaluator EvaluatorFile
+		}
+		if err := json.Unmarshal(data, &b); err != nil {
+			return err
+		}
+
+		f.Actor = NewActionBuffer(b.Evaluator.Evaluator, b.Buffer.Actor)
+		return nil
+	}
+
+	data2, ok := m["do"]
+	if !ok {
+		return ErrBadActor
+	}
+
+	var f2 ActorFile[T]
+	if err := json.Unmarshal(data2, &f2); err != nil {
+		return err
+	}
+
+	if data, ok := m["for"]; ok {
+		var s SelectorFile
+		if err := json.Unmarshal(data, &s); err != nil {
+			return err
+		}
+
+		f.Actor = NewSelectActor(f2.Actor, s.Selector)
+		return nil
+	}
+
+	if data, ok := m["probability"]; ok {
+		var e EvaluatorFile
+		if err := json.Unmarshal(data, &e); err != nil {
+			return err
+		}
+
+		f.Actor = NewProbabilityActor(DefaultRng, e.Evaluator, f2.Actor)
+		return nil
+	}
+
+	if data, ok := m["repeat"]; ok {
+		var n int
+		if err := json.Unmarshal(data, &n); err != nil {
+			return err
+		}
+
+		f.Actor = NewRepeatActor(n, f2.Actor)
+		return nil
+	}
+
+	return ErrBadActor
 }

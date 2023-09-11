@@ -2,6 +2,7 @@ package battlefield
 
 import (
 	"encoding/json"
+	"errors"
 	"log/slog"
 
 	"github.com/farseeingnorthwest/playground/battlefield/v2/functional"
@@ -15,6 +16,8 @@ var (
 	_ Verb          = (*Buff)(nil)
 	_ Verb          = (*Purge)(nil)
 	_ ActionContext = (*actionContext)(nil)
+
+	ErrBadVerb = errors.New("bad verb")
 )
 
 type Script interface {
@@ -252,12 +255,13 @@ func (a *Attack) Render(target Warrior, ac ActionContext) bool {
 }
 
 func (a *Attack) MarshalJSON() ([]byte, error) {
-	return json.Marshal(attack{a.evaluator, a.critical})
-}
-
-type attack struct {
-	Evaluator Evaluator `json:"attack"`
-	Critical  bool      `json:"critical,omitempty"`
+	return json.Marshal(struct {
+		Evaluator Evaluator `json:"attack"`
+		Critical  bool      `json:"critical,omitempty"`
+	}{
+		a.evaluator,
+		a.critical,
+	})
 }
 
 type Heal struct {
@@ -324,11 +328,11 @@ func (h *Heal) Render(target Warrior, ac ActionContext) bool {
 }
 
 func (h *Heal) MarshalJSON() ([]byte, error) {
-	return json.Marshal(heal{h.evaluator})
-}
-
-type heal struct {
-	Evaluator Evaluator `json:"heal"`
+	return json.Marshal(struct {
+		Evaluator Evaluator `json:"heal"`
+	}{
+		h.evaluator,
+	})
 }
 
 type Buff struct {
@@ -408,13 +412,15 @@ func (b *Buff) Render(target Warrior, ac ActionContext) bool {
 }
 
 func (b *Buff) MarshalJSON() ([]byte, error) {
-	return json.Marshal(buff{b.reactor, b.evaluator, b.capacity})
-}
-
-type buff struct {
-	Reactor   Reactor   `json:"buff"`
-	Evaluator Evaluator `json:"evaluator,omitempty"`
-	Capacity  bool      `json:"capacity,omitempty"`
+	return json.Marshal(struct {
+		Reactor   Reactor   `json:"buff"`
+		Evaluator Evaluator `json:"evaluator,omitempty"`
+		Capacity  bool      `json:"capacity,omitempty"`
+	}{
+		b.reactor,
+		b.evaluator,
+		b.capacity,
+	})
 }
 
 type Purge struct {
@@ -469,12 +475,13 @@ func (p *Purge) Render(target Warrior, _ ActionContext) bool {
 }
 
 func (p *Purge) MarshalJSON() ([]byte, error) {
-	return json.Marshal(purge{p.tag, p.count})
-}
-
-type purge struct {
-	Tag   any `json:"purge"`
-	Count int `json:"count,omitempty"`
+	return json.Marshal(struct {
+		Tag   any `json:"purge"`
+		Count int `json:"count,omitempty"`
+	}{
+		p.tag,
+		p.count,
+	})
 }
 
 type ActionContext interface {
@@ -493,4 +500,69 @@ func newActionContext(action Action, ac EvaluationContext) *actionContext {
 
 func (c *actionContext) Action() Action {
 	return c.action
+}
+
+type VerbFile[T feature] struct {
+	Verb Verb
+}
+
+func (f *VerbFile[T]) UnmarshalJSON(data []byte) error {
+	var m map[string]json.RawMessage
+	if err := json.Unmarshal(data, &m); err != nil {
+		return err
+	}
+
+	if _, ok := m["attack"]; ok {
+		var attack struct {
+			Evaluator EvaluatorFile `json:"attack"`
+			Critical  bool
+		}
+		if err := json.Unmarshal(data, &attack); err != nil {
+			return err
+		}
+
+		f.Verb = NewAttack(attack.Evaluator.Evaluator, attack.Critical)
+		return nil
+	}
+
+	if _, ok := m["heal"]; ok {
+		var heal struct {
+			Evaluator EvaluatorFile `json:"heal"`
+		}
+		if err := json.Unmarshal(data, &heal); err != nil {
+			return err
+		}
+
+		f.Verb = NewHeal(heal.Evaluator.Evaluator)
+		return nil
+	}
+
+	if _, ok := m["buff"]; ok {
+		var buff struct {
+			Reactor   FatReactorFile[T] `json:"buff"`
+			Evaluator EvaluatorFile
+			Capacity  bool
+		}
+		if err := json.Unmarshal(data, &buff); err != nil {
+			return err
+		}
+
+		f.Verb = NewBuff(buff.Capacity, buff.Evaluator.Evaluator, buff.Reactor.FatReactor)
+		return nil
+	}
+
+	if _, ok := m["purge"]; ok {
+		var purge struct {
+			Tag   TagFile `json:"purge"`
+			Count int
+		}
+		if err := json.Unmarshal(data, &purge); err != nil {
+			return err
+		}
+
+		f.Verb = NewPurge(DefaultRng, purge.Tag.Tag, purge.Count)
+		return nil
+	}
+
+	return ErrBadVerb
 }

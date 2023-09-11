@@ -2,7 +2,10 @@ package battlefield
 
 import (
 	"encoding/json"
+	"errors"
 	"reflect"
+
+	"github.com/farseeingnorthwest/playground/battlefield/v2/functional"
 )
 
 var (
@@ -15,6 +18,8 @@ var (
 	_ ActionTrigger = VerbTrigger[*Attack]{}
 	_ ActionTrigger = CriticalStrikeTrigger{}
 	_ ActionTrigger = TagTrigger{}
+
+	ErrBadTrigger = errors.New("bad trigger")
 )
 
 type Trigger interface {
@@ -205,4 +210,139 @@ func (t TagTrigger) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]any{
 		"tag": t.tag,
 	})
+}
+
+type TriggerFile struct {
+	Trigger Trigger
+}
+
+func (f *TriggerFile) UnmarshalJSON(bytes []byte) error {
+	var m map[string]json.RawMessage
+	if err := json.Unmarshal(bytes, &m); err != nil {
+		var e *json.UnmarshalTypeError
+		if !errors.As(err, &e) {
+			return err
+		}
+
+		var fs []TriggerFile
+		if err := json.Unmarshal(bytes, &fs); err != nil {
+			return err
+		}
+
+		f.Trigger = NewAnyTrigger(
+			functional.Map(func(f TriggerFile) Trigger {
+				return f.Trigger
+			})(fs)...,
+		)
+		return nil
+	}
+
+	sig, ok := m["signal"]
+	if !ok {
+		return ErrBadTrigger
+	}
+	var s string
+	if err := json.Unmarshal(sig, &s); err != nil {
+		return err
+	}
+	signal, ok := map[string]Signal{
+		"evaluation":   &EvaluationSignal{},
+		"pre_loss":     &PreLossSignal{},
+		"launch":       &LaunchSignal{},
+		"battle_start": &BattleStartSignal{},
+		"round_start":  &RoundStartSignal{},
+		"round_end":    &RoundEndSignal{},
+		"pre_action":   &PreActionSignal{},
+		"post_action":  &PostActionSignal{},
+		"lifecycle":    &LifecycleSignal{},
+	}[s]
+	if !ok {
+		return ErrBadTrigger
+	}
+
+	actionTriggers, ok := m["if"]
+	if !ok {
+		f.Trigger = NewSignalTrigger(signal)
+		return nil
+	}
+
+	var fs []ActionTriggerFile
+	if err := json.Unmarshal(actionTriggers, &fs); err != nil {
+		return err
+	}
+
+	f.Trigger = NewFatTrigger(
+		signal,
+		functional.Map(func(f ActionTriggerFile) ActionTrigger {
+			return f.Trigger
+		})(fs)...,
+	)
+	return nil
+}
+
+type ActionTriggerFile struct {
+	Trigger ActionTrigger
+}
+
+func (f *ActionTriggerFile) UnmarshalJSON(bytes []byte) error {
+	var s string
+	if err := json.Unmarshal(bytes, &s); err != nil {
+		var e *json.UnmarshalTypeError
+		if !errors.As(err, &e) {
+			return err
+		}
+	} else {
+		if trigger, ok := map[string]ActionTrigger{
+			"current_is_source": CurrentIsSourceTrigger{},
+			"current_is_target": CurrentIsTargetTrigger{},
+			"critical_strike":   CriticalStrikeTrigger{},
+		}[s]; ok {
+			f.Trigger = trigger
+			return nil
+		}
+
+		return ErrBadTrigger
+	}
+
+	var m map[string]json.RawMessage
+	if err := json.Unmarshal(bytes, &m); err != nil {
+		var e *json.UnmarshalTypeError
+		if !errors.As(err, &e) {
+			return err
+		}
+	}
+	if source, ok := m["source"]; ok {
+		var t TagFile
+		if err := json.Unmarshal(source, &t); err != nil {
+			return err
+		}
+
+		f.Trigger = NewReactorTrigger(t.Tag)
+		return nil
+	} else if verb, ok := m["verb"]; ok {
+		var v string
+		if err := json.Unmarshal(verb, &v); err != nil {
+			return err
+		}
+
+		if t, ok := map[string]ActionTrigger{
+			"attack": NewVerbTrigger[*Attack](),
+			"heal":   NewVerbTrigger[*Heal](),
+			"buff":   NewVerbTrigger[*Buff](),
+			"purge":  NewVerbTrigger[*Purge](),
+		}[v]; ok {
+			f.Trigger = t
+			return nil
+		}
+	} else if tag, ok := m["tag"]; ok {
+		var t TagFile
+		if err := json.Unmarshal(tag, &t); err != nil {
+			return err
+		}
+
+		f.Trigger = NewTagTrigger(t.Tag)
+		return nil
+	}
+
+	return ErrBadTrigger
 }

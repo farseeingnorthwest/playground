@@ -2,11 +2,14 @@ package battlefield
 
 import (
 	"encoding/json"
+	"errors"
 	"sort"
+
+	"github.com/farseeingnorthwest/playground/battlefield/v2/functional"
 )
 
 var (
-	Healthy          = &WaterLevelSelector{Gt, AxisEvaluator(Health), 0}
+	Healthy          = WaterLevelSelector{Gt, AxisEvaluator(Health), 0}
 	_       Selector = AbsoluteSideSelector(false)
 	_       Selector = SideSelector(false)
 	_       Selector = CurrentSelector{}
@@ -14,9 +17,11 @@ var (
 	_       Selector = SortSelector{}
 	_       Selector = ShuffleSelector{}
 	_       Selector = FrontSelector(0)
-	_       Selector = CounterPositionSelector{}
+	_       Selector = CounterPositionSelector(0)
 	_       Selector = WaterLevelSelector{}
 	_       Selector = PipelineSelector{}
+
+	ErrBadSelector = errors.New("bad selector")
 )
 
 type Selector interface {
@@ -177,22 +182,32 @@ func (s FrontSelector) MarshalJSON() ([]byte, error) {
 	})
 }
 
-type CounterPositionSelector struct {
+type CounterPositionSelector uint8
+
+func NewCounterPositionSelector(r uint8) CounterPositionSelector {
+	return CounterPositionSelector(r)
 }
 
-func (CounterPositionSelector) Select(inputs []Warrior, signal Signal, _ EvaluationContext) []Warrior {
+func (s CounterPositionSelector) Select(inputs []Warrior, signal Signal, _ EvaluationContext) (warriors []Warrior) {
 	current := signal.Current().(Warrior)
 	for _, w := range inputs {
-		if w != current && w.Component(Position, nil) == current.Component(Position, nil) {
-			return []Warrior{w}
+		if w.Side() == current.Side() {
+			continue
+		}
+		d := w.Component(Position, nil) - current.Component(Position, nil)
+		if d < 0 {
+			d = -d
+		}
+		if d <= int(s) {
+			warriors = append(warriors, w)
 		}
 	}
 
-	return nil
+	return
 }
 
-func (CounterPositionSelector) MarshalJSON() ([]byte, error) {
-	return json.Marshal("counter_position")
+func (s CounterPositionSelector) MarshalJSON() ([]byte, error) {
+	return json.Marshal(map[string]uint8{"counter_position": uint8(s)})
 }
 
 type WaterLevelSelector struct {
@@ -236,4 +251,128 @@ func (s PipelineSelector) Select(inputs []Warrior, signal Signal, ec EvaluationC
 
 func (s PipelineSelector) MarshalJSON() ([]byte, error) {
 	return json.Marshal([]Selector(s))
+}
+
+type SelectorFile struct {
+	Selector Selector
+}
+
+func (f *SelectorFile) UnmarshalJSON(bytes []byte) error {
+	var s string
+	if err := json.Unmarshal(bytes, &s); err != nil {
+		var e *json.UnmarshalTypeError
+		if !errors.As(err, &e) {
+			return err
+		}
+	} else {
+		if selector, ok := map[string]Selector{
+			"current": CurrentSelector{},
+			"source":  SourceSelector{},
+		}[s]; ok {
+			f.Selector = selector
+			return nil
+		}
+
+		return ErrBadSelector
+	}
+
+	var m map[string]json.RawMessage
+	if err := json.Unmarshal(bytes, &m); err != nil {
+		var e *json.UnmarshalTypeError
+		if !errors.As(err, &e) {
+			return err
+		}
+
+		var fs []SelectorFile
+		if err := json.Unmarshal(bytes, &fs); err != nil {
+			return err
+		}
+
+		f.Selector = PipelineSelector(functional.Map(func(f SelectorFile) Selector {
+			return f.Selector
+		})(fs))
+		return nil
+	}
+
+	if side, ok := m["side"]; ok {
+		var s any
+		if err := json.Unmarshal(side, &s); err != nil {
+			return err
+		}
+
+		switch s := s.(type) {
+		case bool:
+			f.Selector = SideSelector(s)
+			return nil
+		case string:
+			if side, ok := map[string]Side{
+				"Left":  Left,
+				"Right": Right,
+			}[s]; ok {
+				f.Selector = AbsoluteSideSelector(side)
+				return nil
+			}
+		}
+
+		return ErrBadSelector
+	}
+
+	if _, ok := m["sort"]; ok {
+		var s struct {
+			Sort Axis
+			Asc  bool
+		}
+		if err := json.Unmarshal(bytes, &s); err != nil {
+			return err
+		}
+
+		f.Selector = NewSortSelector(s.Sort, s.Asc)
+		return nil
+	}
+
+	if preference, ok := m["shuffle"]; ok {
+		var t TagFile
+		if err := json.Unmarshal(preference, &t); err != nil {
+			return err
+		}
+
+		f.Selector = NewShuffleSelector(DefaultRng, t.Tag)
+		return nil
+	}
+
+	if take, ok := m["take"]; ok {
+		var n int
+		if err := json.Unmarshal(take, &n); err != nil {
+			return err
+		}
+
+		f.Selector = FrontSelector(n)
+		return nil
+	}
+
+	if counterPosition, ok := m["counter_position"]; ok {
+		var r uint8
+		if err := json.Unmarshal(counterPosition, &r); err != nil {
+			return err
+		}
+
+		f.Selector = NewCounterPositionSelector(r)
+		return nil
+	}
+
+	if _, ok := m["take_while"]; ok {
+		var s struct {
+			TakeWhile IntComparator `json:"take_while"`
+			Evaluator EvaluatorFile
+			Value     int
+		}
+		if err := json.Unmarshal(bytes, &s); err != nil {
+			return err
+		}
+
+		f.Selector = NewWaterLevelSelector(s.TakeWhile, s.Evaluator.Evaluator, s.Value)
+		return nil
+	}
+
+	return ErrBadSelector
 }

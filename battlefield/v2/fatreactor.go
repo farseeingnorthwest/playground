@@ -1,6 +1,10 @@
 package battlefield
 
-import "encoding/json"
+import (
+	"encoding/json"
+
+	"github.com/farseeingnorthwest/playground/battlefield/v2/functional"
+)
 
 var (
 	_ ForkReactor = (*FatReactor)(nil)
@@ -15,7 +19,7 @@ type FatReactor struct {
 }
 
 func NewFatReactor(options ...func(*FatReactor)) *FatReactor {
-	r := &FatReactor{}
+	r := &FatReactor{TagSet: NewTagSet()}
 	for _, option := range options {
 		option(r)
 	}
@@ -144,7 +148,13 @@ func (r *FatReactor) Fork(evaluator Evaluator) any {
 }
 
 func (r *FatReactor) MarshalJSON() ([]byte, error) {
-	return json.Marshal(fr{
+	return json.Marshal(struct {
+		Tags       TagSet       `json:"tags,omitempty"`
+		Leading    *Leading     `json:"leading,omitempty"`
+		Cooling    *Cooling     `json:"cooling,omitempty"`
+		Capacity   *Capacity    `json:"capacity,omitempty"`
+		Responders []*Responder `json:"cases,omitempty"`
+	}{
 		r.TagSet,
 		r.leading,
 		r.cooling,
@@ -153,12 +163,34 @@ func (r *FatReactor) MarshalJSON() ([]byte, error) {
 	})
 }
 
-type fr struct {
-	Tags       TagSet       `json:"tags,omitempty"`
-	Leading    *Leading     `json:"leading,omitempty"`
-	Cooling    *Cooling     `json:"cooling,omitempty"`
-	Capacity   *Capacity    `json:"capacity,omitempty"`
-	Responders []*Responder `json:"cases,omitempty"`
+type FatReactorFile[T feature] struct {
+	*FatReactor
+}
+
+func (f *FatReactorFile[T]) UnmarshalJSON(data []byte) error {
+	var fr struct {
+		Tags       []TagFile
+		Leading    *Leading
+		Cooling    *Cooling
+		Capacity   *Capacity
+		Responders []*ResponderFile[T] `json:"cases"`
+	}
+	if err := json.Unmarshal(data, &fr); err != nil {
+		return err
+	}
+
+	f.FatReactor = &FatReactor{
+		TagSet: NewTagSet(functional.Map(func(f TagFile) any {
+			return f.Tag
+		})(fr.Tags)...),
+		leading:  fr.Leading,
+		cooling:  fr.Cooling,
+		capacity: fr.Capacity,
+		responders: functional.Map(func(f *ResponderFile[T]) *Responder {
+			return f.Responder
+		})(fr.Responders),
+	}
+	return nil
 }
 
 type Leading struct {
@@ -194,6 +226,17 @@ func (l *Leading) MarshalJSON() ([]byte, error) {
 		l.count,
 		l.trigger,
 	})
+}
+
+func (l *Leading) UnmarshalJSON(data []byte) error {
+	var lc lcf
+	if err := json.Unmarshal(data, &lc); err != nil {
+		return err
+	}
+
+	l.count = lc.Count
+	l.trigger = lc.Trigger.Trigger
+	return nil
 }
 
 type Cooling struct {
@@ -239,6 +282,18 @@ func (c *Cooling) MarshalJSON() ([]byte, error) {
 		c.count,
 		c.trigger,
 	})
+}
+
+func (c *Cooling) UnmarshalJSON(data []byte) error {
+	var lc lcf
+	if err := json.Unmarshal(data, &lc); err != nil {
+		return err
+	}
+
+	c.count = lc.Count
+	c.trigger = lc.Trigger.Trigger
+	c.p = 0
+	return nil
 }
 
 type Capacity struct {
@@ -295,9 +350,25 @@ func (c *Capacity) MarshalJSON() ([]byte, error) {
 	})
 }
 
+func (c *Capacity) UnmarshalJSON(data []byte) error {
+	var lc lcf
+	if err := json.Unmarshal(data, &lc); err != nil {
+		return err
+	}
+
+	c.count = lc.Count
+	c.trigger = lc.Trigger.Trigger
+	return nil
+}
+
 type lc struct {
 	Count   int `json:"count"`
 	Trigger `json:"when,omitempty"`
+}
+
+type lcf struct {
+	Count   int
+	Trigger TriggerFile `json:"when,omitempty"`
 }
 
 type Responder struct {
@@ -318,13 +389,28 @@ func (r *Responder) Fork(evaluator Evaluator) any {
 }
 
 func (r *Responder) MarshalJSON() ([]byte, error) {
-	return json.Marshal(rs{
+	return json.Marshal(struct {
+		Trigger `json:"when"`
+		Actor   `json:"then"`
+	}{
 		r.trigger,
 		r.actor,
 	})
 }
 
-type rs struct {
-	Trigger `json:"when"`
-	Actor   `json:"then"`
+type ResponderFile[T feature] struct {
+	*Responder
+}
+
+func (f *ResponderFile[T]) UnmarshalJSON(data []byte) error {
+	var s struct {
+		TriggerFile  `json:"when"`
+		ActorFile[T] `json:"then"`
+	}
+	if err := json.Unmarshal(data, &s); err != nil {
+		return err
+	}
+
+	f.Responder = &Responder{s.TriggerFile.Trigger, s.ActorFile.Actor}
+	return nil
 }
