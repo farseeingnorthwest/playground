@@ -263,7 +263,10 @@ var (
 								CriticalOdds,
 								true,
 								ConstEvaluator(2),
-								FatTags(NewStackingLimit(15), Label("[15] +2% CriticalOdds")),
+								FatTags(
+									NewStackingLimit("Qn7Vh9kuDNToXVG1kGFtzE", 15),
+									Label("[15] +2% CriticalOdds"),
+								),
 							)),
 							nil,
 						),
@@ -509,7 +512,10 @@ var (
 								Damage,
 								false,
 								ConstEvaluator(105),
-								FatTags(NewStackingLimit(3), Label("+5% Attack*")),
+								FatTags(
+									NewStackingLimit("VUE3GbrQweSqdpa1DfoqYt", 3),
+									Label("+5% Attack*"),
+								),
 								FatCapacity(NewSignalTrigger(&RoundEndSignal{}), 3))),
 							nil,
 						),
@@ -1067,37 +1073,7 @@ func TestFatReactor_UnmarshalJSON(t *testing.T) {
 			}
 
 			opts := cmp.Options{
-				cmp.Comparer(func(x, y TagSet) bool {
-					if len(x) != len(y) {
-						return false
-					}
-
-					var m, n int
-					for k := range x {
-						if _, ok := y[k]; ok {
-							continue
-						}
-						if l, ok := k.(StackingLimit); ok {
-							m = l.Capacity()
-							n = -1
-							continue
-						}
-
-						return false
-					}
-					if n != -1 {
-						return true
-					}
-
-					for k := range y {
-						if l, ok := k.(StackingLimit); ok {
-							n = l.Capacity()
-							break
-						}
-					}
-					return m == n
-				}),
-				cmp.Exporter(func(t reflect.Type) bool {
+				cmp.Exporter(func(reflect.Type) bool {
 					return true
 				}),
 			}

@@ -2,7 +2,6 @@ package battlefield
 
 import (
 	"container/list"
-	"encoding/json"
 )
 
 var (
@@ -15,14 +14,16 @@ type Portfolio interface {
 	Add(Reactor) Reactor
 	Remove(Reactor)
 	Buffs(tags ...any) []Reactor
+	Stacking(StackingLimit) *Stack
 }
 
 type FatPortfolio struct {
 	reactors *list.List
+	stacking map[StackingLimit]*Stack
 }
 
 func NewFatPortfolio() *FatPortfolio {
-	return &FatPortfolio{list.New()}
+	return &FatPortfolio{list.New(), make(map[StackingLimit]*Stack)}
 }
 
 func (p *FatPortfolio) React(signal Signal, ec EvaluationContext) {
@@ -32,8 +33,11 @@ func (p *FatPortfolio) React(signal Signal, ec EvaluationContext) {
 }
 
 func (p *FatPortfolio) Add(reactor Reactor) (overflow Reactor) {
-	if stacking, ok := QueryTag[StackingLimit](reactor); ok {
-		if overflow = stacking.Add(reactor); overflow != nil {
+	if lm, ok := QueryTag[StackingLimit](reactor); ok {
+		if _, ok := p.stacking[lm]; !ok {
+			p.stacking[lm] = NewStack(lm.Capacity)
+		}
+		if overflow = p.stacking[lm].Add(reactor); overflow != nil {
 			p.remove(overflow)
 		}
 	}
@@ -53,8 +57,8 @@ func (p *FatPortfolio) Add(reactor Reactor) (overflow Reactor) {
 }
 
 func (p *FatPortfolio) Remove(reactor Reactor) {
-	if stacking, ok := QueryTag[StackingLimit](reactor); ok {
-		stacking.Remove(reactor)
+	if lm, ok := QueryTag[StackingLimit](reactor); ok {
+		p.stacking[lm].Remove(reactor)
 	}
 
 	p.remove(reactor)
@@ -81,24 +85,28 @@ func (p *FatPortfolio) Buffs(tags ...any) (buffs []Reactor) {
 	return
 }
 
-type StackingLimit struct {
+func (p *FatPortfolio) Stacking(lm StackingLimit) *Stack {
+	return p.stacking[lm]
+}
+
+type Stack struct {
 	reactors *list.List
 	capacity int
 }
 
-func NewStackingLimit(capacity int) StackingLimit {
-	return StackingLimit{list.New(), capacity}
+func NewStack(capacity int) *Stack {
+	return &Stack{list.New(), capacity}
 }
 
-func (l StackingLimit) Count() int {
+func (l *Stack) Count() int {
 	return l.reactors.Len()
 }
 
-func (l StackingLimit) Capacity() int {
+func (l *Stack) Capacity() int {
 	return l.capacity
 }
 
-func (l StackingLimit) Add(reactor Reactor) (overflow Reactor) {
+func (l *Stack) Add(reactor Reactor) (overflow Reactor) {
 	if l.reactors.Len() == l.capacity {
 		e := l.reactors.Front()
 		l.reactors.Remove(e)
@@ -109,17 +117,11 @@ func (l StackingLimit) Add(reactor Reactor) (overflow Reactor) {
 	return
 }
 
-func (l StackingLimit) Remove(reactor Reactor) {
+func (l *Stack) Remove(reactor Reactor) {
 	for e := l.reactors.Front(); e != nil; e = e.Next() {
 		if e.Value == reactor {
 			l.reactors.Remove(e)
 			return
 		}
 	}
-}
-
-func (l StackingLimit) MarshalJSON() ([]byte, error) {
-	return json.Marshal(map[string]int{
-		"stacking": l.capacity,
-	})
 }

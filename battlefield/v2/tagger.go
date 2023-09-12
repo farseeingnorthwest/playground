@@ -143,6 +143,15 @@ func (g ExclusionGroup) MarshalJSON() ([]byte, error) {
 	})
 }
 
+type StackingLimit struct {
+	ID       string `json:"stacking"`
+	Capacity int
+}
+
+func NewStackingLimit(id string, capacity int) StackingLimit {
+	return StackingLimit{id, capacity}
+}
+
 type TagFile struct {
 	Tag any
 }
@@ -179,11 +188,14 @@ func (f *TagFile) UnmarshalJSON(data []byte) error {
 			f.Tag = ExclusionGroup(exclusionGroup)
 			return nil
 		}
-	} else if stackingLimit, ok := tag["stacking"]; ok {
-		if stackingLimit, ok := stackingLimit.(float64); ok {
-			f.Tag = NewStackingLimit(int(stackingLimit))
-			return nil
+	} else if _, ok := tag["stacking"]; ok {
+		var stacking StackingLimit
+		if err := json.Unmarshal(data, &stacking); err != nil {
+			return err
 		}
+
+		f.Tag = stacking
+		return nil
 	}
 
 	return ErrBadTag

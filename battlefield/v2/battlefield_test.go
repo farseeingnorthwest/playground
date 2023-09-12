@@ -422,16 +422,15 @@ func ExampleBattleField_Run_special_3b() {
 
 	f.Run()
 	// Output:
-	// stacking=2 verb=buff reactor="+5% Attack*" target.side=Left target.position=0 source.reactor="@PreAction({$} +5% Attack*)"
+	// stacking=1 verb=buff reactor="+5% Attack*" target.side=Left target.position=0 source.reactor="@PreAction({$} +5% Attack*)"
 	// verb=attack critical=true loss=13 overflow=0 source.side=Left source.position=0 source.reactor=NormalAttack source.damage=21 target.side=Right target.position=0 target.defense=8 target.health.current=47 target.health.maximum=60
 	// verb=attack critical=false loss=17 overflow=0 source.side=Right source.position=0 source.reactor=NormalAttack source.damage=22 target.side=Left target.position=0 target.defense=5 target.health.current=83 target.health.maximum=100
 	// source.position=0 source.side=Left source.reactor="+5% Attack*" lifecycle.leading=0 lifecycle.cooling="{Current:0 Maximum:0}" lifecycle.capacity=2
-	// stacking=3 verb=buff reactor="+5% Attack*" target.side=Left target.position=0 source.reactor="@PreAction({$} +5% Attack*)"
+	// stacking=2 verb=buff reactor="+5% Attack*" target.side=Left target.position=0 source.reactor="@PreAction({$} +5% Attack*)"
 	// verb=attack critical=true loss=14 overflow=0 source.side=Left source.position=0 source.reactor=NormalAttack source.damage=22 target.side=Right target.position=0 target.defense=8 target.health.current=33 target.health.maximum=60
 	// verb=attack critical=false loss=17 overflow=0 source.side=Right source.position=0 source.reactor=NormalAttack source.damage=22 target.side=Left target.position=0 target.defense=5 target.health.current=66 target.health.maximum=100
 	// source.position=0 source.side=Left source.reactor="+5% Attack*" lifecycle.leading=0 lifecycle.cooling="{Current:0 Maximum:0}" lifecycle.capacity=1
 	// source.position=0 source.side=Left source.reactor="+5% Attack*" lifecycle.leading=0 lifecycle.cooling="{Current:0 Maximum:0}" lifecycle.capacity=2
-	// verb=buff/overflow reactor="+5% Attack*" target.side=Left target.position=0
 	// stacking=3 verb=buff reactor="+5% Attack*" target.side=Left target.position=0 source.reactor="@PreAction({$} +5% Attack*)"
 	// verb=attack critical=true loss=15 overflow=0 source.side=Left source.position=0 source.reactor=NormalAttack source.damage=23 target.side=Right target.position=0 target.defense=8 target.health.current=18 target.health.maximum=60
 	// verb=attack critical=false loss=17 overflow=0 source.side=Right source.position=0 source.reactor=NormalAttack source.damage=22 target.side=Left target.position=0 target.defense=5 target.health.current=49 target.health.maximum=100

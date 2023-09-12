@@ -394,8 +394,8 @@ func (b *Buff) Render(target Warrior, ac ActionContext) bool {
 		)
 		ac.React(NewLifecycleSignal(target, overflow, nil))
 	}
-	if stacking, ok := QueryTag[StackingLimit](reactor); ok {
-		logger = logger.With("stacking", stacking.Count())
+	if lm, ok := QueryTag[StackingLimit](reactor); ok {
+		logger = logger.With("stacking", target.Stacking(lm).Count())
 	}
 	logger.Debug(
 		"render",
