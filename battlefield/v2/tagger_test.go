@@ -17,6 +17,7 @@ func TestTagFile_UnmarshalJSON(t *testing.T) {
 		{"priority", Priority(10)},
 		{"exclusion group", ExclusionGroup(1)},
 		{"stacking limit", NewStackingLimit("8xTztCpXZLySApxFNvRYiU", 2)},
+		{"element", Element(0)},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			bytes, err := json.Marshal(tt.value)

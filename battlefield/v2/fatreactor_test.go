@@ -31,7 +31,7 @@ var (
 	Shuffle       = NewShuffleSelector(RngX, Label("Taunt"))
 	ElementNames  = []string{"Water", "Fire", "Ice", "Wind", "Earth", "Thunder", "Dark", "Light"}
 	ElementTheory = NewTheoryActor(
-		map[Element]map[Element]int{
+		map[any]map[any]int{
 			Water:   {Fire: 120, Thunder: 80},
 			Fire:    {Ice: 120, Water: 80},
 			Ice:     {Wind: 120, Fire: 80},
@@ -1038,13 +1038,21 @@ var (
 
 type Element uint8
 
-func (e Element) String() string {
-	return ElementNames[e]
+func (e Element) MarshalJSON() ([]byte, error) {
+	return json.Marshal(map[string]string{
+		"_kind": "element",
+		"name":  ElementNames[e],
+	})
 }
 
-func (e *Element) UnmarshalText(text []byte) error {
+func (e *Element) UnmarshalJSON(data []byte) error {
+	var v struct{ Name string }
+	if err := json.Unmarshal(data, &v); err != nil {
+		return err
+	}
+
 	for i, name := range ElementNames {
-		if string(text) == name {
+		if v.Name == name {
 			*e = Element(i)
 			return nil
 		}
@@ -1067,7 +1075,7 @@ func TestFatReactor_UnmarshalJSON(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			var f FatReactorFile[Element]
+			var f FatReactorFile
 			if err := json.Unmarshal(data, &f); err != nil {
 				t.Fatal(err)
 			}
@@ -1096,4 +1104,8 @@ func TestFatReactor_UnmarshalJSON(t *testing.T) {
 			t.Run(fmt.Sprintf("special #%d-%d", i, j), regress(vv))
 		}
 	}
+}
+
+func init() {
+	RegisterTagType("element", Element(0))
 }

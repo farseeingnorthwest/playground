@@ -37,6 +37,7 @@ var (
 	}
 
 	ErrBadAxis = errors.New("bad axis")
+	ErrBadSide = errors.New("bad side")
 )
 
 type Axis uint8
@@ -64,6 +65,19 @@ func (s Side) String() string {
 	}
 
 	return "Right"
+}
+
+func (s *Side) UnmarshalText(text []byte) error {
+	switch string(text) {
+	case "Left":
+		*s = Left
+		return nil
+	case "Right":
+		*s = Right
+		return nil
+	}
+
+	return ErrBadSide
 }
 
 type Ratio struct {

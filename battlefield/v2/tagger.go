@@ -4,12 +4,12 @@ import (
 	"encoding/json"
 	"errors"
 	"reflect"
-	"sort"
 )
 
 var (
 	_ Tagger = TagSet{}
 
+	tagType   = make(map[string]reflect.Type)
 	ErrBadTag = errors.New("bad tag")
 )
 
@@ -31,12 +31,15 @@ func NewTagSet(tags ...any) TagSet {
 	return t
 }
 
-func (t TagSet) Tags() (tags []any) {
+func (t TagSet) Tags() []any {
+	tags := make([]any, len(t))
+	i := 0
 	for tag := range t {
-		tags = append(tags, tag)
+		tags[i] = tag
+		i++
 	}
 
-	return
+	return tags
 }
 
 func (t TagSet) Match(tags ...any) bool {
@@ -64,24 +67,7 @@ func (t TagSet) Save(tag any) {
 }
 
 func (t TagSet) MarshalJSON() ([]byte, error) {
-	tags := t.Tags()
-	sort.Sort(byType(tags))
-
-	return json.Marshal(tags)
-}
-
-type byType []any
-
-func (b byType) Len() int {
-	return len(b)
-}
-
-func (b byType) Less(i, j int) bool {
-	return reflect.TypeOf(b[i]).Name() < reflect.TypeOf(b[j]).Name()
-}
-
-func (b byType) Swap(i, j int) {
-	b[i], b[j] = b[j], b[i]
+	return json.Marshal(t.Tags())
 }
 
 type Matcher interface {
@@ -100,19 +86,23 @@ func (m *TypeMatcher) Match(any any) bool {
 	return m.typ == reflect.TypeOf(any)
 }
 
-func QueryTag[T any](a any) (T, bool) {
-	proto := new(T)
+func queryTag(a any, proto any) (any, bool) {
 	tagger, ok := a.(Tagger)
 	if !ok {
-		return *proto, false
+		return proto, false
 	}
 
-	tag := tagger.Find(NewTypeMatcher(*proto))
+	tag := tagger.Find(NewTypeMatcher(proto))
 	if tag == nil {
-		return *proto, false
+		return proto, false
 	}
 
-	return tag.(T), true
+	return tag, true
+}
+
+func QueryTag[T any](a any) (T, bool) {
+	tag, ok := queryTag(a, *new(T))
+	return tag.(T), ok
 }
 
 func QueryTagA[T any](a any) any {
@@ -126,30 +116,75 @@ func QueryTagA[T any](a any) any {
 type Label string
 
 func (l Label) MarshalJSON() ([]byte, error) {
-	return json.Marshal(map[string]string{"label": string(l)})
+	return json.Marshal(map[string]string{
+		"_kind": "label",
+		"text":  string(l),
+	})
+}
+
+func (l *Label) UnmarshalJSON(data []byte) error {
+	var v struct{ Text string }
+	if err := json.Unmarshal(data, &v); err != nil {
+		return err
+	}
+
+	*l = Label(v.Text)
+	return nil
 }
 
 type Priority int
 
 func (p Priority) MarshalJSON() ([]byte, error) {
-	return json.Marshal(map[string]int{"priority": int(p)})
+	return json.Marshal(map[string]any{
+		"_kind": "priority",
+		"index": int(p),
+	})
+}
+
+func (p *Priority) UnmarshalJSON(data []byte) error {
+	var v struct{ Index int }
+	if err := json.Unmarshal(data, &v); err != nil {
+		return err
+	}
+
+	*p = Priority(v.Index)
+	return nil
 }
 
 type ExclusionGroup uint8
 
 func (g ExclusionGroup) MarshalJSON() ([]byte, error) {
-	return json.Marshal(map[string]uint8{
-		"group": uint8(g),
+	return json.Marshal(map[string]any{
+		"_kind": "exclusion_group",
+		"index": uint8(g),
 	})
 }
 
+func (g *ExclusionGroup) UnmarshalJSON(data []byte) error {
+	var v struct{ Index uint8 }
+	if err := json.Unmarshal(data, &v); err != nil {
+		return err
+	}
+
+	*g = ExclusionGroup(v.Index)
+	return nil
+}
+
 type StackingLimit struct {
-	ID       string `json:"stacking"`
+	ID       string
 	Capacity int
 }
 
 func NewStackingLimit(id string, capacity int) StackingLimit {
 	return StackingLimit{id, capacity}
+}
+
+func (l StackingLimit) MarshalJSON() ([]byte, error) {
+	return json.Marshal(map[string]any{
+		"_kind":    "stacking_limit",
+		"id":       l.ID,
+		"capacity": l.Capacity,
+	})
 }
 
 type TagFile struct {
@@ -158,45 +193,40 @@ type TagFile struct {
 
 func (f *TagFile) UnmarshalJSON(data []byte) error {
 	var s string
-	if err := json.Unmarshal(data, &s); err != nil {
-		var e *json.UnmarshalTypeError
-		if !errors.As(err, &e) {
-			return err
-		}
-	} else {
+	if json.Unmarshal(data, &s) == nil {
 		f.Tag = s
 		return nil
 	}
 
-	var tag map[string]any
-	if err := json.Unmarshal(data, &tag); err != nil {
+	var k kind
+	if err := json.Unmarshal(data, &k); err != nil {
 		return err
 	}
 
-	if label, ok := tag["label"]; ok {
-		if label, ok := label.(string); ok {
-			f.Tag = Label(label)
-			return nil
-		}
-	} else if priority, ok := tag["priority"]; ok {
-		if priority, ok := priority.(float64); ok {
-			f.Tag = Priority(priority)
-			return nil
-		}
-	} else if exclusionGroup, ok := tag["group"]; ok {
-		if exclusionGroup, ok := exclusionGroup.(float64); ok {
-			f.Tag = ExclusionGroup(exclusionGroup)
-			return nil
-		}
-	} else if _, ok := tag["stacking"]; ok {
-		var stacking StackingLimit
-		if err := json.Unmarshal(data, &stacking); err != nil {
+	if t, ok := tagType[k.Kind]; ok {
+		v := reflect.New(t)
+		if err := json.Unmarshal(data, v.Interface()); err != nil {
 			return err
 		}
 
-		f.Tag = stacking
+		f.Tag = v.Elem().Interface()
 		return nil
 	}
 
 	return ErrBadTag
+}
+
+func RegisterTagType(kind string, proto any) {
+	tagType[kind] = reflect.TypeOf(proto)
+}
+
+type kind struct {
+	Kind string `json:"_kind"`
+}
+
+func init() {
+	RegisterTagType("label", Label(""))
+	RegisterTagType("priority", Priority(0))
+	RegisterTagType("exclusion_group", ExclusionGroup(0))
+	RegisterTagType("stacking_limit", StackingLimit{})
 }

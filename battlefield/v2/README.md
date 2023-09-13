@@ -36,6 +36,7 @@
 
 | Name             | Underlying |          |
 |------------------|------------|----------|
+| -                | `string`   |          |
 | `Label`          | `string`   |          |
 | `Priority`       | `int`      |          |
 | `ExclusionGroup` | `uint8`    |          |

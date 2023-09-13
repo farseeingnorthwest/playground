@@ -163,17 +163,17 @@ func (r *FatReactor) MarshalJSON() ([]byte, error) {
 	})
 }
 
-type FatReactorFile[T feature] struct {
+type FatReactorFile struct {
 	*FatReactor
 }
 
-func (f *FatReactorFile[T]) UnmarshalJSON(data []byte) error {
+func (f *FatReactorFile) UnmarshalJSON(data []byte) error {
 	var fr struct {
 		Tags       []TagFile
 		Leading    *Leading
 		Cooling    *Cooling
 		Capacity   *Capacity
-		Responders []*ResponderFile[T] `json:"cases"`
+		Responders []*ResponderFile `json:"cases"`
 	}
 	if err := json.Unmarshal(data, &fr); err != nil {
 		return err
@@ -186,7 +186,7 @@ func (f *FatReactorFile[T]) UnmarshalJSON(data []byte) error {
 		leading:  fr.Leading,
 		cooling:  fr.Cooling,
 		capacity: fr.Capacity,
-		responders: functional.Map(func(f *ResponderFile[T]) *Responder {
+		responders: functional.Map(func(f *ResponderFile) *Responder {
 			return f.Responder
 		})(fr.Responders),
 	}
@@ -398,14 +398,14 @@ func (r *Responder) MarshalJSON() ([]byte, error) {
 	})
 }
 
-type ResponderFile[T feature] struct {
+type ResponderFile struct {
 	*Responder
 }
 
-func (f *ResponderFile[T]) UnmarshalJSON(data []byte) error {
+func (f *ResponderFile) UnmarshalJSON(data []byte) error {
 	var s struct {
-		TriggerFile  `json:"when"`
-		ActorFile[T] `json:"then"`
+		TriggerFile `json:"when"`
+		ActorFile   `json:"then"`
 	}
 	if err := json.Unmarshal(data, &s); err != nil {
 		return err

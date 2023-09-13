@@ -3,7 +3,7 @@ package battlefield
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
+	"reflect"
 
 	"github.com/farseeingnorthwest/playground/battlefield/v2/functional"
 )
@@ -19,7 +19,7 @@ var (
 	_ Actor = ImmuneActor{}
 	_ Actor = LossStopper{}
 	_ Actor = LossResister{}
-	_ Actor = TheoryActor[Side]{}
+	_ Actor = TheoryActor{}
 	_ Actor = (*ActionBuffer)(nil)
 
 	ErrBadActor = errors.New("bad actor")
@@ -91,14 +91,30 @@ func (b Buffer) Fork(evaluator Evaluator) any {
 
 func (b Buffer) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
-		Axis      string    `json:"buff"`
+		Kind      string    `json:"_kind"`
+		Axis      string    `json:"axis"`
 		Bias      bool      `json:"bias,omitempty"`
 		Evaluator Evaluator `json:"evaluator,omitempty"`
 	}{
+		"buffer",
 		b.axis.String(),
 		b.bias,
 		b.evaluator,
 	})
+}
+
+func (b *Buffer) UnmarshalJSON(data []byte) error {
+	var v struct {
+		Axis      Axis
+		Bias      bool
+		Evaluator EvaluatorFile
+	}
+	if err := json.Unmarshal(data, &v); err != nil {
+		return err
+	}
+
+	*b = NewBuffer(v.Axis, v.Bias, v.Evaluator.Evaluator)
+	return nil
 }
 
 type VerbActor struct {
@@ -136,12 +152,27 @@ func (a VerbActor) Fork(evaluator Evaluator) any {
 
 func (a VerbActor) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
+		Kind      string    `json:"_kind"`
 		Verb      Verb      `json:"verb"`
 		Evaluator Evaluator `json:"evaluator,omitempty"`
 	}{
+		"verb",
 		a.verb,
 		a.evaluator,
 	})
+}
+
+func (a *VerbActor) UnmarshalJSON(data []byte) error {
+	var v struct {
+		Verb      VerbFile
+		Evaluator EvaluatorFile
+	}
+	if err := json.Unmarshal(data, &v); err != nil {
+		return err
+	}
+
+	*a = NewVerbActor(v.Verb.Verb, v.Evaluator.Evaluator)
+	return nil
 }
 
 type SelectActor struct {
@@ -173,9 +204,23 @@ func (a SelectActor) Fork(evaluator Evaluator) any {
 
 func (a SelectActor) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]any{
-		"for": a.selector,
-		"do":  a.actor,
+		"_kind":    "select",
+		"selector": a.selector,
+		"do":       a.actor,
 	})
+}
+
+func (a *SelectActor) UnmarshalJSON(data []byte) error {
+	var v struct {
+		Selector SelectorFile
+		Actor    ActorFile `json:"do"`
+	}
+	if err := json.Unmarshal(data, &v); err != nil {
+		return err
+	}
+
+	*a = NewSelectActor(v.Actor.Actor, v.Selector.Selector)
+	return nil
 }
 
 type ProbabilityActor struct {
@@ -202,9 +247,23 @@ func (a ProbabilityActor) Fork(evaluator Evaluator) any {
 
 func (a ProbabilityActor) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]any{
+		"_kind":       "probability",
 		"probability": a.evaluator,
 		"do":          a.actor,
 	})
+}
+
+func (a *ProbabilityActor) UnmarshalJSON(data []byte) error {
+	var v struct {
+		Probability EvaluatorFile
+		Actor       ActorFile `json:"do"`
+	}
+	if err := json.Unmarshal(data, &v); err != nil {
+		return err
+	}
+
+	*a = NewProbabilityActor(DefaultRng, v.Probability.Evaluator, v.Actor.Actor)
+	return nil
 }
 
 type SequenceActor []Actor
@@ -242,11 +301,29 @@ func (a SequenceActor) Fork(evaluator Evaluator) any {
 }
 
 func (a SequenceActor) MarshalJSON() ([]byte, error) {
-	if a == nil {
-		return json.Marshal([]Actor{})
+	actors := []Actor(a)
+	if actors == nil {
+		actors = []Actor{}
 	}
 
-	return json.Marshal([]Actor(a))
+	return json.Marshal(map[string]any{
+		"_kind": "sequence",
+		"do":    actors,
+	})
+}
+
+func (a *SequenceActor) UnmarshalJSON(data []byte) error {
+	var v struct {
+		Actors []ActorFile `json:"do"`
+	}
+	if err := json.Unmarshal(data, &v); err != nil {
+		return err
+	}
+
+	*a = NewSequenceActor(functional.Map(func(f ActorFile) Actor {
+		return f.Actor
+	})(v.Actors)...)
+	return nil
 }
 
 type RepeatActor struct {
@@ -274,9 +351,23 @@ func (a RepeatActor) Fork(evaluator Evaluator) any {
 
 func (a RepeatActor) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]any{
-		"repeat": a.count,
-		"do":     a.actor,
+		"_kind": "repeat",
+		"count": a.count,
+		"do":    a.actor,
 	})
+}
+
+func (a *RepeatActor) UnmarshalJSON(data []byte) error {
+	var v struct {
+		Count int
+		Actor ActorFile `json:"do"`
+	}
+	if err := json.Unmarshal(data, &v); err != nil {
+		return err
+	}
+
+	*a = NewRepeatActor(v.Count, v.Actor.Actor)
+	return nil
 }
 
 // CriticalActor set the `critical' flag and should be triggered on
@@ -296,7 +387,7 @@ func (CriticalActor) Fork(_ Evaluator) any {
 }
 
 func (CriticalActor) MarshalJSON() ([]byte, error) {
-	return json.Marshal("critical_strike")
+	return json.Marshal(kind{"critical"})
 }
 
 type ImmuneActor struct {
@@ -316,7 +407,7 @@ func (ImmuneActor) Fork(_ Evaluator) any {
 }
 
 func (ImmuneActor) MarshalJSON() ([]byte, error) {
-	return json.Marshal("immune")
+	return json.Marshal(kind{"immune"})
 }
 
 type LossStopper struct {
@@ -353,9 +444,23 @@ func (s LossStopper) Fork(evaluator Evaluator) any {
 
 func (s LossStopper) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]any{
-		"stop_loss": s.full,
+		"_kind":     "loss_stopper",
+		"full":      s.full,
 		"evaluator": s.evaluator,
 	})
+}
+
+func (s *LossStopper) UnmarshalJSON(data []byte) error {
+	var v struct {
+		Full      bool
+		Evaluator EvaluatorFile
+	}
+	if err := json.Unmarshal(data, &v); err != nil {
+		return err
+	}
+
+	*s = NewLossStopper(v.Evaluator.Evaluator, v.Full)
+	return nil
 }
 
 type LossResister struct {
@@ -375,36 +480,33 @@ func (LossResister) Fork(_ Evaluator) any {
 }
 
 func (LossResister) MarshalJSON() ([]byte, error) {
-	return json.Marshal("resist_loss")
+	return json.Marshal(kind{"loss_resister"})
 }
 
-type feature interface {
-	comparable
-	fmt.Stringer
+type TheoryActor map[any]map[any]int
+
+func NewTheoryActor(theory map[any]map[any]int) TheoryActor {
+	return TheoryActor(theory)
 }
 
-type theory[T comparable] map[T]map[T]int
+func (a TheoryActor) Act(signal Signal, _ []Warrior, ac ActorContext) bool {
+	var proto any
+	for k := range a {
+		proto = k
+		break
+	}
 
-type TheoryActor[T feature] struct {
-	theory theory[T]
-}
-
-func NewTheoryActor[T feature](theory map[T]map[T]int) TheoryActor[T] {
-	return TheoryActor[T]{theory}
-}
-
-func (a TheoryActor[T]) Act(signal Signal, _ []Warrior, ac ActorContext) bool {
 	scripter, _ := ac.(*actorContext).
 		EvaluationContext.(ActionContext).Action().Script().Source()
-	s, ok := QueryTag[T](scripter)
+	s, ok := queryTag(scripter, proto)
 	if !ok {
 		return false
 	}
-	theory, ok := a.theory[s]
+	theory, ok := a[s]
 	if !ok {
 		return false
 	}
-	t, ok := QueryTag[T](signal.Current())
+	t, ok := queryTag(signal.Current(), proto)
 	if !ok {
 		return false
 	}
@@ -421,22 +523,51 @@ func (a TheoryActor[T]) Act(signal Signal, _ []Warrior, ac ActorContext) bool {
 	return true
 }
 
-func (a TheoryActor[T]) Fork(_ Evaluator) any {
+func (a TheoryActor) Fork(_ Evaluator) any {
 	return a
 }
 
-func (a TheoryActor[T]) MarshalJSON() ([]byte, error) {
-	t := make(theory[string])
-	for k, v := range a.theory {
-		t[k.String()] = make(map[string]int)
+func (a TheoryActor) MarshalJSON() ([]byte, error) {
+	var clauses []any
+	for k, v := range a {
 		for kk, vv := range v {
-			t[k.String()][kk.String()] = vv
+			clauses = append(clauses, struct {
+				Source any `json:"s"`
+				Target any `json:"t"`
+				Value  int `json:"v"`
+			}{k, kk, vv})
 		}
 	}
 
-	return json.Marshal(map[string]theory[string]{
-		"theory": t,
+	return json.Marshal(map[string]any{
+		"_kind":   "theory",
+		"clauses": clauses,
 	})
+}
+
+func (a *TheoryActor) UnmarshalJSON(data []byte) error {
+	var v struct {
+		Clauses []struct {
+			Source TagFile `json:"s"`
+			Target TagFile `json:"t"`
+			Value  int     `json:"v"`
+		}
+	}
+	if err := json.Unmarshal(data, &v); err != nil {
+		return err
+	}
+
+	theory := make(map[any]map[any]int)
+	for _, c := range v.Clauses {
+		if _, ok := theory[c.Source.Tag]; !ok {
+			theory[c.Source.Tag] = make(map[any]int)
+		}
+
+		theory[c.Source.Tag][c.Target.Tag] = c.Value
+	}
+
+	*a = NewTheoryActor(theory)
+	return nil
 }
 
 // ActionBuffer is a special actor that buffs the action, mostly used
@@ -480,12 +611,27 @@ func (b ActionBuffer) Fork(evaluator Evaluator) any {
 
 func (b ActionBuffer) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
-		Buffer    Actor     `json:"buff_a"`
+		Kind      string    `json:"_kind"`
+		Buffer    Actor     `json:"buffer"`
 		Evaluator Evaluator `json:"evaluator,omitempty"`
 	}{
+		"action_buffer",
 		b.buffer,
 		b.evaluator,
 	})
+}
+
+func (b *ActionBuffer) UnmarshalJSON(data []byte) error {
+	var v struct {
+		Buffer    ActorFile `json:"buffer"`
+		Evaluator EvaluatorFile
+	}
+	if err := json.Unmarshal(data, &v); err != nil {
+		return err
+	}
+
+	*b = NewActionBuffer(v.Evaluator.Evaluator, v.Buffer.Actor)
+	return nil
 }
 
 type ActorContext interface {
@@ -519,150 +665,40 @@ func (c *capacitor) Flush(n int) {
 	c.capacity -= n
 }
 
-type ActorFile[T feature] struct {
+type ActorFile struct {
 	Actor Actor
 }
 
-func (f *ActorFile[T]) UnmarshalJSON(data []byte) error {
-	var s string
-	if err := json.Unmarshal(data, &s); err != nil {
-		var e *json.UnmarshalTypeError
-		if !errors.As(err, &e) {
-			return err
-		}
-	} else {
-		if actor, ok := map[string]Actor{
-			"critical_strike": CriticalActor{},
-			"immune":          ImmuneActor{},
-			"resist_loss":     LossResister{},
-		}[s]; ok {
-			f.Actor = actor
-			return nil
-		}
-
-		return ErrBadActor
-	}
-
-	var m map[string]json.RawMessage
-	if err := json.Unmarshal(data, &m); err != nil {
-		var e *json.UnmarshalTypeError
-		if !errors.As(err, &e) {
-			return err
-		}
-
-		var fs []ActorFile[T]
-		if err := json.Unmarshal(data, &fs); err != nil {
-			return err
-		}
-
-		f.Actor = NewSequenceActor(functional.Map(func(f ActorFile[T]) Actor {
-			return f.Actor
-		})(fs)...)
-		return nil
-	}
-
-	if _, ok := m["buff"]; ok {
-		var b struct {
-			Axis      Axis `json:"buff"`
-			Bias      bool
-			Evaluator EvaluatorFile
-		}
-		if err := json.Unmarshal(data, &b); err != nil {
-			return err
-		}
-
-		f.Actor = NewBuffer(b.Axis, b.Bias, b.Evaluator.Evaluator)
-		return nil
-	}
-
-	if _, ok := m["verb"]; ok {
-		var v struct {
-			Verb      VerbFile[T]
-			Evaluator EvaluatorFile
-		}
-		if err := json.Unmarshal(data, &v); err != nil {
-			return err
-		}
-
-		f.Actor = NewVerbActor(v.Verb.Verb, v.Evaluator.Evaluator)
-		return nil
-	}
-
-	if _, ok := m["stop_loss"]; ok {
-		var s struct {
-			Full      bool `json:"stop_loss"`
-			Evaluator EvaluatorFile
-		}
-		if err := json.Unmarshal(data, &s); err != nil {
-			return err
-		}
-
-		f.Actor = NewLossStopper(s.Evaluator.Evaluator, s.Full)
-		return nil
-	}
-
-	if thr, ok := m["theory"]; ok {
-		var t theory[T]
-		if err := json.Unmarshal(thr, &t); err != nil {
-			return err
-		}
-
-		f.Actor = NewTheoryActor(t)
-		return nil
-	}
-
-	if _, ok := m["buff_a"]; ok {
-		var b struct {
-			Buffer    ActorFile[T] `json:"buff_a"`
-			Evaluator EvaluatorFile
-		}
-		if err := json.Unmarshal(data, &b); err != nil {
-			return err
-		}
-
-		f.Actor = NewActionBuffer(b.Evaluator.Evaluator, b.Buffer.Actor)
-		return nil
-	}
-
-	data2, ok := m["do"]
-	if !ok {
-		return ErrBadActor
-	}
-
-	var f2 ActorFile[T]
-	if err := json.Unmarshal(data2, &f2); err != nil {
+func (f *ActorFile) UnmarshalJSON(data []byte) error {
+	var k kind
+	if err := json.Unmarshal(data, &k); err != nil {
 		return err
 	}
 
-	if data, ok := m["for"]; ok {
-		var s SelectorFile
-		if err := json.Unmarshal(data, &s); err != nil {
+	if actor, ok := actorType[k.Kind]; ok {
+		v := reflect.New(actor)
+		if err := json.Unmarshal(data, v.Interface()); err != nil {
 			return err
 		}
 
-		f.Actor = NewSelectActor(f2.Actor, s.Selector)
-		return nil
-	}
-
-	if data, ok := m["probability"]; ok {
-		var e EvaluatorFile
-		if err := json.Unmarshal(data, &e); err != nil {
-			return err
-		}
-
-		f.Actor = NewProbabilityActor(DefaultRng, e.Evaluator, f2.Actor)
-		return nil
-	}
-
-	if data, ok := m["repeat"]; ok {
-		var n int
-		if err := json.Unmarshal(data, &n); err != nil {
-			return err
-		}
-
-		f.Actor = NewRepeatActor(n, f2.Actor)
+		f.Actor = v.Elem().Interface().(Actor)
 		return nil
 	}
 
 	return ErrBadActor
+}
+
+var actorType = map[string]reflect.Type{
+	"buffer":        reflect.TypeOf(Buffer{}),
+	"verb":          reflect.TypeOf(VerbActor{}),
+	"select":        reflect.TypeOf(SelectActor{}),
+	"probability":   reflect.TypeOf(ProbabilityActor{}),
+	"sequence":      reflect.TypeOf(SequenceActor{}),
+	"repeat":        reflect.TypeOf(RepeatActor{}),
+	"critical":      reflect.TypeOf(CriticalActor{}),
+	"immune":        reflect.TypeOf(ImmuneActor{}),
+	"loss_stopper":  reflect.TypeOf(LossStopper{}),
+	"loss_resister": reflect.TypeOf(LossResister{}),
+	"theory":        reflect.TypeOf(TheoryActor{}),
+	"action_buffer": reflect.TypeOf(ActionBuffer{}),
 }

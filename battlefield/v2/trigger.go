@@ -110,7 +110,7 @@ func (CurrentIsSourceTrigger) Trigger(action Action, signal Signal, _ Evaluation
 }
 
 func (CurrentIsSourceTrigger) MarshalJSON() ([]byte, error) {
-	return json.Marshal("current_is_source")
+	return json.Marshal(kind{"current_is_source"})
 }
 
 type CurrentIsTargetTrigger struct {
@@ -126,7 +126,7 @@ func (CurrentIsTargetTrigger) Trigger(action Action, signal Signal, _ Evaluation
 }
 
 func (CurrentIsTargetTrigger) MarshalJSON() ([]byte, error) {
-	return json.Marshal("current_is_target")
+	return json.Marshal(kind{"current_is_target"})
 }
 
 type ReactorTrigger struct {
@@ -149,8 +149,19 @@ func (t ReactorTrigger) Trigger(action Action, _ Signal, _ EvaluationContext) bo
 
 func (t ReactorTrigger) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]any{
-		"source": t.tag,
+		"_kind": "reactor",
+		"tag":   t.tag,
 	})
+}
+
+func (t *ReactorTrigger) UnmarshalJSON(bytes []byte) error {
+	var v struct{ Tag TagFile }
+	if err := json.Unmarshal(bytes, &v); err != nil {
+		return err
+	}
+
+	t.tag = v.Tag.Tag
+	return nil
 }
 
 type VerbTrigger[T Verb] struct {
@@ -169,7 +180,8 @@ func (VerbTrigger[T]) MarshalJSON() ([]byte, error) {
 	var verb T
 
 	return json.Marshal(map[string]string{
-		"verb": verb.Name(),
+		"_kind": "verb",
+		"verb":  verb.Name(),
 	})
 }
 
@@ -182,7 +194,7 @@ func (CriticalStrikeTrigger) Trigger(action Action, _ Signal, _ EvaluationContex
 }
 
 func (CriticalStrikeTrigger) MarshalJSON() ([]byte, error) {
-	return json.Marshal("critical_strike")
+	return json.Marshal(kind{"critical_strike"})
 }
 
 type TagTrigger struct {
@@ -208,8 +220,19 @@ func (t TagTrigger) Trigger(action Action, _ Signal, _ EvaluationContext) bool {
 
 func (t TagTrigger) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]any{
-		"tag": t.tag,
+		"_kind": "tag",
+		"tag":   t.tag,
 	})
+}
+
+func (t *TagTrigger) UnmarshalJSON(bytes []byte) error {
+	var v struct{ Tag TagFile }
+	if err := json.Unmarshal(bytes, &v); err != nil {
+		return err
+	}
+
+	t.tag = v.Tag.Tag
+	return nil
 }
 
 type TriggerFile struct {
@@ -217,35 +240,23 @@ type TriggerFile struct {
 }
 
 func (f *TriggerFile) UnmarshalJSON(bytes []byte) error {
-	var m map[string]json.RawMessage
-	if err := json.Unmarshal(bytes, &m); err != nil {
-		var e *json.UnmarshalTypeError
-		if !errors.As(err, &e) {
-			return err
-		}
-
-		var fs []TriggerFile
-		if err := json.Unmarshal(bytes, &fs); err != nil {
-			return err
-		}
-
-		f.Trigger = NewAnyTrigger(
-			functional.Map(func(f TriggerFile) Trigger {
-				return f.Trigger
-			})(fs)...,
-		)
+	var fs []TriggerFile
+	if json.Unmarshal(bytes, &fs) == nil {
+		f.Trigger = NewAnyTrigger(functional.Map(func(f TriggerFile) Trigger {
+			return f.Trigger
+		})(fs)...)
 		return nil
 	}
 
-	sig, ok := m["signal"]
-	if !ok {
-		return ErrBadTrigger
+	var v struct {
+		Signal string
+		If     []ActionTriggerFile
 	}
-	var s string
-	if err := json.Unmarshal(sig, &s); err != nil {
+	if err := json.Unmarshal(bytes, &v); err != nil {
 		return err
 	}
-	signal, ok := map[string]Signal{
+
+	if signal, ok := map[string]Signal{
 		"evaluation":   &EvaluationSignal{},
 		"pre_loss":     &PreLossSignal{},
 		"launch":       &LaunchSignal{},
@@ -255,29 +266,22 @@ func (f *TriggerFile) UnmarshalJSON(bytes []byte) error {
 		"pre_action":   &PreActionSignal{},
 		"post_action":  &PostActionSignal{},
 		"lifecycle":    &LifecycleSignal{},
-	}[s]
-	if !ok {
-		return ErrBadTrigger
-	}
+	}[v.Signal]; ok {
+		if len(v.If) == 0 {
+			f.Trigger = NewSignalTrigger(signal)
+		} else {
+			f.Trigger = NewFatTrigger(
+				signal,
+				functional.Map(func(f ActionTriggerFile) ActionTrigger {
+					return f.Trigger
+				})(v.If)...,
+			)
+		}
 
-	actionTriggers, ok := m["if"]
-	if !ok {
-		f.Trigger = NewSignalTrigger(signal)
 		return nil
 	}
 
-	var fs []ActionTriggerFile
-	if err := json.Unmarshal(actionTriggers, &fs); err != nil {
-		return err
-	}
-
-	f.Trigger = NewFatTrigger(
-		signal,
-		functional.Map(func(f ActionTriggerFile) ActionTrigger {
-			return f.Trigger
-		})(fs)...,
-	)
-	return nil
+	return ErrBadTrigger
 }
 
 type ActionTriggerFile struct {
@@ -285,64 +289,49 @@ type ActionTriggerFile struct {
 }
 
 func (f *ActionTriggerFile) UnmarshalJSON(bytes []byte) error {
-	var s string
-	if err := json.Unmarshal(bytes, &s); err != nil {
-		var e *json.UnmarshalTypeError
-		if !errors.As(err, &e) {
+	var k kind
+	if err := json.Unmarshal(bytes, &k); err != nil {
+		return err
+	}
+
+	var value reflect.Value
+	if t, ok := actionTriggerType[k.Kind]; ok {
+		value = reflect.New(t)
+	} else if k.Kind == "verb" {
+		var v struct{ Verb string }
+		if err := json.Unmarshal(bytes, &v); err != nil {
 			return err
 		}
-	} else {
-		if trigger, ok := map[string]ActionTrigger{
-			"current_is_source": CurrentIsSourceTrigger{},
-			"current_is_target": CurrentIsTargetTrigger{},
-			"critical_strike":   CriticalStrikeTrigger{},
-		}[s]; ok {
-			f.Trigger = trigger
-			return nil
-		}
 
+		if t, ok := verbTriggerType[v.Verb]; ok {
+			value = reflect.New(t)
+		}
+	}
+
+	if value.IsNil() {
 		return ErrBadTrigger
 	}
 
-	var m map[string]json.RawMessage
-	if err := json.Unmarshal(bytes, &m); err != nil {
-		var e *json.UnmarshalTypeError
-		if !errors.As(err, &e) {
-			return err
-		}
-	}
-	if source, ok := m["source"]; ok {
-		var t TagFile
-		if err := json.Unmarshal(source, &t); err != nil {
-			return err
-		}
-
-		f.Trigger = NewReactorTrigger(t.Tag)
-		return nil
-	} else if verb, ok := m["verb"]; ok {
-		var v string
-		if err := json.Unmarshal(verb, &v); err != nil {
-			return err
-		}
-
-		if t, ok := map[string]ActionTrigger{
-			"attack": NewVerbTrigger[*Attack](),
-			"heal":   NewVerbTrigger[*Heal](),
-			"buff":   NewVerbTrigger[*Buff](),
-			"purge":  NewVerbTrigger[*Purge](),
-		}[v]; ok {
-			f.Trigger = t
-			return nil
-		}
-	} else if tag, ok := m["tag"]; ok {
-		var t TagFile
-		if err := json.Unmarshal(tag, &t); err != nil {
-			return err
-		}
-
-		f.Trigger = NewTagTrigger(t.Tag)
-		return nil
+	if err := json.Unmarshal(bytes, value.Interface()); err != nil {
+		return err
 	}
 
-	return ErrBadTrigger
+	f.Trigger = value.Elem().Interface().(ActionTrigger)
+	return nil
 }
+
+var (
+	actionTriggerType = map[string]reflect.Type{
+		"current_is_source": reflect.TypeOf(CurrentIsSourceTrigger{}),
+		"current_is_target": reflect.TypeOf(CurrentIsTargetTrigger{}),
+		"reactor":           reflect.TypeOf(ReactorTrigger{}),
+		"critical_strike":   reflect.TypeOf(CriticalStrikeTrigger{}),
+		"tag":               reflect.TypeOf(TagTrigger{}),
+	}
+	verbTriggerType = map[string]reflect.Type{
+		"attack": reflect.TypeOf(VerbTrigger[*Attack]{}),
+		"heal":   reflect.TypeOf(VerbTrigger[*Heal]{}),
+		"buff":   reflect.TypeOf(VerbTrigger[*Buff]{}),
+		"purge":  reflect.TypeOf(VerbTrigger[*Purge]{}),
+	}
+)

@@ -38,7 +38,7 @@ func TestActorFile_UnmarshalJSON(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			var f ActorFile[Element]
+			var f ActorFile
 			err = json.Unmarshal(bytes, &f)
 
 			assert.NoError(t, err)

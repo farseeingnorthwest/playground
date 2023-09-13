@@ -3,6 +3,7 @@ package battlefield
 import (
 	"encoding/json"
 	"errors"
+	"reflect"
 
 	"github.com/farseeingnorthwest/playground/battlefield/v2/functional"
 )
@@ -13,9 +14,9 @@ var (
 	_ Evaluator = BuffCounter{}
 	_ Evaluator = LossEvaluator{}
 	_ Evaluator = SelectCounter(nil)
-	_ Evaluator = (*Adder)(nil)
-	_ Evaluator = (*Multiplier)(nil)
-	_ Evaluator = (*CustomEvaluator)(nil)
+	_ Evaluator = Adder{}
+	_ Evaluator = Multiplier{}
+	_ Evaluator = CustomEvaluator{}
 
 	ErrBadEvaluator = errors.New("bad evaluator")
 )
@@ -36,9 +37,20 @@ func (e ConstEvaluator) Evaluate(Warrior, EvaluationContext) int {
 }
 
 func (e ConstEvaluator) MarshalJSON() ([]byte, error) {
-	return json.Marshal(map[string]int{
-		"const": int(e),
+	return json.Marshal(map[string]any{
+		"_kind": "const",
+		"value": int(e),
 	})
+}
+
+func (e *ConstEvaluator) UnmarshalJSON(bytes []byte) error {
+	var v struct{ Value int }
+	if err := json.Unmarshal(bytes, &v); err != nil {
+		return err
+	}
+
+	*e = ConstEvaluator(v.Value)
+	return nil
 }
 
 type AxisEvaluator Axis
@@ -48,7 +60,20 @@ func (e AxisEvaluator) Evaluate(warrior Warrior, ec EvaluationContext) int {
 }
 
 func (e AxisEvaluator) MarshalJSON() ([]byte, error) {
-	return json.Marshal(map[string]string{"axis": Axis(e).String()})
+	return json.Marshal(map[string]string{
+		"_kind": "axis",
+		"axis":  Axis(e).String(),
+	})
+}
+
+func (e *AxisEvaluator) UnmarshalJSON(bytes []byte) error {
+	var v struct{ Axis Axis }
+	if err := json.Unmarshal(bytes, &v); err != nil {
+		return err
+	}
+
+	*e = AxisEvaluator(v.Axis)
+	return nil
 }
 
 type BuffCounter struct {
@@ -65,8 +90,19 @@ func (e BuffCounter) Evaluate(warrior Warrior, _ EvaluationContext) int {
 
 func (e BuffCounter) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]any{
-		"count": e.tag,
+		"_kind": "buff_count",
+		"tag":   e.tag,
 	})
+}
+
+func (e *BuffCounter) UnmarshalJSON(bytes []byte) error {
+	var v struct{ Tag TagFile }
+	if err := json.Unmarshal(bytes, &v); err != nil {
+		return err
+	}
+
+	e.tag = v.Tag.Tag
+	return nil
 }
 
 type LossEvaluator struct {
@@ -77,7 +113,7 @@ func (LossEvaluator) Evaluate(_ Warrior, ec EvaluationContext) int {
 }
 
 func (LossEvaluator) MarshalJSON() ([]byte, error) {
-	return json.Marshal("loss")
+	return json.Marshal(kind{"loss"})
 }
 
 type SelectCounter PipelineSelector
@@ -98,8 +134,21 @@ func (e SelectCounter) Evaluate(warrior Warrior, ec EvaluationContext) int {
 
 func (e SelectCounter) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]any{
-		"count_if": ([]Selector)(e),
+		"_kind":     "select_counter",
+		"selectors": ([]Selector)(e),
 	})
+}
+
+func (e *SelectCounter) UnmarshalJSON(bytes []byte) error {
+	var v struct{ Selectors []SelectorFile }
+	if err := json.Unmarshal(bytes, &v); err != nil {
+		return err
+	}
+
+	*e = NewSelectCounter(functional.Map(func(f SelectorFile) Selector {
+		return f.Selector
+	})(v.Selectors)...)
+	return nil
 }
 
 type Adder struct {
@@ -107,19 +156,33 @@ type Adder struct {
 	evaluator Evaluator
 }
 
-func NewAdder(adder int, evaluator Evaluator) *Adder {
-	return &Adder{adder, evaluator}
+func NewAdder(adder int, evaluator Evaluator) Adder {
+	return Adder{adder, evaluator}
 }
 
-func (e *Adder) Evaluate(warrior Warrior, ec EvaluationContext) int {
+func (e Adder) Evaluate(warrior Warrior, ec EvaluationContext) int {
 	return e.adder + e.evaluator.Evaluate(warrior, ec)
 }
 
-func (e *Adder) MarshalJSON() ([]byte, error) {
+func (e Adder) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]any{
-		"add":       e.adder,
+		"_kind":     "adder",
+		"adder":     e.adder,
 		"evaluator": e.evaluator,
 	})
+}
+
+func (e *Adder) UnmarshalJSON(bytes []byte) error {
+	var v struct {
+		Adder     int
+		Evaluator EvaluatorFile
+	}
+	if err := json.Unmarshal(bytes, &v); err != nil {
+		return err
+	}
+
+	*e = Adder{v.Adder, v.Evaluator.Evaluator}
+	return nil
 }
 
 type Multiplier struct {
@@ -127,30 +190,44 @@ type Multiplier struct {
 	evaluator  Evaluator
 }
 
-func NewMultiplier(multiplier int, evaluator Evaluator) *Multiplier {
-	return &Multiplier{multiplier, evaluator}
+func NewMultiplier(multiplier int, evaluator Evaluator) Multiplier {
+	return Multiplier{multiplier, evaluator}
 }
 
-func (e *Multiplier) Evaluate(warrior Warrior, ec EvaluationContext) int {
+func (e Multiplier) Evaluate(warrior Warrior, ec EvaluationContext) int {
 	return e.multiplier * e.evaluator.Evaluate(warrior, ec) / 100
 }
 
-func (e *Multiplier) MarshalJSON() ([]byte, error) {
+func (e Multiplier) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]any{
-		"mul":       e.multiplier,
-		"evaluator": e.evaluator,
+		"_kind":      "multiplier",
+		"multiplier": e.multiplier,
+		"evaluator":  e.evaluator,
 	})
+}
+
+func (e *Multiplier) UnmarshalJSON(bytes []byte) error {
+	var v struct {
+		Multiplier int
+		Evaluator  EvaluatorFile
+	}
+	if err := json.Unmarshal(bytes, &v); err != nil {
+		return err
+	}
+
+	*e = Multiplier{v.Multiplier, v.Evaluator.Evaluator}
+	return nil
 }
 
 type CustomEvaluator struct {
 	evaluator func(Warrior, EvaluationContext) int
 }
 
-func NewCustomEvaluator(evaluator func(Warrior, EvaluationContext) int) *CustomEvaluator {
-	return &CustomEvaluator{evaluator}
+func NewCustomEvaluator(evaluator func(Warrior, EvaluationContext) int) CustomEvaluator {
+	return CustomEvaluator{evaluator}
 }
 
-func (e *CustomEvaluator) Evaluate(warrior Warrior, ec EvaluationContext) int {
+func (e CustomEvaluator) Evaluate(warrior Warrior, ec EvaluationContext) int {
 	return e.evaluator(warrior, ec)
 }
 
@@ -159,97 +236,30 @@ type EvaluatorFile struct {
 }
 
 func (f *EvaluatorFile) UnmarshalJSON(bytes []byte) error {
-	var s string
-	if err := json.Unmarshal(bytes, &s); err != nil {
-		var e *json.UnmarshalTypeError
-		if !errors.As(err, &e) {
-			return err
-		}
-	} else if s == "" {
-		return nil
-	} else {
-		if e, ok := map[string]Evaluator{
-			"loss": LossEvaluator{},
-		}[s]; ok {
-			f.Evaluator = e
-			return nil
-		}
-
-		return ErrBadEvaluator
-	}
-
-	var m map[string]json.RawMessage
-	if err := json.Unmarshal(bytes, &m); err != nil {
+	var k kind
+	if err := json.Unmarshal(bytes, &k); err != nil {
 		return err
 	}
 
-	if c, ok := m["const"]; ok {
-		var n int
-		if err := json.Unmarshal(c, &n); err != nil {
+	if evaluator, ok := evaluatorType[k.Kind]; ok {
+		v := reflect.New(evaluator)
+		if err := json.Unmarshal(bytes, v.Interface()); err != nil {
 			return err
 		}
 
-		f.Evaluator = ConstEvaluator(n)
-		return nil
-	}
-
-	if a, ok := m["axis"]; ok {
-		var axis Axis
-		if err := json.Unmarshal(a, &axis); err != nil {
-			return err
-		}
-
-		f.Evaluator = AxisEvaluator(axis)
-		return nil
-	}
-
-	if count, ok := m["count"]; ok {
-		var t TagFile
-		if err := json.Unmarshal(count, &t); err != nil {
-			return err
-		}
-
-		f.Evaluator = NewBuffCounter(t.Tag)
-		return nil
-	}
-
-	if countIf, ok := m["count_if"]; ok {
-		var fs []SelectorFile
-		if err := json.Unmarshal(countIf, &fs); err != nil {
-			return err
-		}
-
-		f.Evaluator = NewSelectCounter(functional.Map(func(f SelectorFile) Selector {
-			return f.Selector
-		})(fs)...)
-		return nil
-	}
-
-	if _, ok := m["add"]; ok {
-		var s struct {
-			Add       int
-			Evaluator EvaluatorFile
-		}
-		if err := json.Unmarshal(bytes, &s); err != nil {
-			return err
-		}
-
-		f.Evaluator = NewAdder(s.Add, s.Evaluator.Evaluator)
-		return nil
-	}
-
-	if _, ok := m["mul"]; ok {
-		var s struct {
-			Mul       int
-			Evaluator EvaluatorFile
-		}
-		if err := json.Unmarshal(bytes, &s); err != nil {
-			return err
-		}
-
-		f.Evaluator = NewMultiplier(s.Mul, s.Evaluator.Evaluator)
+		f.Evaluator = v.Elem().Interface().(Evaluator)
 		return nil
 	}
 
 	return ErrBadEvaluator
+}
+
+var evaluatorType = map[string]reflect.Type{
+	"const":          reflect.TypeOf(ConstEvaluator(0)),
+	"axis":           reflect.TypeOf(AxisEvaluator(0)),
+	"buff_count":     reflect.TypeOf(BuffCounter{}),
+	"loss":           reflect.TypeOf(LossEvaluator{}),
+	"select_counter": reflect.TypeOf(SelectCounter(nil)),
+	"adder":          reflect.TypeOf(Adder{}),
+	"multiplier":     reflect.TypeOf(Multiplier{}),
 }

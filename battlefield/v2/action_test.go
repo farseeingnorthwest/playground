@@ -24,7 +24,7 @@ func TestVerbFile_UnmarshalJSON(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			var f VerbFile[Element]
+			var f VerbFile
 			err = json.Unmarshal(buf, &f)
 
 			assert.NoError(t, err)
