@@ -373,7 +373,7 @@ type lcf struct {
 
 type Responder struct {
 	trigger Trigger
-	actor   Actor
+	actor   SequenceActor
 }
 
 func (r *Responder) React(signal Signal, ec ActorContext) bool {
@@ -385,7 +385,7 @@ func (r *Responder) React(signal Signal, ec ActorContext) bool {
 }
 
 func (r *Responder) Fork(evaluator Evaluator) any {
-	return &Responder{r.trigger, r.actor.Fork(evaluator).(Actor)}
+	return &Responder{r.trigger, r.actor.Fork(evaluator).(SequenceActor)}
 }
 
 func (r *Responder) MarshalJSON() ([]byte, error) {
@@ -411,6 +411,6 @@ func (f *ResponderFile) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	f.Responder = &Responder{s.TriggerFile.Trigger, s.ActorFile.Actor}
+	f.Responder = &Responder{s.TriggerFile.Trigger, s.ActorFile.Actor.(SequenceActor)}
 	return nil
 }

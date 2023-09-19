@@ -5,6 +5,7 @@ import (
 	"os"
 
 	. "github.com/farseeingnorthwest/playground/battlefield/v2"
+	. "github.com/farseeingnorthwest/playground/battlefield/v2/examples"
 )
 
 func ExampleBattleField_Run_theory() {
@@ -927,4 +928,21 @@ func ExampleBattleField_Run_special_9() {
 	// verb=attack critical=false loss=30 overflow=5 source.side=Left source.position=0 source.reactor="@Launch({1!/%} 3 * 380% Damage)" source.damage=38 target.side=Right target.position=0 target.defense=8 target.health.current=0 target.health.maximum=200
 	// targets=0 falseTargets=1 immuneTargets=0
 	// targets=0 falseTargets=1 immuneTargets=0
+}
+
+type Sequence struct {
+	floats []float64
+}
+
+func NewSequence(floats ...float64) *Sequence {
+	return &Sequence{floats}
+}
+
+func (s *Sequence) Float64() float64 {
+	f := s.floats[0]
+	if len(s.floats) > 1 {
+		s.floats = s.floats[1:]
+	}
+
+	return f
 }

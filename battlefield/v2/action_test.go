@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	. "github.com/farseeingnorthwest/playground/battlefield/v2"
+	. "github.com/farseeingnorthwest/playground/battlefield/v2/examples"
 	"github.com/stretchr/testify/assert"
 )
 
