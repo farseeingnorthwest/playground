@@ -19,6 +19,7 @@ type Label string
 
 type Reactor interface {
 	React(Signal, EvaluationContext)
+	Active() bool
 }
 
 type Forker interface {

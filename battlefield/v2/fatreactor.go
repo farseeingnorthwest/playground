@@ -128,6 +128,10 @@ func (r *FatReactor) React(signal Signal, ec EvaluationContext) {
 	}
 }
 
+func (r *FatReactor) Active() bool {
+	return r.capacity.Ready()
+}
+
 func (r *FatReactor) Fork(evaluator Evaluator) any {
 	responders := make([]*Responder, len(r.responders))
 	for i, responder := range r.responders {
