@@ -1,5 +1,10 @@
 package battlefield
 
+const (
+	LifecycleTrigger LifecycleAffairs = 1 << iota
+	LifecycleOverflow
+)
+
 var (
 	_ Signal        = (*FreeSignal)(nil)
 	_ Signal        = (*EvaluationSignal)(nil)
@@ -264,10 +269,13 @@ type LifecycleSignal struct {
 	scripter  any
 	reactor   Reactor
 	lifecycle *Lifecycle // nil if stacking limit overflow
+	affairs   LifecycleAffairs
 }
 
-func NewLifecycleSignal(id int, parent Signal, scripter any, reactor Reactor, lifecycle *Lifecycle) *LifecycleSignal {
-	return &LifecycleSignal{id, nil, parent, scripter, reactor, lifecycle}
+type LifecycleAffairs int
+
+func NewLifecycleSignal(id int, parent Signal, scripter any, reactor Reactor, lifecycle *Lifecycle, affairs LifecycleAffairs) *LifecycleSignal {
+	return &LifecycleSignal{id, nil, parent, scripter, reactor, lifecycle, affairs}
 }
 
 func (s *LifecycleSignal) ID() int {
@@ -279,7 +287,7 @@ func (s *LifecycleSignal) Current() any {
 }
 
 func (s *LifecycleSignal) SetCurrent(current any) Signal {
-	return &LifecycleSignal{s.id, current, s.parent, s.scripter, s.reactor, s.lifecycle}
+	return &LifecycleSignal{s.id, current, s.parent, s.scripter, s.reactor, s.lifecycle, s.affairs}
 }
 
 func (s *LifecycleSignal) Parent() Signal {
@@ -292,4 +300,8 @@ func (s *LifecycleSignal) Source() (any, Reactor) {
 
 func (s *LifecycleSignal) Lifecycle() *Lifecycle {
 	return s.lifecycle
+}
+
+func (s *LifecycleSignal) Affairs() LifecycleAffairs {
+	return s.affairs
 }

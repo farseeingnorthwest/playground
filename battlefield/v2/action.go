@@ -61,6 +61,7 @@ func (s *script) Render(b *BattleField) {
 }
 
 type Action interface {
+	ID() int
 	Script() Script
 	SetScript(Script)
 	Targets() []Warrior
@@ -73,16 +74,21 @@ type Action interface {
 }
 
 type action struct {
-	*FatPortfolio
+	id            int
 	script        Script
 	targets       []Warrior
 	falseTargets  []Warrior
 	immuneTargets map[Warrior]struct{}
 	verb          Verb
+	*FatPortfolio
 }
 
-func newAction(targets []Warrior, verb Verb) *action {
-	return &action{NewFatPortfolio(), nil, targets, nil, make(map[Warrior]struct{}), verb}
+func newAction(id int, targets []Warrior, verb Verb) *action {
+	return &action{id, nil, targets, nil, make(map[Warrior]struct{}), verb, NewFatPortfolio()}
+}
+
+func (a *action) ID() int {
+	return a.id
 }
 
 func (a *action) Script() Script {
@@ -357,7 +363,7 @@ func (b *Buff) Render(target Warrior, ac ActionContext) bool {
 			),
 		)
 		signal, _, _ := ac.Action().Script().Source()
-		ac.React(NewLifecycleSignal(ac.Next(), signal, target, overflow, nil))
+		ac.React(NewLifecycleSignal(ac.Next(), signal, target, overflow, nil, LifecycleOverflow))
 	}
 	if stacking, ok := QueryTag[StackingLimit](reactor); ok {
 		logger = logger.With("stacking", stacking.Count())

@@ -24,7 +24,7 @@ func (c *Lifecycle) SetCapacity(count int) {
 	c.Capacity = functional.Some(count)
 }
 
-func (c *Lifecycle) Flush(signal Signal, reactor Reactor, ec EvaluationContext) {
+func (c *Lifecycle) Flush(signal Signal, reactor Reactor, affairs LifecycleAffairs, ec EvaluationContext) {
 	if c.Leading.Ok() || c.Cooling.Ok() || c.Capacity.Ok() {
 		slog.Debug(
 			"flush",
@@ -38,6 +38,6 @@ func (c *Lifecycle) Flush(signal Signal, reactor Reactor, ec EvaluationContext) 
 				slog.Any("cooling", c.Cooling.Value()),
 				slog.Int("capacity", c.Capacity.UnwrapOr(-1))),
 		)
-		ec.React(NewLifecycleSignal(ec.Next(), signal, signal.Current(), reactor, c))
+		ec.React(NewLifecycleSignal(ec.Next(), signal, signal.Current(), reactor, c, affairs))
 	}
 }

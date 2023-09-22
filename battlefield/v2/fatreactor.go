@@ -83,6 +83,7 @@ func (r *FatReactor) React(signal Signal, ec EvaluationContext) {
 		newCapacitor(r.capacity.Count()),
 	}
 	defer func() {
+		var affairs LifecycleAffairs
 		if trigger {
 			n := r.capacity.Count() - ac.Capacity()
 			if n < 1 {
@@ -90,9 +91,10 @@ func (r *FatReactor) React(signal Signal, ec EvaluationContext) {
 			}
 			r.capacity.Flush(lc, n)
 			r.cooling.WarmUp(lc)
+			affairs |= LifecycleTrigger
 		}
 
-		lc.Flush(signal, r, ec)
+		lc.Flush(signal, r, affairs, ec)
 	}()
 
 	if !r.leading.Ready() || !r.cooling.Ready() || !r.capacity.Ready() {

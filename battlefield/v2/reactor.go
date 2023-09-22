@@ -103,7 +103,7 @@ func (a VerbActor) Act(signal Signal, targets []Warrior, ac ActorContext) bool {
 		})
 	}
 
-	signal.(Scripter).Add(newAction(targets, a.verb.Fork(e).(Verb)))
+	signal.(Scripter).Add(newAction(ac.Next(), targets, a.verb.Fork(e).(Verb)))
 	return true
 }
 
