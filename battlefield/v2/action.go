@@ -2,8 +2,6 @@ package battlefield
 
 import (
 	"log/slog"
-
-	"github.com/farseeingnorthwest/playground/battlefield/v2/functional"
 )
 
 var (
@@ -18,23 +16,24 @@ var (
 
 type Script interface {
 	Renderer
-	Source() (any, Reactor)
+	Source() (Signal, any, Reactor)
 	Add(Action)
 	Loss() int
 }
 
 type script struct {
+	signal   Signal
 	scripter any
 	reactor  Reactor
 	actions  []Action
 }
 
-func newScript(scripter any, reactor Reactor) *script {
-	return &script{scripter, reactor, nil}
+func newScript(signal Signal, reactor Reactor) *script {
+	return &script{signal, signal.Current(), reactor, nil}
 }
 
-func (s *script) Source() (any, Reactor) {
-	return s.scripter, s.reactor
+func (s *script) Source() (Signal, any, Reactor) {
+	return s.signal, s.scripter, s.reactor
 }
 
 func (s *script) Add(action Action) {
@@ -115,7 +114,7 @@ func (a *action) Verb() Verb {
 }
 
 func (a *action) Render(b *BattleField) {
-	b.React(NewPreActionSignal(a))
+	b.React(NewPreActionSignal(b.Next(), a))
 
 	i, j := 0, len(a.targets)
 	var deaths []Warrior
@@ -155,7 +154,7 @@ func (a *action) Render(b *BattleField) {
 		)
 	}
 
-	b.React(NewPostActionSignal(a, deaths))
+	b.React(NewPostActionSignal(b.Next(), a, deaths))
 }
 
 type Verb interface {
@@ -205,10 +204,10 @@ func (a *Attack) Render(target Warrior, ac ActionContext) bool {
 		t = 0
 	}
 
-	e := NewEvaluationSignal(target, Loss, t)
+	e := NewEvaluationSignal(ac.Next(), target, Loss, t)
 	ac.Action().React(e, ac)
 	target.React(e, ac)
-	loss := NewPreLossSignal(target, e.Value())
+	loss := NewPreLossSignal(ac.Next(), target, ac.Action(), e.Value())
 	target.React(loss, ac)
 
 	r := target.Health()
@@ -221,7 +220,7 @@ func (a *Attack) Render(target Warrior, ac ActionContext) bool {
 	}
 	target.SetHealth(Ratio{c, m})
 	a.loss[target] = loss.Loss() - overflow
-	source, reactor := ac.Action().Script().Source()
+	_, source, reactor := ac.Action().Script().Source()
 	slog.Debug(
 		"render",
 		slog.String("verb", "attack"),
@@ -284,7 +283,7 @@ func (h *Heal) Render(target Warrior, ac ActionContext) bool {
 	}
 	target.SetHealth(Ratio{c, m})
 	h.rise[target] = rise - overflow
-	source, reactor := ac.Action().Script().Source()
+	_, source, reactor := ac.Action().Script().Source()
 	slog.Debug(
 		"render",
 		slog.String("verb", "heal"),
@@ -357,11 +356,13 @@ func (b *Buff) Render(target Warrior, ac ActionContext) bool {
 				slog.Int("position", target.Position()),
 			),
 		)
-		ac.React(NewLifecycleSignal(target, overflow, nil))
+		signal, _, _ := ac.Action().Script().Source()
+		ac.React(NewLifecycleSignal(ac.Next(), signal, target, overflow, nil))
 	}
 	if stacking, ok := QueryTag[StackingLimit](reactor); ok {
 		logger = logger.With("stacking", stacking.Count())
 	}
+	_, _, source := ac.Action().Script().Source()
 	logger.Debug(
 		"render",
 		slog.String("verb", "buff"),
@@ -371,7 +372,7 @@ func (b *Buff) Render(target Warrior, ac ActionContext) bool {
 			slog.Int("position", target.Position()),
 		),
 		slog.Group("source",
-			slog.Any("reactor", QueryTagA[Label](functional.Second(ac.Action().Script().Source())))),
+			slog.Any("reactor", QueryTagA[Label](source))),
 	)
 	return true
 }

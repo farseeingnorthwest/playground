@@ -125,7 +125,7 @@ func (w *MyWarrior) Component(axis Axis, ec EvaluationContext) int {
 		return w.health.Current * 100 / w.health.Maximum
 
 	default:
-		signal := NewEvaluationSignal(w, axis, w.baseline.Component(axis))
+		signal := NewEvaluationSignal(ec.Next(), w, axis, w.baseline.Component(axis))
 		w.React(signal, ec)
 		return signal.Value()
 	}

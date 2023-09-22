@@ -303,7 +303,7 @@ func NewTheoryActor[T comparable](theory map[T]map[T]int) TheoryActor[T] {
 }
 
 func (a TheoryActor[T]) Act(signal Signal, _ []Warrior, ac ActorContext) bool {
-	scripter, _ := ac.(*actorContext).
+	_, scripter, _ := ac.(*actorContext).
 		EvaluationContext.(ActionContext).Action().Script().Source()
 	s, ok := QueryTag[T](scripter)
 	if !ok {

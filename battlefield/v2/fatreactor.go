@@ -92,7 +92,7 @@ func (r *FatReactor) React(signal Signal, ec EvaluationContext) {
 			r.cooling.WarmUp(lc)
 		}
 
-		lc.Flush(signal.Current(), r, ec)
+		lc.Flush(signal, r, ec)
 	}()
 
 	if !r.leading.Ready() || !r.cooling.Ready() || !r.capacity.Ready() {
@@ -114,7 +114,7 @@ func (r *FatReactor) React(signal Signal, ec EvaluationContext) {
 	}
 
 	if scripter, ok := signal.(Scripter); ok {
-		scripter.Push(signal.Current(), r)
+		scripter.Push(signal, r)
 		defer func() {
 			if !trigger {
 				scripter.Pop()

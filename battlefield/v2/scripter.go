@@ -1,7 +1,7 @@
 package battlefield
 
 type Scripter interface {
-	Push(any, Reactor)
+	Push(Signal, Reactor)
 	Pop()
 	Add(Action)
 }
@@ -10,8 +10,8 @@ type scripter struct {
 	scripts []Script
 }
 
-func (s *scripter) Push(any any, reactor Reactor) {
-	s.scripts = append(s.scripts, newScript(any, reactor))
+func (s *scripter) Push(signal Signal, reactor Reactor) {
+	s.scripts = append(s.scripts, newScript(signal, reactor))
 }
 
 func (s *scripter) Pop() {
