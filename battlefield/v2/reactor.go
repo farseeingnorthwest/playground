@@ -27,6 +27,7 @@ var (
 
 type Reactor interface {
 	React(Signal, EvaluationContext)
+	Active() bool
 }
 
 type Forker interface {
@@ -138,7 +139,7 @@ func (a VerbActor) Act(signal Signal, targets []Warrior, ac ActorContext) bool {
 		})
 	}
 
-	signal.(Scripter).Add(newAction(targets, a.verb.Fork(e).(Verb)))
+	signal.(Scripter).Add(newAction(ac.Next(), targets, a.verb.Fork(e).(Verb)))
 	return true
 }
 
@@ -496,7 +497,7 @@ func (a TheoryActor) Act(signal Signal, _ []Warrior, ac ActorContext) bool {
 		break
 	}
 
-	scripter, _ := ac.(*actorContext).
+	_, scripter, _ := ac.(*actorContext).
 		EvaluationContext.(ActionContext).Action().Script().Source()
 	s, ok := queryTag(scripter, proto)
 	if !ok {

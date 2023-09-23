@@ -28,6 +28,7 @@ type Evaluator interface {
 type EvaluationContext interface {
 	Warriors() []Warrior
 	React(RegularSignal)
+	Next() int
 }
 
 type ConstEvaluator int
@@ -123,7 +124,7 @@ func NewSelectCounter(selectors ...Selector) SelectCounter {
 }
 
 func (e SelectCounter) Evaluate(warrior Warrior, ec EvaluationContext) int {
-	signal := NewFreeSignal(warrior)
+	signal := NewFreeSignal(ec.Next(), warrior)
 	warriors := ec.Warriors()
 	for _, selector := range e {
 		warriors = selector.Select(warriors, signal, ec)

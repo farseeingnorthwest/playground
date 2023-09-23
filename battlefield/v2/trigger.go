@@ -105,7 +105,7 @@ type CurrentIsSourceTrigger struct {
 }
 
 func (CurrentIsSourceTrigger) Trigger(action Action, signal Signal, _ EvaluationContext) bool {
-	a, _ := action.Script().Source()
+	_, a, _ := action.Script().Source()
 	return a == signal.Current()
 }
 
@@ -138,7 +138,7 @@ func NewReactorTrigger(tag any) ReactorTrigger {
 }
 
 func (t ReactorTrigger) Trigger(action Action, _ Signal, _ EvaluationContext) bool {
-	_, r := action.Script().Source()
+	_, _, r := action.Script().Source()
 	tagger, ok := r.(Tagger)
 	if !ok {
 		return false

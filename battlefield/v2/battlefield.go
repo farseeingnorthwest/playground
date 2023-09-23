@@ -13,10 +13,11 @@ type Renderer interface {
 type BattleField struct {
 	warriors []Warrior
 	reactors []Reactor
+	sequence int
 }
 
 func NewBattleField(warriors []Warrior, reactors ...Reactor) *BattleField {
-	return &BattleField{warriors, reactors}
+	return &BattleField{warriors, reactors, 0}
 }
 
 func (b *BattleField) Warriors() []Warrior {
@@ -63,10 +64,15 @@ func (b *BattleField) React(signal RegularSignal) {
 	}
 }
 
+func (b *BattleField) Next() int {
+	b.sequence += 1
+	return b.sequence
+}
+
 func (b *BattleField) Run() {
-	b.React(NewBattleStartSignal())
+	b.React(NewBattleStartSignal(b.Next()))
 	for {
-		b.React(NewRoundStartSignal())
+		b.React(NewRoundStartSignal(b.Next()))
 
 		warriors := make([]Warrior, len(b.warriors))
 		copy(warriors, b.warriors)
@@ -76,7 +82,7 @@ func (b *BattleField) Run() {
 				continue
 			}
 
-			sig := NewLaunchSignal(warriors[i])
+			sig := NewLaunchSignal(b.Next(), warriors[i])
 			warriors[i].React(sig, b)
 			sig.Render(b)
 
@@ -87,6 +93,6 @@ func (b *BattleField) Run() {
 			}
 		}
 
-		b.React(NewRoundEndSignal())
+		b.React(NewRoundEndSignal(b.Next()))
 	}
 }

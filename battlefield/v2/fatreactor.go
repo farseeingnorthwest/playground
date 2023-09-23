@@ -87,6 +87,7 @@ func (r *FatReactor) React(signal Signal, ec EvaluationContext) {
 		newCapacitor(r.capacity.Count()),
 	}
 	defer func() {
+		var affairs LifecycleAffairs
 		if trigger {
 			n := r.capacity.Count() - ac.Capacity()
 			if n < 1 {
@@ -94,9 +95,10 @@ func (r *FatReactor) React(signal Signal, ec EvaluationContext) {
 			}
 			r.capacity.Flush(lc, n)
 			r.cooling.WarmUp(lc)
+			affairs |= LifecycleTrigger
 		}
 
-		lc.Flush(signal.Current(), r, ec)
+		lc.Flush(signal, r, affairs, ec)
 	}()
 
 	if !r.leading.Ready() || !r.cooling.Ready() || !r.capacity.Ready() {
@@ -118,7 +120,7 @@ func (r *FatReactor) React(signal Signal, ec EvaluationContext) {
 	}
 
 	if scripter, ok := signal.(Scripter); ok {
-		scripter.Push(signal.Current(), r)
+		scripter.Push(signal, r)
 		defer func() {
 			if !trigger {
 				scripter.Pop()
@@ -130,6 +132,10 @@ func (r *FatReactor) React(signal Signal, ec EvaluationContext) {
 			trigger = true
 		}
 	}
+}
+
+func (r *FatReactor) Active() bool {
+	return r.capacity.Ready()
 }
 
 func (r *FatReactor) Fork(evaluator Evaluator) any {

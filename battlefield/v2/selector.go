@@ -97,7 +97,7 @@ type SourceSelector struct {
 }
 
 func (SourceSelector) Select(_ []Warrior, signal Signal, _ EvaluationContext) []Warrior {
-	source, _ := signal.(ActionSignal).Action().Script().Source()
+	_, source, _ := signal.(ActionSignal).Action().Script().Source()
 	return []Warrior{source.(Warrior)}
 }
 

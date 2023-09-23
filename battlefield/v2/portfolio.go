@@ -32,6 +32,10 @@ func (p *FatPortfolio) React(signal Signal, ec EvaluationContext) {
 	}
 }
 
+func (p *FatPortfolio) Active() bool {
+	return true
+}
+
 func (p *FatPortfolio) Add(reactor Reactor) (overflow Reactor) {
 	if lm, ok := QueryTag[StackingLimit](reactor); ok {
 		if _, ok := p.stacking[lm]; !ok {
@@ -75,10 +79,16 @@ func (p *FatPortfolio) remove(reactor Reactor) {
 
 func (p *FatPortfolio) Buffs(tags ...any) (buffs []Reactor) {
 	for e := p.reactors.Front(); e != nil; e = e.Next() {
+		r := e.Value.(Reactor)
+		if !r.Active() {
+			continue
+		}
 		if len(tags) == 0 {
-			buffs = append(buffs, e.Value.(Reactor))
-		} else if tagger, ok := e.Value.(Tagger); ok && tagger.Match(tags...) {
-			buffs = append(buffs, e.Value.(Reactor))
+			buffs = append(buffs, r)
+			continue
+		}
+		if tagger, ok := r.(Tagger); ok && tagger.Match(tags...) {
+			buffs = append(buffs, r)
 		}
 	}
 
