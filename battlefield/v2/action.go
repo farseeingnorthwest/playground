@@ -17,7 +17,6 @@ var (
 type Script interface {
 	Renderer
 	Source() (Signal, any, Reactor)
-	Add(Action)
 	Loss() int
 }
 
@@ -25,20 +24,16 @@ type script struct {
 	signal   Signal
 	scripter any
 	reactor  Reactor
+	aChan    chan Action
 	actions  []Action
 }
 
-func newScript(signal Signal, reactor Reactor) *script {
-	return &script{signal, signal.Current(), reactor, nil}
+func newScript(signal Signal, reactor Reactor, aChan chan Action) *script {
+	return &script{signal, signal.Current(), reactor, aChan, nil}
 }
 
 func (s *script) Source() (Signal, any, Reactor) {
 	return s.signal, s.scripter, s.reactor
-}
-
-func (s *script) Add(action Action) {
-	s.actions = append(s.actions, action)
-	action.SetScript(s)
 }
 
 func (s *script) Loss() int {
@@ -55,8 +50,10 @@ func (s *script) Loss() int {
 }
 
 func (s *script) Render(b *BattleField) {
-	for _, action := range s.actions {
-		action.Render(b)
+	for a := range s.aChan {
+		s.actions = append(s.actions, a)
+		a.SetScript(s)
+		a.Render(b)
 	}
 }
 

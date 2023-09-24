@@ -78,10 +78,7 @@ func (r *FatReactor) React(signal Signal, ec EvaluationContext) {
 	r.capacity.React(signal, ec, lc)
 
 	trigger := false
-	ac := &actorContext{
-		ec,
-		newCapacitor(r.capacity.Count()),
-	}
+	ac := newActorContext(ec, r.capacity.Count())
 	defer func() {
 		var affairs LifecycleAffairs
 		if trigger {
@@ -116,7 +113,7 @@ func (r *FatReactor) React(signal Signal, ec EvaluationContext) {
 	}
 
 	if scripter, ok := signal.(Scripter); ok {
-		scripter.Push(signal, r)
+		scripter.Push(signal, r, ac.aChan)
 		defer func() {
 			if !trigger {
 				scripter.Pop()
@@ -267,12 +264,17 @@ type Responder struct {
 	actor   Actor
 }
 
-func (r *Responder) React(signal Signal, ec ActorContext) bool {
-	if !r.trigger.Trigger(signal, ec) {
+func (r *Responder) React(signal Signal, ac ActorContext) bool {
+	if !r.trigger.Trigger(signal, ac) {
 		return false
 	}
 
-	return r.actor.Act(signal, ec.Warriors(), ec)
+	go func() {
+		r.actor.Act(signal, ac.Warriors(), ac)
+		ac.Done()
+	}()
+
+	return ac.Await()
 }
 
 func (r *Responder) Fork(evaluator Evaluator) any {
