@@ -135,7 +135,7 @@ var (
 
 		// 庇護
 		"Sanctuary": NewFatReactor(
-			FatTags(Label("Sanctuary")),
+			FatTags(Label("Sanctuary"), Interest{}),
 			FatRespond(
 				NewSignalTrigger(&PreLossSignal{}),
 				NewLossStopper(NewMultiplier(30, AxisEvaluator(HealthMaximum)), false),
