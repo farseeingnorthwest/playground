@@ -25,10 +25,15 @@ func (c *Lifecycle) SetCapacity(count int) {
 }
 
 func (c *Lifecycle) Flush(signal Signal, reactor Reactor, affairs LifecycleAffairs, ec EvaluationContext) {
-	if c.Leading.Ok() || c.Cooling.Ok() || c.Capacity.Ok() {
+	if signal.Current() == nil {
+		return
+	}
+
+	if c.Leading.Ok() || c.Cooling.Ok() || c.Capacity.Ok() || (affairs != 0 && QueryTagA[Interest](reactor) != nil) {
 		slog.Debug(
 			"flush",
 			slog.Int("signal", signal.ID()),
+			slog.Int("affairs", int(affairs)),
 			slog.Group("source",
 				slog.Int("position", signal.Current().(Warrior).Position()),
 				slog.Any("side", signal.Current().(Warrior).Side()),

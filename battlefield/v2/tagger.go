@@ -187,6 +187,14 @@ func (l StackingLimit) MarshalJSON() ([]byte, error) {
 	})
 }
 
+type Interest struct{}
+
+func (l Interest) MarshalJSON() ([]byte, error) {
+	return json.Marshal(map[string]string{
+		"_kind": "interest",
+	})
+}
+
 type TagFile struct {
 	Tag any
 }
@@ -229,4 +237,5 @@ func init() {
 	RegisterTagType("priority", Priority(0))
 	RegisterTagType("exclusion_group", ExclusionGroup(0))
 	RegisterTagType("stacking_limit", StackingLimit{})
+	RegisterTagType("interest", Interest{})
 }

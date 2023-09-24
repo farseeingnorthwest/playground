@@ -123,7 +123,7 @@ var (
 
 		// 庇護
 		"Sanctuary": b.NewFatReactor(
-			b.FatTags(b.Label("Sanctuary")),
+			b.FatTags(b.Label("Sanctuary"), b.Interest{}),
 			b.FatRespond(
 				b.NewSignalTrigger(&b.PreLossSignal{}),
 				b.NewLossStopper(b.NewMultiplier(30, b.AxisEvaluator(b.HealthMaximum)), false),

@@ -40,7 +40,7 @@ type ForkReactor interface {
 }
 
 type Actor interface {
-	Act(Signal, []Warrior, ActorContext) (trigger bool)
+	Act(Signal, []Warrior, ActorContext)
 	Forker
 }
 
@@ -58,12 +58,14 @@ func (b Buffer) Destruct() (Axis, bool, Evaluator) {
 	return b.axis, b.bias, b.evaluator
 }
 
-func (b Buffer) Act(signal Signal, _ []Warrior, ac ActorContext) bool {
+func (b Buffer) Act(signal Signal, _ []Warrior, ac ActorContext) {
 	s := signal.(*EvaluationSignal)
 	if b.axis != s.Axis() {
-		return false
+		ac.SetTrigger(false)
+		return
 	}
 
+	ac.SetTrigger(true)
 	var current Warrior
 	if warrior, ok := signal.Current().(Warrior); ok {
 		current = warrior
@@ -78,8 +80,6 @@ func (b Buffer) Act(signal Signal, _ []Warrior, ac ActorContext) bool {
 			return v * float64(b.evaluator.Evaluate(current, ac)) / 100
 		})
 	}
-
-	return true
 }
 
 func (b Buffer) Fork(evaluator Evaluator) any {
@@ -127,7 +127,8 @@ func NewVerbActor(verb Verb, evaluator Evaluator) VerbActor {
 	return VerbActor{verb, evaluator}
 }
 
-func (a VerbActor) Act(signal Signal, targets []Warrior, ac ActorContext) bool {
+func (a VerbActor) Act(signal Signal, targets []Warrior, ac ActorContext) {
+	ac.SetTrigger(true)
 	e := a.evaluator
 	if e != nil {
 		var current Warrior
@@ -139,8 +140,7 @@ func (a VerbActor) Act(signal Signal, targets []Warrior, ac ActorContext) bool {
 		})
 	}
 
-	signal.(Scripter).Add(newAction(ac.Next(), targets, a.verb.Fork(e).(Verb)))
-	return true
+	ac.Queue(newAction(ac.Next(), targets, a.verb.Fork(e).(Verb)))
 }
 
 func (a VerbActor) Fork(evaluator Evaluator) any {
@@ -189,14 +189,15 @@ func NewSelectActor(actor Actor, selectors ...Selector) SelectActor {
 	return SelectActor{actor, PipelineSelector(selectors)}
 }
 
-func (a SelectActor) Act(signal Signal, warriors []Warrior, ac ActorContext) bool {
+func (a SelectActor) Act(signal Signal, warriors []Warrior, ac ActorContext) {
 	warriors = a.selector.Select(warriors, signal, ac)
 	if len(warriors) == 0 {
-		return false
+		ac.SetTrigger(false)
+		return
 	}
 
+	ac.SetTrigger(true)
 	a.actor.Act(signal, warriors, ac)
-	return true
 }
 
 func (a SelectActor) Fork(evaluator Evaluator) any {
@@ -234,12 +235,14 @@ func NewProbabilityActor(rng Rng, evaluator Evaluator, actor Actor) ProbabilityA
 	return ProbabilityActor{rng, evaluator, actor}
 }
 
-func (a ProbabilityActor) Act(signal Signal, warriors []Warrior, ec ActorContext) bool {
-	if a.rng.Float64() < float64(a.evaluator.Evaluate(signal.Current().(Warrior), ec))/100 {
-		a.actor.Act(signal, warriors, ec)
+func (a ProbabilityActor) Act(signal Signal, warriors []Warrior, ac ActorContext) {
+	if float64(a.evaluator.Evaluate(signal.Current().(Warrior), ac))/100 <= a.rng.Float64() {
+		ac.SetTrigger(false)
+		return
 	}
 
-	return true
+	ac.SetTrigger(true)
+	a.actor.Act(signal, warriors, ac)
 }
 
 func (a ProbabilityActor) Fork(evaluator Evaluator) any {
@@ -282,14 +285,14 @@ func NewSequenceActor(actors ...Actor) SequenceActor {
 	return SequenceActor(actors)
 }
 
-func (a SequenceActor) Act(signal Signal, warriors []Warrior, ac ActorContext) bool {
+func (a SequenceActor) Act(signal Signal, warriors []Warrior, ac ActorContext) {
 	for _, actor := range a {
-		if !actor.Act(signal, warriors, ac) {
-			return false
+		actor.Act(signal, warriors, ac)
+		if !ac.Trigger() {
+			break
 		}
 	}
-
-	return true
+	ac.SetTrigger(true)
 }
 
 func (a SequenceActor) Fork(evaluator Evaluator) any {
@@ -336,14 +339,14 @@ func NewRepeatActor(count int, actors ...Actor) RepeatActor {
 	return RepeatActor{count, NewSequenceActor(actors...)}
 }
 
-func (a RepeatActor) Act(signal Signal, warriors []Warrior, ec ActorContext) bool {
+func (a RepeatActor) Act(signal Signal, warriors []Warrior, ac ActorContext) {
 	for i := 0; i < a.count; i++ {
-		if !a.actor.Act(signal, warriors, ec) {
-			return false
+		a.actor.Act(signal, warriors, ac)
+		if !ac.Trigger() {
+			break
 		}
 	}
-
-	return true
+	ac.SetTrigger(true)
 }
 
 func (a RepeatActor) Fork(evaluator Evaluator) any {
@@ -376,11 +379,11 @@ func (a *RepeatActor) UnmarshalJSON(data []byte) error {
 type CriticalActor struct {
 }
 
-func (CriticalActor) Act(signal Signal, _ []Warrior, _ ActorContext) bool {
+func (CriticalActor) Act(signal Signal, _ []Warrior, ac ActorContext) {
+	ac.SetTrigger(true)
 	sig := signal.(ActionSignal)
 	attack := sig.Action().Verb().(*Attack)
 	attack.SetCritical(true)
-	return true
 }
 
 func (CriticalActor) Fork(_ Evaluator) any {
@@ -394,13 +397,12 @@ func (CriticalActor) MarshalJSON() ([]byte, error) {
 type ImmuneActor struct {
 }
 
-func (ImmuneActor) Act(signal Signal, warriors []Warrior, _ ActorContext) bool {
+func (ImmuneActor) Act(signal Signal, warriors []Warrior, ac ActorContext) {
+	ac.SetTrigger(true)
 	action := signal.(ActionSignal).Action()
 	for _, w := range warriors {
 		action.AddImmuneTarget(w)
 	}
-
-	return true
 }
 
 func (ImmuneActor) Fork(_ Evaluator) any {
@@ -420,19 +422,20 @@ func NewLossStopper(evaluator Evaluator, full bool) LossStopper {
 	return LossStopper{evaluator, full}
 }
 
-func (s LossStopper) Act(signal Signal, _ []Warrior, ec ActorContext) bool {
+func (s LossStopper) Act(signal Signal, _ []Warrior, ac ActorContext) {
 	sig := signal.(*PreLossSignal)
-	stopper := s.evaluator.Evaluate(sig.Current().(Warrior), ec)
+	stopper := s.evaluator.Evaluate(sig.Current().(Warrior), ac)
 	if sig.Loss() <= stopper {
-		return false
+		ac.SetTrigger(false)
+		return
 	}
 
+	ac.SetTrigger(true)
 	if s.full {
 		sig.SetLoss(0)
 	} else {
 		sig.SetLoss(stopper)
 	}
-	return true
 }
 
 func (s LossStopper) Fork(evaluator Evaluator) any {
@@ -467,13 +470,12 @@ func (s *LossStopper) UnmarshalJSON(data []byte) error {
 type LossResister struct {
 }
 
-func (LossResister) Act(signal Signal, _ []Warrior, ec ActorContext) bool {
+func (LossResister) Act(signal Signal, _ []Warrior, ac ActorContext) {
+	ac.SetTrigger(true)
 	s := signal.(*PreLossSignal)
-	r := min(s.Loss(), ec.Capacity())
+	r := min(s.Loss(), ac.Capacity())
 	s.SetLoss(s.Loss() - r)
-	ec.Flush(r)
-
-	return true
+	ac.Flush(r)
 }
 
 func (LossResister) Fork(_ Evaluator) any {
@@ -490,7 +492,7 @@ func NewTheoryActor(theory map[any]map[any]int) TheoryActor {
 	return TheoryActor(theory)
 }
 
-func (a TheoryActor) Act(signal Signal, _ []Warrior, ac ActorContext) bool {
+func (a TheoryActor) Act(signal Signal, _ []Warrior, ac ActorContext) {
 	var proto any
 	for k := range a {
 		proto = k
@@ -501,27 +503,30 @@ func (a TheoryActor) Act(signal Signal, _ []Warrior, ac ActorContext) bool {
 		EvaluationContext.(ActionContext).Action().Script().Source()
 	s, ok := queryTag(scripter, proto)
 	if !ok {
-		return false
+		ac.SetTrigger(false)
+		return
 	}
 	theory, ok := a[s]
 	if !ok {
-		return false
+		ac.SetTrigger(false)
+		return
 	}
 	t, ok := queryTag(signal.Current(), proto)
 	if !ok {
-		return false
+		ac.SetTrigger(false)
+		return
 	}
 	m, ok := theory[t]
 	if !ok {
-		return false
+		ac.SetTrigger(false)
+		return
 	}
 
+	ac.SetTrigger(true)
 	sig := signal.(*EvaluationSignal)
 	sig.Amend(func(v float64) float64 {
 		return v * float64(m) / 100
 	})
-
-	return true
 }
 
 func (a TheoryActor) Fork(_ Evaluator) any {
@@ -582,7 +587,8 @@ func NewActionBuffer(evaluator Evaluator, buffer Actor) ActionBuffer {
 	return ActionBuffer{evaluator, buffer}
 }
 
-func (b ActionBuffer) Act(signal Signal, _ []Warrior, ac ActorContext) bool {
+func (b ActionBuffer) Act(signal Signal, _ []Warrior, ac ActorContext) {
+	ac.SetTrigger(true)
 	sig := signal.(ActionSignal)
 	e := b.evaluator
 	if e != nil {
@@ -599,7 +605,6 @@ func (b ActionBuffer) Act(signal Signal, _ []Warrior, ac ActorContext) bool {
 			b.buffer.Fork(e).(Actor),
 		)),
 	)
-	return true
 }
 
 func (b ActionBuffer) Fork(evaluator Evaluator) any {
@@ -638,11 +643,48 @@ func (b *ActionBuffer) UnmarshalJSON(data []byte) error {
 type ActorContext interface {
 	EvaluationContext
 	Capacitor
+	Queue(Action)
+	Done()
+	Await() bool
+	Trigger() bool
+	SetTrigger(bool)
 }
 
 type actorContext struct {
 	EvaluationContext
 	*capacitor
+	trigger   bool
+	aChan     chan Action
+	semaphore chan struct{}
+}
+
+func newActorContext(ec EvaluationContext, capacity int) *actorContext {
+	return &actorContext{ec, newCapacitor(capacity), false, make(chan Action), make(chan struct{})}
+}
+
+func (a *actorContext) Queue(action Action) {
+	a.aChan <- action
+}
+
+func (a *actorContext) Done() {
+	close(a.aChan)
+}
+
+func (a *actorContext) Await() bool {
+	<-a.semaphore
+	return a.trigger
+}
+
+func (a *actorContext) Trigger() bool {
+	return a.trigger
+}
+
+func (a *actorContext) SetTrigger(trigger bool) {
+	if a.semaphore != nil {
+		a.trigger = trigger
+		a.semaphore <- struct{}{}
+		a.semaphore = nil
+	}
 }
 
 type Capacitor interface {
