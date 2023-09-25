@@ -650,28 +650,35 @@ type ActorContext interface {
 	SetTrigger(bool)
 }
 
+type Instruction struct {
+	action Action
+	done   chan struct{}
+}
+
 type actorContext struct {
 	EvaluationContext
 	*capacitor
-	trigger   bool
-	aChan     chan Action
-	semaphore chan struct{}
+	trigger bool
+	ich     chan Instruction
+	done    chan struct{}
 }
 
 func newActorContext(ec EvaluationContext, capacity int) *actorContext {
-	return &actorContext{ec, newCapacitor(capacity), false, make(chan Action), make(chan struct{})}
+	return &actorContext{ec, newCapacitor(capacity), false, make(chan Instruction), make(chan struct{})}
 }
 
 func (a *actorContext) Queue(action Action) {
-	a.aChan <- action
+	done := make(chan struct{})
+	a.ich <- Instruction{action, done}
+	<-done
 }
 
 func (a *actorContext) Done() {
-	close(a.aChan)
+	close(a.ich)
 }
 
 func (a *actorContext) Await() bool {
-	<-a.semaphore
+	<-a.done
 	return a.trigger
 }
 
@@ -680,10 +687,10 @@ func (a *actorContext) Trigger() bool {
 }
 
 func (a *actorContext) SetTrigger(trigger bool) {
-	if a.semaphore != nil {
+	if a.done != nil {
 		a.trigger = trigger
-		a.semaphore <- struct{}{}
-		a.semaphore = nil
+		a.done <- struct{}{}
+		a.done = nil
 	}
 }
 
