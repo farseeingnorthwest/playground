@@ -24,12 +24,12 @@ type script struct {
 	signal   Signal
 	scripter any
 	reactor  Reactor
-	aChan    chan Action
+	ich      chan Instruction
 	actions  []Action
 }
 
-func newScript(signal Signal, reactor Reactor, aChan chan Action) *script {
-	return &script{signal, signal.Current(), reactor, aChan, nil}
+func newScript(signal Signal, reactor Reactor, ich chan Instruction) *script {
+	return &script{signal, signal.Current(), reactor, ich, nil}
 }
 
 func (s *script) Source() (Signal, any, Reactor) {
@@ -50,10 +50,11 @@ func (s *script) Loss() int {
 }
 
 func (s *script) Render(b *BattleField) {
-	for a := range s.aChan {
-		s.actions = append(s.actions, a)
-		a.SetScript(s)
-		a.Render(b)
+	for i := range s.ich {
+		s.actions = append(s.actions, i.action)
+		i.action.SetScript(s)
+		i.action.Render(b)
+		i.done <- struct{}{}
 	}
 }
 
