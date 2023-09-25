@@ -112,7 +112,9 @@ func (r *FatReactor) React(signal Signal, ec EvaluationContext) {
 		}
 	}
 
-	if scripter, ok := signal.(Scripter); ok {
+	if scripter, ok := signal.(Scripter); !ok {
+		defer ac.Drain()
+	} else {
 		scripter.Push(signal, r, ac.ich)
 		defer func() {
 			if !trigger {
@@ -125,6 +127,7 @@ func (r *FatReactor) React(signal Signal, ec EvaluationContext) {
 			trigger = true
 		}
 	}
+	ac.Done()
 }
 
 func (r *FatReactor) Active() bool {
@@ -269,11 +272,7 @@ func (r *Responder) React(signal Signal, ac ActorContext) bool {
 		return false
 	}
 
-	go func() {
-		r.actor.Act(signal, ac.Warriors(), ac)
-		ac.Done()
-	}()
-
+	ac.Go(func() { r.actor.Act(signal, ac.Warriors(), ac) })
 	return ac.Await()
 }
 

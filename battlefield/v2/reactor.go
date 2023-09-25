@@ -379,8 +379,10 @@ func (b ActionBuffer) Fork(evaluator Evaluator) any {
 type ActorContext interface {
 	EvaluationContext
 	Capacitor
+	Go(func())
 	Queue(Action)
 	Done()
+	Drain()
 	Await() bool
 	Trigger() bool
 	SetTrigger(bool)
@@ -395,12 +397,33 @@ type actorContext struct {
 	EvaluationContext
 	*capacitor
 	trigger bool
+	fx      chan func()
 	ich     chan Instruction
 	done    chan struct{}
 }
 
 func newActorContext(ec EvaluationContext, capacity int) *actorContext {
-	return &actorContext{ec, newCapacitor(capacity), false, make(chan Instruction), make(chan struct{})}
+	return &actorContext{
+		ec,
+		newCapacitor(capacity),
+		false,
+		nil,
+		make(chan Instruction),
+		make(chan struct{}),
+	}
+}
+
+func (a *actorContext) Go(fn func()) {
+	if a.fx == nil {
+		a.fx = make(chan func(), 16)
+		go func() {
+			for f := range a.fx {
+				f()
+			}
+		}()
+	}
+
+	a.fx <- fn
 }
 
 func (a *actorContext) Queue(action Action) {
@@ -410,7 +433,18 @@ func (a *actorContext) Queue(action Action) {
 }
 
 func (a *actorContext) Done() {
-	close(a.ich)
+	if a.fx == nil {
+		close(a.ich)
+		return
+	}
+
+	a.Go(func() { close(a.ich) })
+	close(a.fx)
+}
+
+func (a *actorContext) Drain() {
+	for _ = range a.ich {
+	}
 }
 
 func (a *actorContext) Await() bool {
