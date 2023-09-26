@@ -53,11 +53,10 @@ func (b Buffer) Destruct() (Axis, bool, Evaluator) {
 func (b Buffer) Act(signal Signal, _ []Warrior, ac ActorContext) {
 	s := signal.(*EvaluationSignal)
 	if b.axis != s.Axis() {
-		ac.SetTrigger(false)
 		return
 	}
 
-	ac.SetTrigger(true)
+	ac.SetTriggered()
 	var current Warrior
 	if warrior, ok := signal.Current().(Warrior); ok {
 		current = warrior
@@ -92,7 +91,7 @@ func NewVerbActor(verb Verb, evaluator Evaluator) VerbActor {
 }
 
 func (a VerbActor) Act(signal Signal, targets []Warrior, ac ActorContext) {
-	ac.SetTrigger(true)
+	ac.SetTriggered()
 	e := a.evaluator
 	if e != nil {
 		var current Warrior
@@ -104,7 +103,7 @@ func (a VerbActor) Act(signal Signal, targets []Warrior, ac ActorContext) {
 		})
 	}
 
-	ac.Queue(newAction(ac.Next(), targets, a.verb.Fork(e).(Verb)))
+	ac.Provision(newAction(ac.Next(), targets, a.verb.Fork(e).(Verb)))
 }
 
 func (a VerbActor) Fork(evaluator Evaluator) any {
@@ -128,12 +127,11 @@ func (a SelectActor) Act(signal Signal, warriors []Warrior, ac ActorContext) {
 	for _, selector := range a.selectors {
 		warriors = selector.Select(warriors, signal, ac)
 		if len(warriors) == 0 {
-			ac.SetTrigger(false)
 			return
 		}
 	}
 
-	ac.SetTrigger(true)
+	ac.SetTriggered()
 	a.actor.Act(signal, warriors, ac)
 }
 
@@ -157,11 +155,10 @@ func NewProbabilityActor(rng Rng, evaluator Evaluator, actor Actor) ProbabilityA
 
 func (a ProbabilityActor) Act(signal Signal, warriors []Warrior, ac ActorContext) {
 	if float64(a.evaluator.Evaluate(signal.Current().(Warrior), ac))/100 <= a.rng.Float64() {
-		ac.SetTrigger(false)
 		return
 	}
 
-	ac.SetTrigger(true)
+	ac.SetTriggered()
 	a.actor.Act(signal, warriors, ac)
 }
 
@@ -178,13 +175,17 @@ func NewSequenceActor(actors ...Actor) SequenceActor {
 }
 
 func (a SequenceActor) Act(signal Signal, warriors []Warrior, ac ActorContext) {
+	if len(a.actors) == 0 {
+		ac.SetTriggered()
+		return
+	}
+
 	for _, actor := range a.actors {
 		actor.Act(signal, warriors, ac)
-		if !ac.Trigger() {
+		if !ac.Triggered() {
 			break
 		}
 	}
-	ac.SetTrigger(true)
 }
 
 func (a SequenceActor) Fork(evaluator Evaluator) any {
@@ -206,13 +207,17 @@ func NewRepeatActor(count int, actors ...Actor) RepeatActor {
 }
 
 func (a RepeatActor) Act(signal Signal, warriors []Warrior, ac ActorContext) {
+	if a.count <= 0 {
+		ac.SetTriggered()
+		return
+	}
+
 	for i := 0; i < a.count; i++ {
 		a.actor.Act(signal, warriors, ac)
-		if !ac.Trigger() {
+		if !ac.Triggered() {
 			break
 		}
 	}
-	ac.SetTrigger(true)
 }
 
 func (a RepeatActor) Fork(evaluator Evaluator) any {
@@ -223,7 +228,7 @@ type CriticalActor struct {
 }
 
 func (CriticalActor) Act(signal Signal, _ []Warrior, ac ActorContext) {
-	ac.SetTrigger(true)
+	ac.SetTriggered()
 	sig := signal.(ActionSignal)
 	attack := sig.Action().Verb().(*Attack)
 	attack.SetCritical(true)
@@ -237,7 +242,7 @@ type ImmuneActor struct {
 }
 
 func (ImmuneActor) Act(signal Signal, warriors []Warrior, ac ActorContext) {
-	ac.SetTrigger(true)
+	ac.SetTriggered()
 	action := signal.(ActionSignal).Action()
 	for _, w := range warriors {
 		action.AddImmuneTarget(w)
@@ -261,11 +266,10 @@ func (s LossStopper) Act(signal Signal, _ []Warrior, ac ActorContext) {
 	sig := signal.(*PreLossSignal)
 	stopper := s.evaluator.Evaluate(sig.Current().(Warrior), ac)
 	if sig.Loss() <= stopper {
-		ac.SetTrigger(false)
 		return
 	}
 
-	ac.SetTrigger(true)
+	ac.SetTriggered()
 	if s.full {
 		sig.SetLoss(0)
 	} else {
@@ -285,7 +289,7 @@ type LossResister struct {
 }
 
 func (LossResister) Act(signal Signal, _ []Warrior, ac ActorContext) {
-	ac.SetTrigger(true)
+	ac.SetTriggered()
 	s := signal.(*PreLossSignal)
 	r := min(s.Loss(), ac.Capacity())
 	s.SetLoss(s.Loss() - r)
@@ -309,26 +313,22 @@ func (a TheoryActor[T]) Act(signal Signal, _ []Warrior, ac ActorContext) {
 		EvaluationContext.(ActionContext).Action().Script().Source()
 	s, ok := QueryTag[T](scripter)
 	if !ok {
-		ac.SetTrigger(false)
 		return
 	}
 	theory, ok := a.theory[s]
 	if !ok {
-		ac.SetTrigger(false)
 		return
 	}
 	t, ok := QueryTag[T](signal.Current())
 	if !ok {
-		ac.SetTrigger(false)
 		return
 	}
 	m, ok := theory[t]
 	if !ok {
-		ac.SetTrigger(false)
 		return
 	}
 
-	ac.SetTrigger(true)
+	ac.SetTriggered()
 	sig := signal.(*EvaluationSignal)
 	sig.Amend(func(v float64) float64 {
 		return v * float64(m) / 100
@@ -349,7 +349,7 @@ func NewActionBuffer(evaluator Evaluator, buffer Actor) ActionBuffer {
 }
 
 func (b ActionBuffer) Act(signal Signal, _ []Warrior, ac ActorContext) {
-	ac.SetTrigger(true)
+	ac.SetTriggered()
 	sig := signal.(ActionSignal)
 	e := b.evaluator
 	if e != nil {
@@ -379,13 +379,11 @@ func (b ActionBuffer) Fork(evaluator Evaluator) any {
 type ActorContext interface {
 	EvaluationContext
 	Capacitor
-	Go(func())
-	Queue(Action)
-	Done()
-	Drain()
-	Await() bool
-	Trigger() bool
-	SetTrigger(bool)
+	WaitTriggered() bool
+	Triggered() bool
+	SetTriggered()
+	Resolve(bool)
+	Provision(Action)
 }
 
 type Instruction struct {
@@ -396,10 +394,9 @@ type Instruction struct {
 type actorContext struct {
 	EvaluationContext
 	*capacitor
-	trigger bool
-	fx      chan func()
-	ich     chan Instruction
-	done    chan struct{}
+	triggered bool
+	ich       chan Instruction
+	ok        chan bool
 }
 
 func newActorContext(ec EvaluationContext, capacity int) *actorContext {
@@ -407,61 +404,39 @@ func newActorContext(ec EvaluationContext, capacity int) *actorContext {
 		ec,
 		newCapacitor(capacity),
 		false,
-		nil,
 		make(chan Instruction),
-		make(chan struct{}),
+		make(chan bool),
 	}
 }
 
-func (a *actorContext) Go(fn func()) {
-	if a.fx == nil {
-		a.fx = make(chan func(), 16)
-		go func() {
-			for f := range a.fx {
-				f()
-			}
-		}()
-	}
-
-	a.fx <- fn
+func (a *actorContext) WaitTriggered() bool {
+	return <-a.ok
 }
 
-func (a *actorContext) Queue(action Action) {
+func (a *actorContext) Triggered() bool {
+	return a.triggered
+}
+
+func (a *actorContext) SetTriggered() {
+	a.triggered = true
+}
+
+func (a *actorContext) Resolve(done bool) {
+	if a.ok != nil {
+		a.ok <- a.triggered
+		a.ok = nil
+	}
+	if done {
+		close(a.ich)
+	}
+}
+
+func (a *actorContext) Provision(action Action) {
+	a.Resolve(false)
+
 	done := make(chan struct{})
 	a.ich <- Instruction{action, done}
 	<-done
-}
-
-func (a *actorContext) Done() {
-	if a.fx == nil {
-		close(a.ich)
-		return
-	}
-
-	a.Go(func() { close(a.ich) })
-	close(a.fx)
-}
-
-func (a *actorContext) Drain() {
-	for _ = range a.ich {
-	}
-}
-
-func (a *actorContext) Await() bool {
-	<-a.done
-	return a.trigger
-}
-
-func (a *actorContext) Trigger() bool {
-	return a.trigger
-}
-
-func (a *actorContext) SetTrigger(trigger bool) {
-	if a.done != nil {
-		a.trigger = trigger
-		a.done <- struct{}{}
-		a.done = nil
-	}
 }
 
 type Capacitor interface {
