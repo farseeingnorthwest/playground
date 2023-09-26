@@ -13,12 +13,6 @@ import (
 )
 
 func TestFatReactor_UnmarshalJSON(t *testing.T) {
-	var rng Rng
-	rng, DefaultRng = DefaultRng, RngX
-	defer (func() {
-		DefaultRng = rng
-	})()
-
 	regress := func(v any) func(*testing.T) {
 		return func(t *testing.T) {
 			data, err := json.Marshal(v)

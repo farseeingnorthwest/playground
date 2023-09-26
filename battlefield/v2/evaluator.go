@@ -29,6 +29,11 @@ type EvaluationContext interface {
 	Warriors() []Warrior
 	React(RegularSignal)
 	Next() int
+	Rng
+}
+
+type Rng interface {
+	Float64() float64
 }
 
 type ConstEvaluator int

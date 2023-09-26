@@ -144,15 +144,14 @@ func (s *SortSelector) UnmarshalJSON(bytes []byte) error {
 }
 
 type ShuffleSelector struct {
-	rng        Rng
 	preference any
 }
 
-func NewShuffleSelector(rng Rng, preference any) ShuffleSelector {
-	return ShuffleSelector{rng, preference}
+func NewShuffleSelector(preference any) ShuffleSelector {
+	return ShuffleSelector{preference}
 }
 
-func (s ShuffleSelector) Select(inputs []Warrior, _ Signal, _ EvaluationContext) (outputs []Warrior) {
+func (s ShuffleSelector) Select(inputs []Warrior, _ Signal, ec EvaluationContext) (outputs []Warrior) {
 	if len(inputs) < 2 {
 		return inputs
 	}
@@ -162,7 +161,7 @@ func (s ShuffleSelector) Select(inputs []Warrior, _ Signal, _ EvaluationContext)
 
 	randoms := make([]int, len(inputs))
 	for i := range randoms {
-		randoms[i] = int(s.rng.Float64() * 1e6)
+		randoms[i] = int(ec.Float64() * 1e6)
 	}
 
 	sort.Sort(&shuffle{s.preference, randoms, outputs})
@@ -182,7 +181,7 @@ func (s *ShuffleSelector) UnmarshalJSON(bytes []byte) error {
 		return err
 	}
 
-	*s = NewShuffleSelector(DefaultRng, v.Preference.Tag)
+	*s = NewShuffleSelector(v.Preference.Tag)
 	return nil
 }
 

@@ -23,8 +23,8 @@ func ExampleBattleField_Run_theory() {
 		},
 	})))
 
-	RngX.SetRng(NewSequence(0.5))
 	f := NewBattleField(
+		NewSequence(0.5),
 		[]Warrior{
 			NewMyWarrior(
 				MyBaseline{
@@ -92,8 +92,8 @@ func ExampleBattleField_Run_special_0() {
 		},
 	})))
 
-	RngX.SetRng(NewSequence(0.1, 0.5))
 	f := NewBattleField(
+		NewSequence(0.1, 0.5),
 		[]Warrior{
 			NewMyWarrior(
 				MyBaseline{
@@ -161,8 +161,8 @@ func ExampleBattleField_Run_special_0b() {
 		},
 	})))
 
-	RngX.SetRng(NewSequence(0.1, 0.5))
 	f := NewBattleField(
+		NewSequence(0.1, 0.5),
 		[]Warrior{
 			NewMyWarrior(
 				MyBaseline{
@@ -243,8 +243,8 @@ func ExampleBattleField_Run_special_1() {
 		},
 	})))
 
-	RngX.SetRng(NewSequence(0.1, 0.9))
 	f := NewBattleField(
+		NewSequence(0.1, 0.9),
 		[]Warrior{
 			NewMyWarrior(
 				MyBaseline{
@@ -334,8 +334,8 @@ func ExampleBattleField_Run_special_2() {
 		},
 	})))
 
-	RngX.SetRng(NewSequence(0.1, 0.9))
 	f := NewBattleField(
+		NewSequence(0.1, 0.9),
 		[]Warrior{
 			NewMyWarrior(
 				MyBaseline{
@@ -400,8 +400,8 @@ func ExampleBattleField_Run_special_3() {
 		},
 	})))
 
-	RngX.SetRng(NewSequence(0.5, 0.5, 0.5, 0.5, 0.01, 0.9))
 	f := NewBattleField(
+		NewSequence(0.5, 0.5, 0.5, 0.5, 0.01, 0.9),
 		[]Warrior{
 			NewMyWarrior(
 				MyBaseline{
@@ -473,8 +473,8 @@ func ExampleBattleField_Run_special_3b() {
 		},
 	})))
 
-	RngX.SetRng(NewSequence(0.01))
 	f := NewBattleField(
+		NewSequence(0.01),
 		[]Warrior{
 			NewMyWarrior(
 				MyBaseline{
@@ -549,8 +549,8 @@ func ExampleBattleField_Run_special_4() {
 		},
 	})))
 
-	RngX.SetRng(NewSequence(0.5))
 	f := NewBattleField(
+		NewSequence(0.5),
 		[]Warrior{
 			NewMyWarrior(
 				MyBaseline{
@@ -624,8 +624,8 @@ func ExampleBattleField_Run_special_5() {
 		},
 	})))
 
-	RngX.SetRng(NewSequence(0.5, 0.1, 0.5))
 	f := NewBattleField(
+		NewSequence(0.5, 0.1, 0.5),
 		[]Warrior{
 			NewMyWarrior(
 				MyBaseline{
@@ -696,8 +696,8 @@ func ExampleBattleField_Run_special_6() {
 		},
 	})))
 
-	RngX.SetRng(NewSequence(0.01, 0.5))
 	f := NewBattleField(
+		NewSequence(0.01, 0.5),
 		[]Warrior{
 			NewMyWarrior(
 				MyBaseline{
@@ -778,8 +778,8 @@ func ExampleBattleField_Run_special_7() {
 		},
 	})))
 
-	RngX.SetRng(NewSequence(0.5, 0.1))
 	f := NewBattleField(
+		NewSequence(0.5, 0.1),
 		[]Warrior{
 			NewMyWarrior(
 				MyBaseline{
@@ -857,8 +857,8 @@ func ExampleBattleField_Run_special_8() {
 		},
 	})))
 
-	RngX.SetRng(NewSequence(0.5, 0.1))
 	f := NewBattleField(
+		NewSequence(0.5, 0.1),
 		[]Warrior{
 			NewMyWarrior(
 				MyBaseline{
@@ -941,8 +941,8 @@ func ExampleBattleField_Run_special_9() {
 		},
 	})))
 
-	RngX.SetRng(NewSequence(0.5, 0.1))
 	f := NewBattleField(
+		NewSequence(0.5, 0.1),
 		[]Warrior{
 			NewMyWarrior(
 				MyBaseline{

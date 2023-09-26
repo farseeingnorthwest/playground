@@ -18,7 +18,7 @@ func TestSelectorFile_UnmarshalJSON(t *testing.T) {
 		{"current", CurrentSelector{}},
 		{"source", SourceSelector{}},
 		{"sort", NewSortSelector(Damage, false)},
-		{"shuffle", NewShuffleSelector(DefaultRng, Label("Taunt"))},
+		{"shuffle", NewShuffleSelector(Label("Taunt"))},
 		{"front", FrontSelector(0)},
 		{"counter position", CounterPositionSelector(0)},
 		{"water level", NewWaterLevelSelector(
@@ -28,7 +28,7 @@ func TestSelectorFile_UnmarshalJSON(t *testing.T) {
 		)},
 		{"pipeline", PipelineSelector{
 			SideSelector(false),
-			NewShuffleSelector(DefaultRng, Label("Taunt")),
+			NewShuffleSelector(Label("Taunt")),
 			FrontSelector(1),
 		}},
 	} {

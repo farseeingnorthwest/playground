@@ -11,13 +11,14 @@ type Renderer interface {
 }
 
 type BattleField struct {
+	Rng
 	warriors []Warrior
 	reactors []Reactor
 	sequence int
 }
 
-func NewBattleField(warriors []Warrior, reactors ...Reactor) *BattleField {
-	return &BattleField{warriors, reactors, 0}
+func NewBattleField(rng Rng, warriors []Warrior, reactors ...Reactor) *BattleField {
+	return &BattleField{rng, warriors, reactors, 0}
 }
 
 func (b *BattleField) Warriors() []Warrior {

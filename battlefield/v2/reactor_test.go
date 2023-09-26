@@ -18,7 +18,6 @@ func TestActorFile_UnmarshalJSON(t *testing.T) {
 		{"verb", NewVerbActor(NewAttack(nil, false), AxisEvaluator(Damage))},
 		{"select", NewSelectActor(NewVerbActor(NewAttack(nil, false), AxisEvaluator(Damage)), SideSelector(false))},
 		{"probability", NewProbabilityActor(
-			DefaultRng,
 			AxisEvaluator(CriticalOdds),
 			NewVerbActor(NewAttack(nil, false), AxisEvaluator(Damage)),
 		)},

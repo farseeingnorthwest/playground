@@ -224,17 +224,16 @@ func (a *SelectActor) UnmarshalJSON(data []byte) error {
 }
 
 type ProbabilityActor struct {
-	rng       Rng
 	evaluator Evaluator
 	actor     Actor
 }
 
-func NewProbabilityActor(rng Rng, evaluator Evaluator, actor Actor) ProbabilityActor {
-	return ProbabilityActor{rng, evaluator, actor}
+func NewProbabilityActor(evaluator Evaluator, actor Actor) ProbabilityActor {
+	return ProbabilityActor{evaluator, actor}
 }
 
 func (a ProbabilityActor) Act(signal Signal, warriors []Warrior, ac ActorContext) {
-	if float64(a.evaluator.Evaluate(signal.Current().(Warrior), ac))/100 <= a.rng.Float64() {
+	if float64(a.evaluator.Evaluate(signal.Current().(Warrior), ac))/100 <= ac.Float64() {
 		return
 	}
 
@@ -243,7 +242,7 @@ func (a ProbabilityActor) Act(signal Signal, warriors []Warrior, ac ActorContext
 }
 
 func (a ProbabilityActor) Fork(evaluator Evaluator) any {
-	return NewProbabilityActor(a.rng, a.evaluator, a.actor.Fork(evaluator).(Actor))
+	return NewProbabilityActor(a.evaluator, a.actor.Fork(evaluator).(Actor))
 }
 
 func (a ProbabilityActor) MarshalJSON() ([]byte, error) {
@@ -263,7 +262,7 @@ func (a *ProbabilityActor) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	*a = NewProbabilityActor(DefaultRng, v.Probability.Evaluator, v.Actor.Actor)
+	*a = NewProbabilityActor(v.Probability.Evaluator, v.Actor.Actor)
 	return nil
 }
 

@@ -486,14 +486,13 @@ func (b *Buff) UnmarshalJSON(data []byte) error {
 }
 
 type Purge struct {
-	rng      Rng
 	tag      any
 	count    int
 	reactors []Reactor
 }
 
-func NewPurge(rng Rng, tag any, count int) *Purge {
-	return &Purge{rng, tag, count, nil}
+func NewPurge(tag any, count int) *Purge {
+	return &Purge{tag, count, nil}
 }
 
 func (*Purge) Name() string {
@@ -508,7 +507,7 @@ func (p *Purge) Fork(Evaluator) any {
 	return p
 }
 
-func (p *Purge) Render(target Warrior, _ ActionContext) bool {
+func (p *Purge) Render(target Warrior, ac ActionContext) bool {
 	if target.Health().Current <= 0 {
 		return false
 	}
@@ -517,7 +516,7 @@ func (p *Purge) Render(target Warrior, _ ActionContext) bool {
 	m, n := len(buffs), p.count
 	if m > n && n > 0 {
 		for ; n > 0; n-- {
-			i := int(p.rng.Float64() * float64(m))
+			i := int(ac.Float64() * float64(m))
 			m--
 			buffs[i], buffs[m] = buffs[m], buffs[i]
 		}
@@ -558,7 +557,6 @@ func (p *Purge) UnmarshalJSON(data []byte) error {
 	}
 
 	*p = Purge{
-		DefaultRng,
 		purge.Tag.Tag,
 		purge.Count,
 		nil,

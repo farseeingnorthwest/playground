@@ -3,9 +3,8 @@ package examples
 import b "github.com/farseeingnorthwest/playground/battlefield/v2"
 
 var (
-	RngX          = &RngProxy{}
 	SkillGroup    = b.ExclusionGroup(0)
-	Shuffle       = b.NewShuffleSelector(RngX, b.Label("Taunt"))
+	Shuffle       = b.NewShuffleSelector(b.Label("Taunt"))
 	ElementTheory = b.NewTheoryActor(
 		map[any]map[any]int{
 			Water:   {Fire: 120, Thunder: 80},
@@ -41,7 +40,6 @@ var (
 					b.NewVerbTrigger[*b.Attack](),
 				),
 				b.NewProbabilityActor(
-					RngX,
 					b.AxisEvaluator(b.CriticalOdds),
 					b.CriticalActor{},
 				),
@@ -311,7 +309,7 @@ var (
 					b.NewSelectActor(
 						b.NewSequenceActor(
 							b.NewVerbActor(b.NewAttack(nil, false), b.NewMultiplier(520, b.AxisEvaluator(b.Damage))),
-							b.NewProbabilityActor(RngX, b.ConstEvaluator(70), b.NewVerbActor(
+							b.NewProbabilityActor(b.ConstEvaluator(70), b.NewVerbActor(
 								b.NewBuff(false, nil, Effect["Stun"]),
 								nil,
 							)),
@@ -334,7 +332,7 @@ var (
 						b.NewSignalTrigger(&b.PostActionSignal{}),
 					),
 					b.NewSelectActor(
-						b.NewVerbActor(b.NewPurge(RngX, "Nerf", 0), nil),
+						b.NewVerbActor(b.NewPurge("Nerf", 0), nil),
 						b.CurrentSelector{},
 						b.NewWaterLevelSelector(b.Ge, b.NewBuffCounter("Nerf"), 2),
 					),
@@ -602,7 +600,7 @@ var (
 						b.NewRepeatActor(
 							3,
 							b.NewVerbActor(b.NewAttack(nil, false), b.NewMultiplier(550, b.AxisEvaluator(b.Damage))),
-							b.NewProbabilityActor(RngX, b.ConstEvaluator(50), b.NewVerbActor(
+							b.NewProbabilityActor(b.ConstEvaluator(50), b.NewVerbActor(
 								b.NewBuff(false, nil, Effect["Stun"]),
 								nil,
 							)),
@@ -779,7 +777,7 @@ var (
 					b.NewSelectActor(
 						b.NewRepeatActor(2,
 							b.NewVerbActor(b.NewAttack(nil, false), b.NewMultiplier(360, b.AxisEvaluator(b.Damage))),
-							b.NewProbabilityActor(RngX, b.ConstEvaluator(15), b.NewVerbActor(
+							b.NewProbabilityActor(b.ConstEvaluator(15), b.NewVerbActor(
 								b.NewBuff(false, nil, Effect["Stun"]),
 								nil,
 							)),
@@ -947,7 +945,7 @@ var (
 				b.FatRespond(
 					b.NewSignalTrigger(&b.LaunchSignal{}),
 					b.NewSelectActor(
-						b.NewVerbActor(b.NewPurge(RngX, "Nerf", 2), nil),
+						b.NewVerbActor(b.NewPurge("Nerf", 2), nil),
 						b.CurrentSelector{},
 					),
 				),

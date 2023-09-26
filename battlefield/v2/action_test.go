@@ -17,7 +17,7 @@ func TestVerbFile_UnmarshalJSON(t *testing.T) {
 		{"attack", NewAttack(nil, false)},
 		{"heal", NewHeal(NewMultiplier(80, LossEvaluator{}))},
 		{"buff", NewBuff(false, nil, Effect["Sleep"])},
-		{"purge", NewPurge(DefaultRng, Label("Buff"), 0)},
+		{"purge", NewPurge(Label("Buff"), 0)},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			buf, err := json.Marshal(tt.verb)
