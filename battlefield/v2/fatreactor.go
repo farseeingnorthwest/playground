@@ -12,10 +12,10 @@ var (
 
 type FatReactor struct {
 	TagSet
-	leading    *Leading
-	cooling    *Cooling
-	capacity   *Capacity
-	responders []*Responder
+	leading   *Leading
+	cooling   *Cooling
+	capacity  *Capacity
+	responder *Responder
 }
 
 func NewFatReactor(options ...func(*FatReactor)) *FatReactor {
@@ -47,7 +47,7 @@ func FatTags(tags ...any) func(*FatReactor) {
 
 func FatRespond(trigger Trigger, actors ...Actor) func(*FatReactor) {
 	return func(r *FatReactor) {
-		r.responders = append(r.responders, &Responder{trigger, NewSequenceActor(actors...)})
+		r.responder = &Responder{trigger, NewSequenceActor(actors...)}
 	}
 }
 
@@ -81,11 +81,11 @@ func (r *FatReactor) React(signal Signal, ec EvaluationContext) {
 	r.cooling.React(signal, ec, lc)
 	r.capacity.React(signal, ec, lc)
 
-	trigger := false
+	triggered := false
 	ac := newActorContext(ec, r.capacity.Count())
 	defer func() {
 		var affairs LifecycleAffairs
-		if trigger {
+		if triggered {
 			n := r.capacity.Count() - ac.Capacity()
 			if n < 1 {
 				n = 1
@@ -109,29 +109,23 @@ func (r *FatReactor) React(signal Signal, ec EvaluationContext) {
 			}
 
 			defer func() {
-				if trigger {
+				if triggered {
 					tagger.Save(g)
 				}
 			}()
 		}
 	}
 
-	if scripter, ok := signal.(Scripter); !ok {
-		defer ac.Drain()
-	} else {
+	if scripter, ok := signal.(Scripter); ok {
 		scripter.Push(signal, r, ac.ich)
 		defer func() {
-			if !trigger {
+			if !triggered {
 				scripter.Pop()
 			}
 		}()
 	}
-	for _, responder := range r.responders {
-		if responder.React(signal, ac) {
-			trigger = true
-		}
-	}
-	ac.Done()
+
+	triggered = r.responder != nil && r.responder.React(signal, ac)
 }
 
 func (r *FatReactor) Active() bool {
@@ -139,9 +133,9 @@ func (r *FatReactor) Active() bool {
 }
 
 func (r *FatReactor) Fork(evaluator Evaluator) any {
-	responders := make([]*Responder, len(r.responders))
-	for i, responder := range r.responders {
-		responders[i] = responder.Fork(evaluator).(*Responder)
+	res := r.responder
+	if res != nil {
+		res = res.Fork(evaluator).(*Responder)
 	}
 
 	return &FatReactor{
@@ -149,23 +143,23 @@ func (r *FatReactor) Fork(evaluator Evaluator) any {
 		r.leading.Fork(),
 		r.cooling.Fork(),
 		r.capacity.Fork(),
-		responders,
+		res,
 	}
 }
 
 func (r *FatReactor) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
-		Tags       TagSet       `json:"tags,omitempty"`
-		Leading    *Leading     `json:"leading,omitempty"`
-		Cooling    *Cooling     `json:"cooling,omitempty"`
-		Capacity   *Capacity    `json:"capacity,omitempty"`
-		Responders []*Responder `json:"cases,omitempty"`
+		Tags      TagSet     `json:"tags,omitempty"`
+		Leading   *Leading   `json:"leading,omitempty"`
+		Cooling   *Cooling   `json:"cooling,omitempty"`
+		Capacity  *Capacity  `json:"capacity,omitempty"`
+		Responder *Responder `json:"respond,omitempty"`
 	}{
 		r.TagSet,
 		r.leading,
 		r.cooling,
 		r.capacity,
-		r.responders,
+		r.responder,
 	})
 }
 
@@ -175,11 +169,11 @@ type FatReactorFile struct {
 
 func (f *FatReactorFile) UnmarshalJSON(data []byte) error {
 	var fr struct {
-		Tags       []TagFile
-		Leading    *Leading
-		Cooling    *Cooling
-		Capacity   *Capacity
-		Responders []*ResponderFile `json:"cases"`
+		Tags          []TagFile
+		Leading       *Leading
+		Cooling       *Cooling
+		Capacity      *Capacity
+		ResponderFile ResponderFile `json:"respond"`
 	}
 	if err := json.Unmarshal(data, &fr); err != nil {
 		return err
@@ -189,12 +183,10 @@ func (f *FatReactorFile) UnmarshalJSON(data []byte) error {
 		TagSet: NewTagSet(functional.Map(func(f TagFile) any {
 			return f.Tag
 		})(fr.Tags)...),
-		leading:  fr.Leading,
-		cooling:  fr.Cooling,
-		capacity: fr.Capacity,
-		responders: functional.Map(func(f *ResponderFile) *Responder {
-			return f.Responder
-		})(fr.Responders),
+		leading:   fr.Leading,
+		cooling:   fr.Cooling,
+		capacity:  fr.Capacity,
+		responder: fr.ResponderFile.Responder,
 	}
 	return nil
 }
@@ -387,8 +379,12 @@ func (r *Responder) React(signal Signal, ac ActorContext) bool {
 		return false
 	}
 
-	ac.Go(func() { r.actor.Act(signal, ac.Warriors(), ac) })
-	return ac.Await()
+	go func() {
+		r.actor.Act(signal, ac.Warriors(), ac)
+		ac.Resolve(true)
+	}()
+
+	return ac.WaitTriggered()
 }
 
 func (r *Responder) Fork(evaluator Evaluator) any {
