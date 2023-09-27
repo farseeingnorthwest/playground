@@ -96,7 +96,7 @@ func (e BuffCounter) Evaluate(warrior Warrior, _ EvaluationContext) int {
 
 func (e BuffCounter) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]any{
-		"_kind": "buff_count",
+		"_kind": "buff_counter",
 		"tag":   e.tag,
 	})
 }
@@ -263,7 +263,7 @@ func (f *EvaluatorFile) UnmarshalJSON(bytes []byte) error {
 var evaluatorType = map[string]reflect.Type{
 	"const":          reflect.TypeOf(ConstEvaluator(0)),
 	"axis":           reflect.TypeOf(AxisEvaluator(0)),
-	"buff_count":     reflect.TypeOf(BuffCounter{}),
+	"buff_counter":   reflect.TypeOf(BuffCounter{}),
 	"loss":           reflect.TypeOf(LossEvaluator{}),
 	"select_counter": reflect.TypeOf(SelectCounter(nil)),
 	"adder":          reflect.TypeOf(Adder{}),
