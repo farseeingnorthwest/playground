@@ -179,7 +179,7 @@ type Attack struct {
 }
 
 func NewAttack(evaluator Evaluator, critical bool) *Attack {
-	return &Attack{evaluator, critical, make(map[Warrior]int)}
+	return &Attack{evaluator, critical, nil}
 }
 
 func (*Attack) Name() string {
@@ -203,7 +203,7 @@ func (a *Attack) Fork(evaluator Evaluator) any {
 		evaluator = a.evaluator
 	}
 
-	return &Attack{evaluator, a.critical, make(map[Warrior]int)}
+	return &Attack{evaluator, a.critical, nil}
 }
 
 func (a *Attack) Render(target Warrior, ac ActionContext) bool {
@@ -211,6 +211,9 @@ func (a *Attack) Render(target Warrior, ac ActionContext) bool {
 		return false
 	}
 
+	if a.loss == nil {
+		a.loss = make(map[Warrior]int)
+	}
 	damage := a.evaluator.Evaluate(target, ac)
 	defense := target.Component(Defense, ac)
 	t := damage - defense
@@ -282,7 +285,7 @@ func (a *Attack) UnmarshalJSON(data []byte) error {
 	*a = Attack{
 		attack.Evaluator.Evaluator,
 		attack.Critical,
-		make(map[Warrior]int),
+		nil,
 	}
 	return nil
 }
@@ -293,7 +296,7 @@ type Heal struct {
 }
 
 func NewHeal(evaluator Evaluator) *Heal {
-	return &Heal{evaluator, make(map[Warrior]int)}
+	return &Heal{evaluator, nil}
 }
 
 func (*Heal) Name() string {
@@ -309,7 +312,7 @@ func (h *Heal) Fork(evaluator Evaluator) any {
 		evaluator = h.evaluator
 	}
 
-	return &Heal{evaluator, make(map[Warrior]int)}
+	return &Heal{evaluator, nil}
 }
 
 func (h *Heal) Render(target Warrior, ac ActionContext) bool {
@@ -317,6 +320,9 @@ func (h *Heal) Render(target Warrior, ac ActionContext) bool {
 		return false
 	}
 
+	if h.rise == nil {
+		h.rise = make(map[Warrior]int)
+	}
 	r := target.Health()
 	m := target.Component(HealthMaximum, ac)
 	c := r.Current * m / r.Maximum
@@ -370,7 +376,7 @@ func (h *Heal) UnmarshalJSON(data []byte) error {
 
 	*h = Heal{
 		heal.Evaluator.Evaluator,
-		make(map[Warrior]int),
+		nil,
 	}
 	return nil
 }
@@ -379,10 +385,12 @@ type Buff struct {
 	capacity  bool
 	evaluator Evaluator
 	reactor   ForkReactor
+	provision map[Warrior]Reactor
+	overflow  map[Warrior]Reactor
 }
 
 func NewBuff(capacity bool, evaluator Evaluator, reactor ForkReactor) *Buff {
-	return &Buff{capacity && evaluator != nil, evaluator, reactor}
+	return &Buff{capacity && evaluator != nil, evaluator, reactor, nil, nil}
 }
 
 func (*Buff) Name() string {
@@ -393,18 +401,33 @@ func (b *Buff) Reactor() ForkReactor {
 	return b.reactor
 }
 
+func (b *Buff) Provision() map[Warrior]Reactor {
+	return b.provision
+}
+
+func (b *Buff) Overflow() map[Warrior]Reactor {
+	return b.overflow
+}
+
 func (b *Buff) Fork(evaluator Evaluator) any {
 	if evaluator == nil {
 		return b
 	}
 
-	return &Buff{b.capacity, evaluator, b.reactor}
+	return &Buff{b.capacity, evaluator, b.reactor, nil, nil}
 }
 
 func (b *Buff) Render(target Warrior, ac ActionContext) bool {
-	logger := slog.With()
 	if target.Health().Current <= 0 {
 		return false
+	}
+
+	logger := slog.With()
+	if b.provision == nil {
+		b.provision = make(map[Warrior]Reactor)
+	}
+	if b.overflow == nil {
+		b.overflow = make(map[Warrior]Reactor)
 	}
 
 	var reactor Reactor
@@ -422,7 +445,9 @@ func (b *Buff) Render(target Warrior, ac ActionContext) bool {
 		logger = logger.With(slog.Int("capacity", c))
 	}
 
+	b.provision[target] = reactor
 	if overflow := target.Add(reactor); overflow != nil {
+		b.overflow[target] = overflow
 		slog.Debug(
 			"render",
 			slog.String("verb", "buff/overflow"),
@@ -481,6 +506,8 @@ func (b *Buff) UnmarshalJSON(data []byte) error {
 		buff.Capacity,
 		buff.Evaluator.Evaluator,
 		buff.Reactor.FatReactor,
+		nil,
+		nil,
 	}
 	return nil
 }
@@ -488,7 +515,7 @@ func (b *Buff) UnmarshalJSON(data []byte) error {
 type Purge struct {
 	tag      any
 	count    int
-	reactors []Reactor
+	recycles map[Warrior][]Reactor
 }
 
 func NewPurge(tag any, count int) *Purge {
@@ -499,8 +526,8 @@ func (*Purge) Name() string {
 	return "purge"
 }
 
-func (p *Purge) Reactors() []Reactor {
-	return p.reactors
+func (p *Purge) Recycles() map[Warrior][]Reactor {
+	return p.recycles
 }
 
 func (p *Purge) Fork(Evaluator) any {
@@ -512,6 +539,9 @@ func (p *Purge) Render(target Warrior, ac ActionContext) bool {
 		return false
 	}
 
+	if p.recycles == nil {
+		p.recycles = make(map[Warrior][]Reactor)
+	}
 	buffs := target.Buffs(p.tag)
 	m, n := len(buffs), p.count
 	if m > n && n > 0 {
@@ -530,7 +560,7 @@ func (p *Purge) Render(target Warrior, ac ActionContext) bool {
 		target.Remove(buff)
 		tags[i] = QueryTagA[Label](buff)
 	}
-	p.reactors = buffs
+	p.recycles[target] = buffs
 	slog.Debug("render", slog.String("verb", "purge"), slog.Any("reactors", tags))
 	return true
 }
