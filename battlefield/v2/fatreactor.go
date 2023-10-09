@@ -128,6 +128,21 @@ func (r *FatReactor) React(signal Signal, ec EvaluationContext) {
 	triggered = r.responder != nil && r.responder.React(signal, ac)
 }
 
+func (r *FatReactor) Lifecycle() Lifecycle {
+	lc := &Lifecycle{}
+	if r.leading != nil {
+		lc.SetLeading(r.leading.count)
+	}
+	if r.cooling != nil {
+		lc.SetCooling(r.cooling.p, r.cooling.count)
+	}
+	if r.capacity != nil {
+		lc.SetCapacity(r.capacity.count)
+	}
+
+	return *lc
+}
+
 func (r *FatReactor) Active() bool {
 	return r.capacity.Ready()
 }
