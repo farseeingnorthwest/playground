@@ -60,7 +60,7 @@ func ExampleBattleField_Run_theory() {
 				WarriorTags(Thunder),
 			),
 		},
-		Regular[3],
+		FieldReactor(Regular[3]),
 	)
 
 	f.Run()
@@ -256,10 +256,10 @@ func ExampleBattleField_Run_special_1() {
 				0,
 				WarriorSkills(
 					Regular[0],
-					Special[1][0],
-					Special[1][1],
-					Special[1][2],
-					Special[1][3],
+					Special[1][0].Fork(nil).(*FatReactor),
+					Special[1][1].Fork(nil).(*FatReactor),
+					Special[1][2].Fork(nil).(*FatReactor),
+					Special[1][3].Fork(nil).(*FatReactor),
 				),
 			),
 			NewMyWarrior(
@@ -317,6 +317,94 @@ func ExampleBattleField_Run_special_1() {
 	// signal=229 affairs=1 source.position=0 source.side=Left source.reactor="@Launch({1} 520% Damage, P(70%, Stun))" lifecycle.leading=0 lifecycle.cooling="{Current:4 Maximum:4}" lifecycle.capacity=-1
 	// verb=buff reactor=Barrier target.side=Left target.position=0 source.reactor="@Launch({$} Barrier)"
 	// verb=attack critical=false loss=44 overflow=42 source.side=Left source.position=0 source.reactor="@Launch({1} 520% Damage, P(70%, Stun))" source.damage=52 target.side=Right target.position=0 target.defense=8 target.health.current=0 target.health.maximum=84
+}
+
+func ExampleBattleField_Run_special_1_deadline() {
+	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelDebug,
+		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+			if len(groups) == 0 {
+				switch a.Key {
+				case slog.TimeKey, slog.LevelKey, slog.MessageKey:
+					return slog.Attr{}
+				}
+			}
+
+			return a
+		},
+	})))
+
+	f := NewBattleField(
+		NewSequence(0.1, 0.9),
+		[]Warrior{
+			NewMyWarrior(
+				MyBaseline{
+					Damage:  10,
+					Defense: 5,
+					Health:  100,
+				},
+				Left,
+				0,
+				WarriorSkills(
+					Regular[0],
+					Special[1][0],
+					Special[1][1],
+					Special[1][2],
+					Special[1][3],
+				),
+			),
+			NewMyWarrior(
+				MyBaseline{
+					Damage:  20,
+					Defense: 8,
+					Health:  84,
+				},
+				Right,
+				0,
+				WarriorSkills(
+					Regular[0],
+					Scaffold[0].Fork(nil).(*FatReactor),
+					Scaffold[1].Fork(nil).(*FatReactor),
+				),
+			),
+		},
+		Deadline(200),
+	)
+
+	f.Run()
+	// Output:
+	// signal=9 affairs=1 source.position=0 source.side=Left source.reactor="@Launch({$} Barrier)" lifecycle.leading=0 lifecycle.cooling="{Current:4 Maximum:4}" lifecycle.capacity=-1
+	// signal=9 affairs=1 source.position=0 source.side=Left source.reactor="@Launch({1} 520% Damage, P(70%, Stun))" lifecycle.leading=0 lifecycle.cooling="{Current:4 Maximum:4}" lifecycle.capacity=-1
+	// verb=buff reactor=Barrier target.side=Left target.position=0 source.reactor="@Launch({$} Barrier)"
+	// verb=attack critical=false loss=44 overflow=0 source.side=Left source.position=0 source.reactor="@Launch({1} 520% Damage, P(70%, Stun))" source.damage=52 target.side=Right target.position=0 target.defense=8 target.health.current=40 target.health.maximum=84
+	// verb=buff reactor=Stun target.side=Right target.position=0 source.reactor="@Launch({1} 520% Damage, P(70%, Stun))"
+	// signal=48 affairs=0 source.position=0 source.side=Left source.reactor="@Launch({$} Barrier)" lifecycle.leading=0 lifecycle.cooling="{Current:3 Maximum:4}" lifecycle.capacity=-1
+	// signal=48 affairs=0 source.position=0 source.side=Left source.reactor="@Launch({1} 520% Damage, P(70%, Stun))" lifecycle.leading=0 lifecycle.cooling="{Current:3 Maximum:4}" lifecycle.capacity=-1
+	// signal=48 affairs=0 source.position=0 source.side=Right source.reactor=Stun lifecycle.leading=0 lifecycle.cooling="{Current:0 Maximum:0}" lifecycle.capacity=0
+	// signal=65 affairs=1 source.position=0 source.side=Left source.reactor="@Launch({2} 420% Damage, +30% Loss, Sleep)" lifecycle.leading=0 lifecycle.cooling="{Current:5 Maximum:5}" lifecycle.capacity=-1
+	// verb=attack critical=false loss=34 overflow=0 source.side=Left source.position=0 source.reactor="@Launch({2} 420% Damage, +30% Loss, Sleep)" source.damage=42 target.side=Right target.position=0 target.defense=8 target.health.current=6 target.health.maximum=84
+	// verb=buff reactor="+30% Loss" target.side=Right target.position=0 source.reactor="@Launch({2} 420% Damage, +30% Loss, Sleep)"
+	// verb=buff reactor=Sleep target.side=Right target.position=0 source.reactor="@Launch({2} 420% Damage, +30% Loss, Sleep)"
+	// signal=101 affairs=0 source.position=0 source.side=Left source.reactor="@Launch({$} Barrier)" lifecycle.leading=0 lifecycle.cooling="{Current:2 Maximum:4}" lifecycle.capacity=-1
+	// signal=101 affairs=0 source.position=0 source.side=Left source.reactor="@Launch({1} 520% Damage, P(70%, Stun))" lifecycle.leading=0 lifecycle.cooling="{Current:2 Maximum:4}" lifecycle.capacity=-1
+	// signal=101 affairs=0 source.position=0 source.side=Left source.reactor="@Launch({2} 420% Damage, +30% Loss, Sleep)" lifecycle.leading=0 lifecycle.cooling="{Current:4 Maximum:5}" lifecycle.capacity=-1
+	// signal=101 affairs=0 source.position=0 source.side=Right source.reactor=Sleep lifecycle.leading=0 lifecycle.cooling="{Current:0 Maximum:0}" lifecycle.capacity=0
+	// signal=101 affairs=0 source.position=0 source.side=Right source.reactor="+30% Loss" lifecycle.leading=0 lifecycle.cooling="{Current:0 Maximum:0}" lifecycle.capacity=0
+	// verb=attack critical=false loss=2 overflow=0 source.side=Left source.position=0 source.reactor=NormalAttack source.damage=10 target.side=Right target.position=0 target.defense=8 target.health.current=4 target.health.maximum=84
+	// signal=140 affairs=1 source.position=0 source.side=Right source.reactor=#2 lifecycle.leading=0 lifecycle.cooling="{Current:0 Maximum:0}" lifecycle.capacity=0
+	// verb=buff reactor="Nerf #2" target.side=Left target.position=0 source.reactor=#2
+	// signal=153 affairs=0 source.position=0 source.side=Left source.reactor="@Launch({$} Barrier)" lifecycle.leading=0 lifecycle.cooling="{Current:1 Maximum:4}" lifecycle.capacity=-1
+	// signal=153 affairs=0 source.position=0 source.side=Left source.reactor="@Launch({1} 520% Damage, P(70%, Stun))" lifecycle.leading=0 lifecycle.cooling="{Current:1 Maximum:4}" lifecycle.capacity=-1
+	// signal=153 affairs=0 source.position=0 source.side=Left source.reactor="@Launch({2} 420% Damage, +30% Loss, Sleep)" lifecycle.leading=0 lifecycle.cooling="{Current:3 Maximum:5}" lifecycle.capacity=-1
+	// verb=attack critical=false loss=2 overflow=0 source.side=Left source.position=0 source.reactor=NormalAttack source.damage=10 target.side=Right target.position=0 target.defense=8 target.health.current=2 target.health.maximum=84
+	// signal=186 affairs=1 source.position=0 source.side=Right source.reactor=#1 lifecycle.leading=0 lifecycle.cooling="{Current:0 Maximum:0}" lifecycle.capacity=0
+	// verb=buff reactor="Nerf #1" target.side=Left target.position=0 source.reactor=#1
+	// signal=194 affairs=1 source.position=0 source.side=Left source.reactor="@PostAction({$/<Nerf> >= 2} Purge())" lifecycle.leading=0 lifecycle.cooling="{Current:4 Maximum:4}" lifecycle.capacity=-1
+	// verb=purge reactors="[Nerf #2 Nerf #1]"
+	// signal=209 affairs=0 source.position=0 source.side=Left source.reactor="@Launch({$} Barrier)" lifecycle.leading=0 lifecycle.cooling="{Current:0 Maximum:4}" lifecycle.capacity=-1
+	// signal=209 affairs=0 source.position=0 source.side=Left source.reactor="@Launch({1} 520% Damage, P(70%, Stun))" lifecycle.leading=0 lifecycle.cooling="{Current:0 Maximum:4}" lifecycle.capacity=-1
+	// signal=209 affairs=0 source.position=0 source.side=Left source.reactor="@PostAction({$/<Nerf> >= 2} Purge())" lifecycle.leading=0 lifecycle.cooling="{Current:3 Maximum:4}" lifecycle.capacity=-1
+	// signal=209 affairs=0 source.position=0 source.side=Left source.reactor="@Launch({2} 420% Damage, +30% Loss, Sleep)" lifecycle.leading=0 lifecycle.cooling="{Current:2 Maximum:5}" lifecycle.capacity=-1
 }
 
 func ExampleBattleField_Run_special_2() {

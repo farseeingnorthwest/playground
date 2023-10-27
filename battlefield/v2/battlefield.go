@@ -14,11 +14,31 @@ type BattleField struct {
 	Rng
 	warriors []Warrior
 	reactors []Reactor
+	deadline int
 	sequence int
 }
 
-func NewBattleField(rng Rng, warriors []Warrior, reactors ...Reactor) *BattleField {
-	return &BattleField{rng, warriors, reactors, 0}
+type Option func(*BattleField)
+
+func NewBattleField(rng Rng, warriors []Warrior, options ...Option) *BattleField {
+	f := &BattleField{Rng: rng, warriors: warriors, deadline: 1_000_000}
+	for _, opt := range options {
+		opt(f)
+	}
+
+	return f
+}
+
+func FieldReactor(r Reactor) Option {
+	return func(b *BattleField) {
+		b.reactors = append(b.reactors, r)
+	}
+}
+
+func Deadline(deadline int) Option {
+	return func(b *BattleField) {
+		b.deadline = deadline
+	}
 }
 
 func (b *BattleField) Warriors() []Warrior {
@@ -72,7 +92,7 @@ func (b *BattleField) Next() int {
 
 func (b *BattleField) Run() {
 	b.React(NewBattleStartSignal(b.Next()))
-	for {
+	for b.sequence < b.deadline {
 		b.React(NewRoundStartSignal(b.Next()))
 
 		warriors := make([]Warrior, len(b.warriors))
