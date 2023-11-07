@@ -201,6 +201,26 @@ func (s *RoundStartSignal) Name() string {
 	return "round_start"
 }
 
+type ATRoundStartSignal struct {
+	RoundStartSignal
+	target Warrior
+}
+
+func NewATRoundStartSignal(id int, target Warrior) *ATRoundStartSignal {
+	return &ATRoundStartSignal{*NewRoundStartSignal(id), target}
+}
+
+func (s *ATRoundStartSignal) Target() Warrior {
+	return s.target
+}
+
+func (s *ATRoundStartSignal) SetCurrent(current any) Signal {
+	return &ATRoundStartSignal{
+		*s.RoundStartSignal.SetCurrent(current).(*RoundStartSignal),
+		s.target,
+	}
+}
+
 type RoundEndSignal struct {
 	id      int
 	current any
@@ -225,6 +245,26 @@ func (s *RoundEndSignal) SetCurrent(current any) Signal {
 
 func (s *RoundEndSignal) Name() string {
 	return "round_end"
+}
+
+type ATRoundEndSignal struct {
+	RoundEndSignal
+	target Warrior
+}
+
+func NewATRoundEndSignal(id int, target Warrior) *ATRoundEndSignal {
+	return &ATRoundEndSignal{*NewRoundEndSignal(id), target}
+}
+
+func (s *ATRoundEndSignal) Target() Warrior {
+	return s.target
+}
+
+func (s *ATRoundEndSignal) SetCurrent(current any) Signal {
+	return &ATRoundEndSignal{
+		*s.RoundEndSignal.SetCurrent(current).(*RoundEndSignal),
+		s.target,
+	}
 }
 
 type ActionSignal interface {
@@ -261,7 +301,6 @@ func (s *PreActionSignal) SetCurrent(current any) Signal {
 
 func (s *PreActionSignal) Name() string {
 	return "pre_action"
-
 }
 
 type PostActionSignal struct {

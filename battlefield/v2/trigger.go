@@ -35,7 +35,17 @@ func NewSignalTrigger(signal Signal) SignalTrigger {
 }
 
 func (t SignalTrigger) Trigger(signal Signal, _ EvaluationContext) bool {
-	return reflect.TypeOf(t.signal) == reflect.TypeOf(signal)
+	if t.signal.Name() != signal.Name() {
+		return false
+	}
+
+	if sig, ok := signal.(interface {
+		Target() Warrior
+	}); ok {
+		return signal.Current() == sig.Target()
+	}
+
+	return true
 }
 
 func (t SignalTrigger) MarshalJSON() ([]byte, error) {

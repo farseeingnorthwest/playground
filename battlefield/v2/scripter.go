@@ -17,8 +17,8 @@ func (s *scripter) Pop() {
 	s.scripts = s.scripts[:len(s.scripts)-1]
 }
 
-func (s *scripter) Render(b *BattleField) {
+func (s *scripter) Render(ec EvaluationContext) {
 	for _, script := range s.scripts {
-		script.Render(b)
+		script.Render(ec)
 	}
 }

@@ -54,11 +54,11 @@ func (s *script) Loss() int {
 	return loss
 }
 
-func (s *script) Render(b *BattleField) {
+func (s *script) Render(ec EvaluationContext) {
 	for i := range s.ich {
 		s.actions = append(s.actions, i.action)
 		i.action.SetScript(s)
-		i.action.Render(b)
+		i.action.Render(ec)
 		i.done <- struct{}{}
 	}
 }
@@ -122,8 +122,8 @@ func (a *action) Verb() Verb {
 	return a.verb
 }
 
-func (a *action) Render(b *BattleField) {
-	b.React(NewPreActionSignal(b.Next(), a))
+func (a *action) Render(ec EvaluationContext) {
+	ec.React(NewPreActionSignal(ec.Next(), a))
 
 	i, j := 0, len(a.targets)
 	var deaths []Warrior
@@ -140,7 +140,7 @@ func (a *action) Render(b *BattleField) {
 			continue
 		}
 
-		if a.verb.Render(target, newActionContext(a, b)) {
+		if a.verb.Render(target, newActionContext(a, ec)) {
 			if target.Health().Current <= 0 {
 				deaths = append(deaths, target)
 			}
@@ -163,7 +163,7 @@ func (a *action) Render(b *BattleField) {
 		)
 	}
 
-	b.React(NewPostActionSignal(b.Next(), a, deaths))
+	ec.React(NewPostActionSignal(ec.Next(), a, deaths))
 }
 
 type Verb interface {
@@ -234,7 +234,7 @@ func (a *Attack) Render(target Warrior, ac ActionContext) bool {
 	target.SetHealth(Ratio{c, m})
 	a.loss[target] = loss.Loss() - overflow
 	_, source, reactor := ac.Action().Script().Source()
-	slog.Debug(
+	withElapsed(ac).Debug(
 		"render",
 		slog.String("verb", "attack"),
 		slog.Bool("critical", a.critical),
@@ -333,7 +333,7 @@ func (h *Heal) Render(target Warrior, ac ActionContext) bool {
 	target.SetHealth(Ratio{c, m})
 	h.rise[target] = rise - overflow
 	_, source, reactor := ac.Action().Script().Source()
-	slog.Debug(
+	withElapsed(ac).Debug(
 		"render",
 		slog.String("verb", "heal"),
 		slog.Int("rise", rise),
@@ -418,7 +418,7 @@ func (b *Buff) Render(target Warrior, ac ActionContext) bool {
 		return false
 	}
 
-	logger := slog.With()
+	logger := withElapsed(ac)
 	if b.provision == nil {
 		b.provision = make(map[Warrior]Reactor)
 	}
@@ -557,7 +557,7 @@ func (p *Purge) Render(target Warrior, ac ActionContext) bool {
 		tags[i] = QueryTagA[Label](buff)
 	}
 	p.recycles[target] = buffs
-	slog.Debug("render", slog.String("verb", "purge"), slog.Any("reactors", tags))
+	withElapsed(ac).Debug("render", slog.String("verb", "purge"), slog.Any("reactors", tags))
 	return true
 }
 
@@ -592,6 +592,7 @@ func (p *Purge) UnmarshalJSON(data []byte) error {
 
 type ActionContext interface {
 	EvaluationContext
+	Unwrap() EvaluationContext
 	Action() Action
 }
 
@@ -604,8 +605,23 @@ func newActionContext(action Action, ac EvaluationContext) *actionContext {
 	return &actionContext{ac, action}
 }
 
+func (c *actionContext) Unwrap() EvaluationContext {
+	return c.EvaluationContext
+}
+
 func (c *actionContext) Action() Action {
 	return c.action
+}
+
+func withElapsed(ac ActionContext) *slog.Logger {
+	logger := slog.With()
+	if ec, ok := ac.Unwrap().(interface {
+		Milli() int
+	}); ok {
+		logger = logger.With(slog.Int("elapsed", ec.Milli()))
+	}
+
+	return logger
 }
 
 type VerbFile struct {
