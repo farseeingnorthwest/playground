@@ -216,12 +216,8 @@ func (a *Attack) Render(target Warrior, ac ActionContext) bool {
 	}
 	damage := a.evaluator.Evaluate(target, ac)
 	defense := target.Component(Defense, ac)
-	t := damage - defense
-	if t < 0 {
-		t = 0
-	}
 
-	e := NewEvaluationSignal(ac.Next(), target, Loss, t)
+	e := NewEvaluationSignal(ac.Next(), target, Loss, ac.Suffer(damage, defense))
 	ac.Action().React(e, ac)
 	target.React(e, ac)
 	loss := NewPreLossSignal(ac.Next(), target, ac.Action(), e.Value())

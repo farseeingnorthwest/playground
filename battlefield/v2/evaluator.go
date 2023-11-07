@@ -29,6 +29,7 @@ type EvaluationContext interface {
 	Warriors() []Warrior
 	React(RegularSignal)
 	Next() int
+	Sufferer
 	Rng
 }
 

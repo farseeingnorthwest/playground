@@ -77,6 +77,68 @@ func ExampleBattleField_Run_theory() {
 	// verb=attack critical=false loss=16 overflow=8 source.side=Left source.position=0 source.reactor=NormalAttack source.damage=24 target.side=Right target.position=1 target.defense=4 target.health.current=0 target.health.maximum=40
 }
 
+func ExampleBattleField_Run_reciprocal_sufferer() {
+	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelDebug,
+		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+			if len(groups) == 0 {
+				switch a.Key {
+				case slog.TimeKey, slog.LevelKey, slog.MessageKey:
+					return slog.Attr{}
+				}
+			}
+
+			return a
+		},
+	})))
+
+	f := NewBattleField(
+		NewSequence(0.1, 0.5),
+		[]Warrior{
+			NewMyWarrior(
+				MyBaseline{
+					Damage:       15,
+					Defense:      6,
+					CriticalOdds: 10,
+					CriticalLoss: 200,
+					Health:       50,
+				},
+				Left,
+				0,
+				WarriorSkills(
+					Regular[0],
+					Regular[1],
+					Regular[2],
+				),
+			),
+			NewMyWarrior(
+				MyBaseline{
+					Damage:  24,
+					Defense: 5,
+					Health:  50,
+				},
+				Right,
+				0,
+				WarriorSkills(
+					Regular[0],
+				),
+			),
+		},
+		FieldSufferer(ReciprocalSufferer{Scale: 2}),
+	)
+
+	f.Run()
+	// Output:
+	// verb=attack critical=false loss=9 overflow=0 source.side=Left source.position=0 source.reactor=NormalAttack source.damage=15 target.side=Right target.position=0 target.defense=5 target.health.current=41 target.health.maximum=50
+	// verb=attack critical=false loss=16 overflow=0 source.side=Right source.position=0 source.reactor=NormalAttack source.damage=24 target.side=Left target.position=0 target.defense=6 target.health.current=34 target.health.maximum=50
+	// verb=attack critical=false loss=9 overflow=0 source.side=Left source.position=0 source.reactor=NormalAttack source.damage=15 target.side=Right target.position=0 target.defense=5 target.health.current=32 target.health.maximum=50
+	// verb=attack critical=false loss=16 overflow=0 source.side=Right source.position=0 source.reactor=NormalAttack source.damage=24 target.side=Left target.position=0 target.defense=6 target.health.current=18 target.health.maximum=50
+	// verb=attack critical=false loss=9 overflow=0 source.side=Left source.position=0 source.reactor=NormalAttack source.damage=15 target.side=Right target.position=0 target.defense=5 target.health.current=23 target.health.maximum=50
+	// verb=attack critical=false loss=16 overflow=0 source.side=Right source.position=0 source.reactor=NormalAttack source.damage=24 target.side=Left target.position=0 target.defense=6 target.health.current=2 target.health.maximum=50
+	// verb=attack critical=false loss=9 overflow=0 source.side=Left source.position=0 source.reactor=NormalAttack source.damage=15 target.side=Right target.position=0 target.defense=5 target.health.current=14 target.health.maximum=50
+	// verb=attack critical=false loss=16 overflow=14 source.side=Right source.position=0 source.reactor=NormalAttack source.damage=24 target.side=Left target.position=0 target.defense=6 target.health.current=0 target.health.maximum=50
+}
+
 func ExampleBattleField_Run_special_0() {
 	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 		Level: slog.LevelDebug,

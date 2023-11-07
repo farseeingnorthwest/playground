@@ -12,6 +12,7 @@ type Renderer interface {
 
 type BattleField struct {
 	Rng
+	Sufferer
 	warriors []Warrior
 	reactors []Reactor
 	deadline int
@@ -21,12 +22,23 @@ type BattleField struct {
 type Option func(*BattleField)
 
 func NewBattleField(rng Rng, warriors []Warrior, options ...Option) *BattleField {
-	f := &BattleField{Rng: rng, warriors: warriors, deadline: 1_000_000}
+	f := &BattleField{
+		Rng:      rng,
+		Sufferer: ConstSufferer{},
+		warriors: warriors,
+		deadline: 1_000_000,
+	}
 	for _, opt := range options {
 		opt(f)
 	}
 
 	return f
+}
+
+func FieldSufferer(s Sufferer) Option {
+	return func(b *BattleField) {
+		b.Sufferer = s
+	}
 }
 
 func FieldReactor(r Reactor) Option {

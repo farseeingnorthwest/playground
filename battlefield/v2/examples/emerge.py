@@ -1,16 +1,17 @@
 import subprocess
+import sys
 import json
 import requests
 import click
 
 class Emerge:
-    def __init__(self, src, dst):
-        self.src = src
-        self.dst = dst
+    def __init__(self, mod, url):
+        self.mod = mod if mod is not None else "github.com/farseeingnorthwest/playground/battlefield/v2/examples/json"
+        self.url = url
 
     def serve(self, name, sect, *index):
         process = subprocess.run(
-            ["go", "run", self.src, sect, *[str(i) for i in index]],
+            ["go", "run", self.mod, sect, *[str(i) for i in index]],
             capture_output=True,
             text=True,
         )
@@ -18,15 +19,20 @@ class Emerge:
             return
 
         reactor = json.loads(process.stdout)
-        r = requests.post(self.dst, json=dict(name=name, reactor=reactor))
-        print(r.text)
+        skill = dict(name=name, reactor=reactor)
+        if self.url is None:
+            json.dump(skill, sys.stdout)
+            print("\x1e")
+        else:
+            r = requests.post(self.url, json=skill)
+            print(r.text)
 
 
 @click.command()
-@click.argument('src', type=click.Path(exists=True))
-@click.argument('dst')
-def main(src, dst):
-    e = Emerge(src, dst)
+@click.option('--mod', type=click.Path(exists=True))
+@click.option('--url')
+def main(mod, url):
+    e = Emerge(mod, url)
     for (name, i) in [
             ("Normal Attack", 0),
             ("Critical / Set", 1),
