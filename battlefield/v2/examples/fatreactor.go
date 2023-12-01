@@ -180,6 +180,19 @@ var (
 			),
 			b.FatCapacity(nil, 1),
 		),
+
+		// 回合开始时，行動提前 25%
+		"Boost": b.NewFatReactor(
+			b.FatTags(b.Label("Boost")),
+			b.FatRespond(
+				b.NewSignalTrigger(&b.RoundStartSignal{}),
+				b.NewSelectActor(
+					b.NewVerbActor(b.NewBoost(false, true, b.ConstEvaluator(25)), nil),
+					b.CurrentSelector{},
+				),
+			),
+			b.FatCapacity(nil, 1),
+		),
 	}
 
 	Special = [][]*b.FatReactor{
@@ -955,6 +968,184 @@ var (
 
 			// 提升20%攻擊力(無法被解除)。
 			// [0][4]
+		},
+
+		// ////////////////////////////////////////////////////////////
+		// [10] 拉条输出特工
+		{
+			// 對隨機1名敵人造成攻擊力300%的傷害，再使目標行動延後 12%
+			b.NewFatReactor(
+				b.FatTags(SkillGroup, b.Priority(1), b.Label("@Launch({1} 300% Damage, -12% Progress)")),
+				b.FatRespond(
+					b.NewSignalTrigger(&b.LaunchSignal{}),
+					b.NewSelectActor(
+						b.NewSequenceActor(
+							b.NewVerbActor(b.NewAttack(nil, false), b.NewMultiplier(300, b.AxisEvaluator(b.Damage))),
+							b.NewVerbActor(b.NewBoost(false, true, b.ConstEvaluator(-12)), nil)),
+						b.SideSelector(false),
+						b.Healthy,
+						Shuffle,
+						b.FrontSelector(1),
+					),
+				),
+				b.FatCooling(b.NewSignalTrigger(&b.RoundEndSignal{}), 4),
+			),
+
+			// 對隨機 3 名敵人造成攻擊力 200% 的傷害，再使目標減少 10% 速度(2回合)
+			b.NewFatReactor(
+				b.FatTags(SkillGroup, b.Priority(2), b.Label("@Launch({3} 200% Damage, -10% Speed)")),
+				b.FatRespond(
+					b.NewSignalTrigger(&b.LaunchSignal{}),
+					b.NewSelectActor(
+						b.NewSequenceActor(
+							b.NewVerbActor(b.NewAttack(nil, false), b.NewMultiplier(200, b.AxisEvaluator(b.Damage))),
+							b.NewVerbActor(
+								b.NewBuff(false, nil, b.NewBuffReactor(
+									b.Speed,
+									false,
+									b.ConstEvaluator(90),
+									b.FatCapacity(b.NewSignalTrigger(&b.RoundEndSignal{}), 2),
+									b.FatTags(b.Label("-10% Speed")))),
+								nil,
+							),
+						),
+						b.SideSelector(false),
+						b.Healthy,
+						Shuffle,
+						b.FrontSelector(3),
+					),
+				),
+				b.FatCooling(b.NewSignalTrigger(&b.RoundEndSignal{}), 4),
+			),
+
+			//自身生命值百分比為 50% 以下時，立即行動提前 75% (1場戰鬥中只能觸發1次)
+			b.NewFatReactor(
+				b.FatTags(b.Priority(3), b.Label("@PostAction({$/< 50%} +75% Progress)")),
+				b.FatRespond(
+					b.NewSignalTrigger(&b.PostActionSignal{}),
+					b.NewSelectActor(
+						b.NewVerbActor(b.NewBoost(false, true, b.ConstEvaluator(75)), nil),
+						b.CurrentSelector{},
+						b.Healthy,
+						b.NewWaterLevelSelector(b.Lt, b.AxisEvaluator(b.HealthPercent), 50),
+					),
+				),
+				b.FatCapacity(nil, 1),
+			),
+
+			// 發動普攻後，下次行動提前25%
+			b.NewFatReactor(
+				b.FatTags(b.Priority(4), b.Label("@PostAction({$} +25% Progress)")),
+				b.FatRespond(
+					b.NewFatTrigger(
+						&b.PostActionSignal{},
+						b.CurrentIsSourceTrigger{},
+						b.NewVerbTrigger[*b.Attack](),
+						b.NewReactorTrigger(b.Label("NormalAttack")),
+					),
+					b.NewSelectActor(
+						b.NewVerbActor(
+							b.NewBuff(false, nil, Effect["Boost"]),
+							nil,
+						),
+						b.CurrentSelector{},
+					),
+				),
+			),
+		},
+
+		// ////////////////////////////////////////////////////////////
+		// [11] 拉條輔助特工
+		{
+			// 使全體友軍速度 +30
+			b.NewFatReactor(
+				b.FatTags(SkillGroup, b.Priority(1), b.Label("@Launch({~} +30 Speed)")),
+				b.FatRespond(
+					b.NewSignalTrigger(&b.LaunchSignal{}),
+					b.NewSelectActor(
+						b.NewVerbActor(
+							b.NewBuff(false, nil, b.NewBuffReactor(
+								b.Speed,
+								true,
+								b.ConstEvaluator(30),
+								b.FatTags(b.Label("+30 Speed"), b.Priority(-1)))),
+							nil,
+						),
+						b.SideSelector(true),
+						b.Healthy,
+					),
+				),
+				b.FatCooling(b.NewSignalTrigger(&b.RoundEndSignal{}), 4),
+			),
+
+			// 使自身外攻擊力最高的 1 名友軍提升 30% 攻擊力(1回合) & 立即行動
+			b.NewFatReactor(
+				b.FatTags(SkillGroup, b.Priority(2), b.Label("@Launch({1} +30% Damage, +100% Progress)")),
+				b.FatRespond(
+					b.NewSignalTrigger(&b.LaunchSignal{}),
+					b.NewSelectActor(
+						b.NewSequenceActor(
+							b.NewVerbActor(
+								b.NewBuff(false, nil, b.NewBuffReactor(
+									b.Damage,
+									false,
+									b.ConstEvaluator(130),
+									b.FatCapacity(b.NewSignalTrigger(&b.RoundEndSignal{}), 1),
+									b.FatTags(b.Label("+30% Damage")))),
+								nil,
+							),
+							b.NewVerbActor(b.NewBoost(false, true, b.ConstEvaluator(100)), nil),
+						),
+						b.SideSelector(true),
+						b.Healthy,
+						b.NewComplementSelector(b.CurrentSelector{}),
+						b.NewSortSelector(b.Damage, false),
+						b.FrontSelector(1),
+					),
+				),
+				b.FatCooling(b.NewSignalTrigger(&b.RoundEndSignal{}), 4),
+			),
+
+			// 自身回合開始時，提升 10% 速度(最高 3 層，無法被解除)
+			b.NewFatReactor(
+				b.FatTags(b.Priority(3), b.Label("@RoundStart({$} +10% Speed*)")),
+				b.FatRespond(
+					b.NewSignalTrigger(&b.RoundStartSignal{}),
+					b.NewSelectActor(
+						b.NewVerbActor(
+							b.NewBuff(false, nil, b.NewBuffReactor(
+								b.Speed,
+								false,
+								b.ConstEvaluator(110),
+								b.FatTags(
+									b.NewStackingLimit("REsFvyUtdCjZfLPf6QnnPF", 3),
+									b.Label("+10% Speed*"),
+								))),
+							nil,
+						),
+						b.CurrentSelector{},
+					),
+				),
+			),
+
+			// 戰鬥中，提升 20% 速度(無法被解除)
+			b.NewFatReactor(
+				b.FatTags(b.Priority(4), b.Label("@BattleStart({$} +20% Speed)")),
+				b.FatRespond(
+					b.NewSignalTrigger(&b.BattleStartSignal{}),
+					b.NewSelectActor(
+						b.NewVerbActor(
+							b.NewBuff(false, nil, b.NewBuffReactor(
+								b.Speed,
+								false,
+								b.ConstEvaluator(120),
+								b.FatTags(b.Label("+20% Speed")))),
+							nil,
+						),
+						b.CurrentSelector{},
+					),
+				),
+			),
 		},
 	}
 

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"reflect"
+	"slices"
 	"sort"
 
 	"github.com/farseeingnorthwest/playground/battlefield/v2/functional"
@@ -324,6 +325,43 @@ func (s *WaterLevelSelector) UnmarshalJSON(bytes []byte) error {
 	return nil
 }
 
+type ComplementSelector struct {
+	selector Selector
+}
+
+func NewComplementSelector(selector Selector) ComplementSelector {
+	return ComplementSelector{selector}
+}
+
+func (s ComplementSelector) Select(inputs []Warrior, signal Signal, ec EvaluationContext) (outputs []Warrior) {
+	complement := s.selector.Select(inputs, signal, ec)
+	outputs = make([]Warrior, 0, len(inputs)-len(complement))
+	for _, w := range inputs {
+		if slices.Index(complement, w) < 0 {
+			outputs = append(outputs, w)
+		}
+	}
+
+	return
+}
+
+func (s ComplementSelector) MarshalJSON() ([]byte, error) {
+	return json.Marshal(map[string]any{
+		"_kind":    "complement",
+		"selector": s.selector,
+	})
+}
+
+func (s *ComplementSelector) UnmarshalJSON(bytes []byte) error {
+	var v struct{ Selector SelectorFile }
+	if err := json.Unmarshal(bytes, &v); err != nil {
+		return err
+	}
+
+	*s = NewComplementSelector(v.Selector.Selector)
+	return nil
+}
+
 type PipelineSelector []Selector
 
 func (s PipelineSelector) Select(inputs []Warrior, signal Signal, ec EvaluationContext) (outputs []Warrior) {
@@ -387,5 +425,6 @@ var selectorType = map[string]reflect.Type{
 	"front":            reflect.TypeOf(FrontSelector(0)),
 	"counter_position": reflect.TypeOf(CounterPositionSelector(0)),
 	"water_level":      reflect.TypeOf(WaterLevelSelector{}),
+	"complement":       reflect.TypeOf(ComplementSelector{}),
 	"pipeline":         reflect.TypeOf(PipelineSelector{}),
 }

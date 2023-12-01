@@ -21,6 +21,9 @@ type ReciprocalSufferer struct {
 	Scale int
 }
 
+// Suffer returns the loss of the defender.
+//
+//	attack * attack / (defense + scale * defense)
 func (s ReciprocalSufferer) Suffer(attack, defense int) int {
 	a := big.NewInt(int64(attack))
 	suffer := new(big.Int).Div(

@@ -33,6 +33,15 @@ type EvaluationContext interface {
 	Rng
 }
 
+type GaugeContext interface {
+	FullScale() int
+	Progress(Warrior) int
+	SetProgress(Warrior, int)
+	Promote(int) int
+	Demote(int) int
+	Elapsed() int
+}
+
 type Rng interface {
 	Float64() float64
 }

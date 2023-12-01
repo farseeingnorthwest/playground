@@ -18,6 +18,7 @@ const (
 	HealthMaximum
 	Position
 	Speed
+	Progress
 )
 
 var (
@@ -169,6 +170,12 @@ func (w *MyWarrior) Component(axis Axis, ec EvaluationContext) int {
 
 	case HealthPercent:
 		return w.health.Current * 100 / w.health.Maximum
+
+	case Progress:
+		if gc, ok := ec.(GaugeContext); ok {
+			return gc.Demote(gc.Progress(w))
+		}
+		return 0
 
 	default:
 		signal := NewEvaluationSignal(ec.Next(), w, axis, w.baseline.Component(axis))

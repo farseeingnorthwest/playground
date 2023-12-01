@@ -502,8 +502,7 @@ func (a TheoryActor) Act(signal Signal, _ []Warrior, ac ActorContext) {
 		break
 	}
 
-	_, scripter, _ := ac.(*actorContext).
-		EvaluationContext.(ActionContext).Action().Script().Source()
+	_, scripter, _ := ac.Unwrap().(ActionContext).Action().Script().Source()
 	s, ok := queryTag(scripter, proto)
 	if !ok {
 		return
@@ -642,6 +641,8 @@ func (b *ActionBuffer) UnmarshalJSON(data []byte) error {
 type ActorContext interface {
 	EvaluationContext
 	Capacitor
+	Unwrap() EvaluationContext
+	InstructionChannel() <-chan Instruction
 	WaitTriggered() bool
 	Triggered() bool
 	SetTriggered()
@@ -662,14 +663,32 @@ type actorContext struct {
 	ok        chan bool
 }
 
-func newActorContext(ec EvaluationContext, capacity int) *actorContext {
-	return &actorContext{
+type actorGaugeContext struct {
+	*actorContext
+	GaugeContext
+}
+
+func newActorContext(ec EvaluationContext, capacity int) ActorContext {
+	ac := &actorContext{
 		ec,
 		newCapacitor(capacity),
 		false,
 		make(chan Instruction),
 		make(chan bool),
 	}
+	if gc, ok := ec.(GaugeContext); ok {
+		return &actorGaugeContext{ac, gc}
+	}
+
+	return ac
+}
+
+func (a *actorContext) Unwrap() EvaluationContext {
+	return a.EvaluationContext
+}
+
+func (a *actorContext) InstructionChannel() <-chan Instruction {
+	return a.ich
 }
 
 func (a *actorContext) WaitTriggered() bool {

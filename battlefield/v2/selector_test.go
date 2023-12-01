@@ -26,6 +26,9 @@ func TestSelectorFile_UnmarshalJSON(t *testing.T) {
 			AxisEvaluator(Health),
 			0,
 		)},
+		{"complement", NewComplementSelector(
+			CurrentSelector{},
+		)},
 		{"pipeline", PipelineSelector{
 			SideSelector(false),
 			NewShuffleSelector(Label("Taunt")),

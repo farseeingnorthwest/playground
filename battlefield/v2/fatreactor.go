@@ -117,7 +117,7 @@ func (r *FatReactor) React(signal Signal, ec EvaluationContext) {
 	}
 
 	if scripter, ok := signal.(Scripter); ok {
-		scripter.Push(signal, r, ac.ich)
+		scripter.Push(signal, r, ac.InstructionChannel())
 		defer func() {
 			if !triggered {
 				scripter.Pop()

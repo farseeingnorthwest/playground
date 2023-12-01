@@ -2,13 +2,9 @@ package battlefield
 
 import "sort"
 
-const (
-	gaugeMul = 1_000
-	gaugeMax = 1_000_000
-)
-
 var (
-	_ EvaluationContext = (*BattleField)(nil)
+	_            EvaluationContext = (*BattleField)(nil)
+	DefaultGauge                   = Gauge{1000, 1000}
 )
 
 type Renderer interface {
@@ -146,11 +142,19 @@ func (b *BattleField) end() bool {
 
 type ATBattleField struct {
 	*BattleField
+
 	progress map[Warrior]int
+	gauge    Gauge
+	gaugeMax int
 	elapsed  int
 }
 
-func NewATBattleField(rng Rng, warriors []Warrior, options ...Option) *ATBattleField {
+type Gauge struct {
+	FullScale int
+	Precision int
+}
+
+func NewATBattleField(rng Rng, warriors []Warrior, gauge Gauge, options ...Option) *ATBattleField {
 	progress := make(map[Warrior]int)
 	for _, w := range warriors {
 		progress[w] = 0
@@ -158,7 +162,10 @@ func NewATBattleField(rng Rng, warriors []Warrior, options ...Option) *ATBattleF
 
 	return &ATBattleField{
 		NewBattleField(rng, warriors, options...),
+
 		progress,
+		gauge,
+		gauge.FullScale * gauge.Precision,
 		0,
 	}
 }
@@ -173,7 +180,7 @@ func (b *ATBattleField) Run() {
 	for b.sequence < b.deadline && !b.end() {
 		if current != nil {
 			b.React(NewATRoundEndSignal(b.Next(), current))
-			if b.progress[current] >= gaugeMax {
+			if b.progress[current] >= b.gaugeMax {
 				b.progress[current] = 0
 				b.React(NewATRoundStartSignal(b.Next(), current))
 			}
@@ -189,7 +196,7 @@ func (b *ATBattleField) Run() {
 
 			speed := w.Component(Speed, b)
 			forecasts = append(forecasts, forecast{
-				(gaugeMax - p + speed - 1) / speed,
+				(b.gaugeMax - p + speed - 1) / speed,
 				speed,
 				w,
 			})
@@ -221,8 +228,8 @@ func (b *ATBattleField) Run() {
 		for _, f := range forecasts {
 			p := b.progress[f.warrior]
 			p += f.speed * t
-			if p >= gaugeMax {
-				p = gaugeMax
+			if p >= b.gaugeMax {
+				p = b.gaugeMax
 			}
 			b.progress[f.warrior] = p
 		}
@@ -238,31 +245,37 @@ func (b *ATBattleField) React(signal RegularSignal) {
 	b.react(signal, progressSorter{b}, b)
 }
 
-func (b *ATBattleField) Progress(w Warrior) int {
-	return b.progress[w] / gaugeMul
+func (b *ATBattleField) FullScale() int {
+	return b.gauge.FullScale
 }
 
-func (b *ATBattleField) Distance(w Warrior, progress int) {
-	p := b.progress[w]
-	p += progress * gaugeMul
-	if p < 0 {
-		p = 0
-	} else if p >= gaugeMax {
-		p = gaugeMax
+// Progress returns the (internal / promoted) progress of the warrior.
+func (b *ATBattleField) Progress(w Warrior) int {
+	return b.progress[w]
+}
+
+// SetProgress sets the (internal / promoted) progress of the warrior.
+func (b *ATBattleField) SetProgress(w Warrior, progress int) {
+	if progress < 0 {
+		progress = 0
+	} else if progress > b.gaugeMax {
+		progress = b.gaugeMax
 	}
 
-	b.progress[w] = p
+	b.progress[w] = progress
 }
 
-func (b *ATBattleField) Interval(w Warrior, milli int) {
-	v := w.Component(Speed, b)
-	t := milli * gaugeMul / 1000
-
-	b.Distance(w, v*t)
+func (b *ATBattleField) Promote(progress int) int {
+	return progress * b.gauge.Precision
 }
 
-func (b *ATBattleField) Milli() int {
-	return b.elapsed * 1000 / gaugeMul
+func (b *ATBattleField) Demote(progress int) int {
+	return progress / b.gauge.Precision
+}
+
+// Elapsed returns the (internal / promoted) elapsed time of the battle.
+func (b *ATBattleField) Elapsed() int {
+	return b.elapsed
 }
 
 type forecast struct {

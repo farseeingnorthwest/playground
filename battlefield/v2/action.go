@@ -29,11 +29,11 @@ type script struct {
 	signal   Signal
 	scripter any
 	reactor  Reactor
-	ich      chan Instruction
+	ich      <-chan Instruction
 	actions  []Action
 }
 
-func newScript(signal Signal, reactor Reactor, ich chan Instruction) *script {
+func newScript(signal Signal, reactor Reactor, ich <-chan Instruction) *script {
 	return &script{signal, signal.Current(), reactor, ich, nil}
 }
 
@@ -234,7 +234,7 @@ func (a *Attack) Render(target Warrior, ac ActionContext) bool {
 	target.SetHealth(Ratio{c, m})
 	a.loss[target] = loss.Loss() - overflow
 	_, source, reactor := ac.Action().Script().Source()
-	withElapsed(ac).Debug(
+	withMilliseconds(ac).Debug(
 		"render",
 		slog.String("verb", "attack"),
 		slog.Bool("critical", a.critical),
@@ -333,7 +333,7 @@ func (h *Heal) Render(target Warrior, ac ActionContext) bool {
 	target.SetHealth(Ratio{c, m})
 	h.rise[target] = rise - overflow
 	_, source, reactor := ac.Action().Script().Source()
-	withElapsed(ac).Debug(
+	withMilliseconds(ac).Debug(
 		"render",
 		slog.String("verb", "heal"),
 		slog.Int("rise", rise),
@@ -418,7 +418,7 @@ func (b *Buff) Render(target Warrior, ac ActionContext) bool {
 		return false
 	}
 
-	logger := withElapsed(ac)
+	logger := withMilliseconds(ac)
 	if b.provision == nil {
 		b.provision = make(map[Warrior]Reactor)
 	}
@@ -557,7 +557,7 @@ func (p *Purge) Render(target Warrior, ac ActionContext) bool {
 		tags[i] = QueryTagA[Label](buff)
 	}
 	p.recycles[target] = buffs
-	withElapsed(ac).Debug("render", slog.String("verb", "purge"), slog.Any("reactors", tags))
+	withMilliseconds(ac).Debug("render", slog.String("verb", "purge"), slog.Any("reactors", tags))
 	return true
 }
 
@@ -590,9 +590,101 @@ func (p *Purge) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+type Boost struct {
+	absolute   bool
+	percentage bool
+	evaluator  Evaluator
+}
+
+func NewBoost(absolute bool, percentage bool, evaluator Evaluator) *Boost {
+	return &Boost{absolute, percentage, evaluator}
+}
+
+func (*Boost) Name() string {
+	return "boost"
+}
+
+func (b *Boost) Fork(evaluator Evaluator) any {
+	if evaluator == nil {
+		evaluator = b.evaluator
+	}
+
+	return &Boost{b.absolute, b.percentage, evaluator}
+}
+
+func (b *Boost) Render(target Warrior, ac ActionContext) bool {
+	if target.Health().Current <= 0 {
+		return false
+	}
+
+	if gc, ok := ac.(GaugeContext); ok {
+		s := b.evaluator.Evaluate(target, ac)
+		if b.percentage {
+			s *= gc.FullScale()
+			s /= 100
+		}
+
+		s2 := gc.Promote(s)
+		p := gc.Progress(target)
+		if !b.absolute {
+			s2 += p
+		}
+
+		gc.SetProgress(target, s2)
+		withMilliseconds(ac).Debug(
+			"render",
+			slog.String("verb", "boost"),
+			slog.Bool("absolute", b.absolute),
+			slog.Bool("percentage", b.percentage),
+			slog.Int("s", s),
+			slog.Group("target",
+				slog.Any("side", target.Side()),
+				slog.Int("position", target.Position()),
+				slog.Group("progress",
+					slog.Int("to", gc.Demote(gc.Progress(target))),
+					slog.Int("from", gc.Demote(p)),
+				),
+			),
+		)
+	}
+
+	return true
+}
+
+func (b *Boost) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		Verb       string    `json:"_verb"`
+		Evaluator  Evaluator `json:"evaluator,omitempty"`
+		Absolute   bool      `json:"absolute,omitempty"`
+		Percentage bool      `json:"percentage,omitempty"`
+	}{
+		"boost",
+		b.evaluator,
+		b.absolute,
+		b.percentage,
+	})
+}
+
+func (b *Boost) UnmarshalJSON(data []byte) error {
+	var boost struct {
+		Evaluator  EvaluatorFile
+		Absolute   bool
+		Percentage bool
+	}
+	if err := json.Unmarshal(data, &boost); err != nil {
+		return err
+	}
+
+	*b = Boost{
+		boost.Absolute,
+		boost.Percentage,
+		boost.Evaluator.Evaluator,
+	}
+	return nil
+}
+
 type ActionContext interface {
 	EvaluationContext
-	Unwrap() EvaluationContext
 	Action() Action
 }
 
@@ -601,24 +693,28 @@ type actionContext struct {
 	action Action
 }
 
-func newActionContext(action Action, ac EvaluationContext) *actionContext {
-	return &actionContext{ac, action}
+type actionGaugeContext struct {
+	*actionContext
+	GaugeContext
 }
 
-func (c *actionContext) Unwrap() EvaluationContext {
-	return c.EvaluationContext
+func newActionContext(action Action, ec EvaluationContext) ActionContext {
+	ac := &actionContext{ec, action}
+	if gc, ok := ec.(GaugeContext); ok {
+		return &actionGaugeContext{ac, gc}
+	}
+
+	return ac
 }
 
 func (c *actionContext) Action() Action {
 	return c.action
 }
 
-func withElapsed(ac ActionContext) *slog.Logger {
+func withMilliseconds(ac ActionContext) *slog.Logger {
 	logger := slog.With()
-	if ec, ok := ac.Unwrap().(interface {
-		Milli() int
-	}); ok {
-		logger = logger.With(slog.Int("elapsed", ec.Milli()))
+	if ec, ok := ac.(GaugeContext); ok {
+		logger = logger.With(slog.Int("elapsed", ec.Demote(ec.Elapsed()*1000)))
 	}
 
 	return logger
@@ -649,4 +745,5 @@ var verbType = map[string]reflect.Type{
 	"heal":   reflect.TypeOf(Heal{}),
 	"buff":   reflect.TypeOf(Buff{}),
 	"purge":  reflect.TypeOf(Purge{}),
+	"boost":  reflect.TypeOf(Boost{}),
 }

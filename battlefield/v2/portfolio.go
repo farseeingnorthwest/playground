@@ -46,13 +46,18 @@ func (p *FatPortfolio) Add(reactor Reactor) (overflow Reactor) {
 		}
 	}
 
-	if pr, ok := QueryTag[Priority](reactor); ok {
-		for e := p.reactors.Front(); e != nil; e = e.Next() {
-			pr2, ok := QueryTag[Priority](e.Value)
-			if !ok || pr > pr2 {
-				p.reactors.InsertBefore(reactor, e)
-				return
-			}
+	pr, ok := QueryTag[Priority](reactor)
+	if !ok {
+		pr = 0
+	}
+	for e := p.reactors.Front(); e != nil; e = e.Next() {
+		pr2, ok := QueryTag[Priority](e.Value)
+		if !ok {
+			pr2 = 0
+		}
+		if pr > pr2 {
+			p.reactors.InsertBefore(reactor, e)
+			return
 		}
 	}
 
